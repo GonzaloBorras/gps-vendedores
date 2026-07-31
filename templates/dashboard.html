@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPS Vendedores - Panel</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
+#map { position: absolute; inset: 0; }
+.sidebar {
+  position: absolute; top: 10px; left: 10px; bottom: 10px; z-index: 1000;
+  width: 300px; max-width: calc(100vw - 24px);
+  background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.25);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sidebar .head { padding: 14px 16px; background: #1a1a2e; color: #fff; }
+.sidebar .head h1 { font-size: 17px; }
+.sidebar .head .sub { font-size: 12px; color: #bbb; margin-top: 2px; }
+.sidebar .filtros { padding: 10px 12px; border-bottom: 1px solid #eee; }
+.sidebar input, .sidebar select { width: 100%; padding: 7px 10px; margin-bottom: 6px;
+  border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
+.list { flex: 1; overflow: auto; padding: 8px; }
+.vendor { border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; border: 1px solid #e5e7eb; }
+.vendor .row1 { display: flex; align-items: center; gap: 8px; }
+.vendor .name { font-weight: 700; font-size: 13px; flex: 1; }
+.vendor .code { font-size: 11px; color: #6b7280; }
+.vendor .prov { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.dot.on { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+.dot.off { background: #9ca3af; }
+.vendor .actions { display: flex; gap: 6px; margin-top: 6px; }
+.vendor button { flex: 1; border: 0; border-radius: 6px; padding: 5px 8px; font-size: 11px;
+  font-weight: 600; cursor: pointer; }
+.btn-route { background: #eef2ff; color: #4338ca; }
+.btn-copy { background: #ecfdf5; color: #047857; }
+.btn-gmaps { background: #eff6ff; color: #1d4ed8; text-decoration: none; text-align: center; padding: 5px 8px; }
+.vendor .last { font-size: 11px; color: #6b7280; margin-top: 4px; }
+#statusbar { position: absolute; bottom: 10px; left: 10px; z-index: 1000;
+  background: #fff; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  padding: 6px 14px; font-size: 12px; color: #374151; }
+.popup-info { font-size: 12px; }
+.popup-info .name { font-weight: 700; font-size: 13px; }
+.popup-info .ruta { color: #555; }
+.overlay { position: absolute; inset: 0; z-index: 2000; background: rgba(15,20,32,.9);
+  display: flex; align-items: center; justify-content: center; }
+.login { background: #fff; border-radius: 12px; padding: 24px; width: 300px; text-align: center; }
+.login h2 { font-size: 18px; margin-bottom: 6px; }
+.login p { font-size: 13px; color: #555; margin-bottom: 12px; }
+.login input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px;
+  font-size: 16px; text-align: center; margin-bottom: 10px; }
+.login button { width: 100%; padding: 10px; border: 0; border-radius: 8px;
+  background: #1a1a2e; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
+.wrong { color: #dc2626; font-size: 12px; margin-top: 6px; }
+.leyenda { position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: #fff;
+  border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.2); padding: 8px 10px; font-size: 11px; color: #555; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+{% if locked %}
+<div class="overlay">
+  <form class="login" method="post">
+    <h2>Panel GPS</h2>
+    <p>Ingresá el PIN para ver el mapa de vendedores</p>
+    <input type="password" name="pin" inputmode="numeric" autofocus placeholder="PIN">
+    <button type="submit">Entrar</button>
+    {% if wrong %}<div class="wrong">PIN incorrecto</div>{% endif %}
+  </form>
+</div>
+{% else %}
+<div class="sidebar">
+  <div class="head">
+    <h1>GPS Vendedores</h1>
+    <div class="sub">Tucumán &amp; Catamarca — <span id="activos">0</span> activos</div>
+  </div>
+  <div class="filtros">
+    <input type="text" id="search" placeholder="Buscar vendedor...">
+    <select id="prov"><option value="">Todas las provincias</option>
+      <option>TUCUMAN</option><option>CATAMARCA</option></select>
+  </div>
+  <div class="list" id="list"></div>
+</div>
+<div class="statusbar" id="statusbar"></div>
+<div class="leyenda">Verde: enviando ahora · Gris: sin señal (más de 2 min)</div>
+{% endif %}
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+{% if not locked %}
+var vendorsData = {{ vendors|tojson }};
+var map = L.map('map');
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap', maxZoom: 19
+}).addTo(map);
+
+var markers = {};
+var routeLayer = null;
+
+function markerIcon(color) {
+  return L.circleMarker([0, 0], {
+    radius: 9, color: '#fff', weight: 2,
+    fillColor: color, fillOpacity: 0.9
+  });
+}
+
+function makePopup(v, pos) {
+  var ago = Math.round(pos.last / 1000);
+  var when = ago < 60 ? ago + ' seg' : Math.round(ago / 60) + ' min';
+  return '<div class="popup-info">' +
+    '<div class="name">' + esc(v.name) + ' <span style="color:#9ca3af;font-size:10px">' + esc(v.prov) + '</span></div>' +
+    '<div>Código: ' + esc(v.code) + '</div>' +
+    '<div class="ruta">Última señal: hace ' + when + '</div>' +
+    '<div style="margin-top:6px">' +
+    '<button class="btn-route" onclick="showRoute(\'' + esc(v.code) + '\')" style="border:0;border-radius:6px;padding:5px 10px;background:#eef2ff;color:#4338ca;font-weight:600;cursor:pointer">Ver recorrido</button> ' +
+    '<a href="https://www.google.com/maps/search/?api=1&query=' + pos.lat + ',' + pos.lon +
+    '" target="_blank" rel="noopener" style="border:0;border-radius:6px;padding:5px 10px;background:#eff6ff;color:#1d4ed8;font-weight:600;text-decoration:none">Google Maps</a>' +
+    '</div></div>';
+}
+
+function renderSidebar(list) {
+  var box = document.getElementById('list');
+  box.innerHTML = '';
+  list.forEach(function (v) {
+    var pos = markers[v.code] && markers[v.code]._pos;
+    var on = pos && pos.active;
+    var el = document.createElement('div');
+    el.className = 'vendor';
+    var lastTxt = pos ? ('Última señal: hace ' + (Math.round(pos.last / 1000) < 60
+      ? Math.round(pos.last / 1000) + ' seg'
+      : Math.round(pos.last / 60000) + ' min')) : 'Sin señal';
+    el.innerHTML = '<div class="row1"><span class="dot ' + (on ? 'on' : 'off') + '"></span>' +
+      '<span class="name">' + esc(v.name) + '</span><span class="prov">' + esc(v.prov) + '</span></div>' +
+      '<div class="code">' + esc(v.code) + '</div>' +
+      '<div class="last">' + lastTxt + '</div>' +
+      '<div class="actions">' +
+      '<button class="btn-copy" onclick="copyLink(\'' + esc(v.code) + '\')">Copiar link</button>' +
+      '<button class="btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Recorrido</button>' +
+      '</div>';
+    el.querySelector('.row1').addEventListener('click', function () { flyTo(v.code); });
+    box.appendChild(el);
+  });
+  var act = list.filter(function (v) { var p = markers[v.code] && markers[v.code]._pos; return p && p.active; }).length;
+  document.getElementById('activos').textContent = act;
+}
+
+function refresh() {
+  fetch('/api/positions').then(function (r) { return r.json(); }).then(function (arr) {
+    arr.forEach(function (p) {
+      if (!markers[p.code]) {
+        var m = markerIcon(p.color);
+        m.bindPopup('', { maxWidth: 260 });
+        m._pos = p;
+        m.on('click', function () { m.setPopupContent(makePopup(p, p)); });
+        markers[p.code] = m;
+        m.addTo(map);
+      }
+      var m = markers[p.code];
+      m.setLatLng([p.lat, p.lon]);
+      m._pos = p;
+      m.setPopupContent(makePopup(p, p));
+    });
+    renderSidebar(vendorsData);
+  }).catch(function () {});
+}
+
+function showRoute(code) {
+  if (routeLayer) map.removeLayer(routeLayer);
+  fetch('/api/history?code=' + encodeURIComponent(code) + '&days=1').then(function (r) { return r.json(); }).then(function (pts) {
+    if (!pts.length) { alert('Sin recorrido registrado en las últimas 24 hs'); return; }
+    routeLayer = L.polyline(pts.map(function (p) { return [p.lat, p.lon]; }), {
+      color: '#6366f1', weight: 3, opacity: 0.8
+    }).addTo(map);
+    map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
+  }).catch(function () {});
+}
+
+function flyTo(code) {
+  var m = markers[code];
+  if (m) map.flyTo(m.getLatLng(), 16);
+}
+
+function copyLink(code) {
+  var url = location.origin + '/tracker/' + code;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function () {
+      document.getElementById('statusbar').textContent = 'Link copiado: ' + url;
+    });
+  } else {
+    window.prompt('Copiá este link para el vendedor:', url);
+  }
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function applyFilters() {
+  var q = document.getElementById('search').value.trim().toLowerCase();
+  var p = document.getElementById('prov').value;
+  var list = vendorsData.filter(function (v) {
+    if (p && v.prov !== p) return false;
+    if (q && !(v.name + ' ' + v.code + ' ' + v.prov).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  renderSidebar(list);
+}
+
+document.getElementById('search').addEventListener('input', applyFilters);
+document.getElementById('prov').addEventListener('change', applyFilters);
+
+map.setView([-27.8, -65.6], 9);
+refresh();
+setInterval(refresh, 5000);
+{% endif %}
+</script>
+</body>
+</html>

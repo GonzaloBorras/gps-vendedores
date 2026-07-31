@@ -9,9 +9,15 @@ from flask import Flask, g, jsonify, redirect, render_template, request, session
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get('DB_PATH', os.path.join(BASE_DIR, 'gps.db'))
 VENDORS_FILE = os.path.join(BASE_DIR, 'vendors.json')
+PDV_FILE = os.path.join(BASE_DIR, 'pdv.json')
 
 with open(VENDORS_FILE, encoding='utf-8') as f:
     VENDORS = json.load(f)
+
+PDV = []
+if os.path.exists(PDV_FILE):
+    with open(PDV_FILE, encoding='utf-8') as f:
+        PDV = json.load(f)
 
 VENDOR_BY_CODE = {v['code'].upper(): v for v in VENDORS}
 
@@ -144,6 +150,14 @@ def vendors_api():
     rows = get_db().execute(
         'SELECT code, name, prov, color, grupo FROM vendors ORDER BY prov, name').fetchall()
     return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/pdv')
+def pdv_api():
+    prov = request.args.get('prov', '').strip().upper()
+    if prov:
+        return jsonify([p for p in PDV if p['prov'] == prov])
+    return jsonify(PDV)
 
 
 # ---------------- Páginas ----------------

@@ -178,5 +178,65 @@
     "prov": "TUCUMAN",
     "code": "SALINAS-30",
     "color": "#8c564b"
+  },
+  {
+    "name": "Facundo Corbalan",
+    "prov": "VENDEDORES",
+    "code": "CORBALAN-31",
+    "color": "#e377c2"
+  },
+  {
+    "name": "Gonzalo Aguilar",
+    "prov": "VENDEDORES",
+    "code": "AGUILAR-32",
+    "color": "#7f7f7f"
+  },
+  {
+    "name": "Carlos Lazo",
+    "prov": "VENDEDORES",
+    "code": "LAZO-33",
+    "color": "#bcbd22"
+  },
+  {
+    "name": "Matias Abib",
+    "prov": "VENDEDORES",
+    "code": "ABIB-34",
+    "color": "#17becf"
+  },
+  {
+    "name": "Matias Emeterio",
+    "prov": "VENDEDORES",
+    "code": "EMETERIO-35",
+    "color": "#aec7e8"
+  },
+  {
+    "name": "Santiago Vera",
+    "prov": "VENDEDORES",
+    "code": "VERA-36",
+    "color": "#ffbb78"
+  },
+  {
+    "name": "Leonardo Silva",
+    "prov": "VENDEDORES",
+    "code": "SILVA-37",
+    "color": "#98df8a"
+  },
+  {
+    "name": "Augusto Madrid",
+    "prov": "VENDEDORES",
+    "code": "MADRID-38",
+    "color": "#ff9896"
+  },
+  {
+    "name": "Julian Albonoz",
+    "prov": "VENDEDORES",
+    "code": "ALBONOZ-39",
+    "color": "#c5b0d5"
+  },
+  {
+    "name": "Saul David",
+    "prov": "VENDEDORES",
+    "code": "DAVID-40",
+    "color": "#c49c94"
   }
 ]

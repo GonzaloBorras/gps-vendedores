@@ -47,6 +47,21 @@ Sistema de seguimiento GPS en vivo para vendedores de Tucumán y Catamarca.
 | RODRIGUEZ-29 | TUCUMAN | RODRIGUEZ |
 | SALINAS-30 | TUCUMAN | SALINAS |
 
+### Usuarios (vendedores)
+
+| Código | Grupo | Nombre |
+|---|---|---|
+| CORBALAN-31 | VENDEDORES | Facundo Corbalan |
+| AGUILAR-32 | VENDEDORES | Gonzalo Aguilar |
+| LAZO-33 | VENDEDORES | Carlos Lazo |
+| ABIB-34 | VENDEDORES | Matias Abib |
+| EMETERIO-35 | VENDEDORES | Matias Emeterio |
+| VERA-36 | VENDEDORES | Santiago Vera |
+| SILVA-37 | VENDEDORES | Leonardo Silva |
+| MADRID-38 | VENDEDORES | Augusto Madrid |
+| ALBONOZ-39 | VENDEDORES | Julian Albonoz |
+| DAVID-40 | VENDEDORES | Saul David |
+
 ## Despliegue en Render (gratis)
 
 1. Subí la carpeta `gps-vendedores` a un repositorio de GitHub.

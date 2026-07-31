@@ -91,6 +91,26 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .config .refresh { background: #059669; color: #fff; }
 .config .close { background: #e5e7eb; color: #374151; }
 .config .note { font-size: 11px; color: #9ca3af; margin-top: 10px; min-height: 14px; }
+.visitas-sec { margin-top: 14px; border-top: 1px solid #eee; padding-top: 10px; }
+.visitas-sec h3 { font-size: 14px; color: #1a1a2e; margin-bottom: 8px; }
+.visitas-sec input[type=date] { width: 100%; padding: 8px 10px; border: 1px solid #ccc;
+  border-radius: 6px; font-size: 13px; margin-bottom: 6px; }
+.visitas-sec .row { display: flex; gap: 8px; }
+.visitas-sec .row input[type=search] { flex: 1; }
+.vlist { max-height: 200px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px;
+  padding: 6px; margin-top: 6px; background: #fafafa; }
+.vitem { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px;
+  font-size: 12px; border: 1px solid transparent; cursor: pointer; }
+.vitem:hover { background: #eef2ff; }
+.vitem .vi-name { font-weight: 600; color: #1f2937; }
+.vitem .vi-det { font-size: 10px; color: #6b7280; }
+.vitem .vi-vta { font-size: 10px; color: #4338ca; }
+.vitem button { margin-left: auto; border: 0; background: #fee2e2; color: #b91c1c;
+  border-radius: 5px; padding: 3px 7px; font-size: 11px; cursor: pointer; }
+.vres { max-height: 200px; overflow: auto; margin-top: 6px; }
+.vres .vitem { border: 1px solid #e5e7eb; }
+.vres .vitem button { background: #dcfce7; color: #166534; }
+.visitas-count { font-size: 12px; color: #047857; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -146,6 +166,15 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
       <button onclick="applyName()">Guardar</button>
     </div>
     <button class="btn-block refresh" onclick="manualRefresh()">Refrescar ubicaciones</button>
+    <div class="visitas-sec">
+      <h3>PDV visitados por día</h3>
+      <label>Colaborador</label>
+      <select id="vis-vendor" onchange="loadVisitasPanel()"></select>
+      <label>Fecha</label>
+      <input type="date" id="vis-fecha" onchange="loadVisitasPanel()">
+      <div id="vis-lista"></div>
+      <div class="visitas-count" id="vis-count"></div>
+    </div>
     <button class="btn-block close" onclick="closeConfig()">Cerrar</button>
     <div class="note" id="cfg-msg"></div>
   </div>
@@ -291,18 +320,12 @@ function syncCfgFields() {
   document.getElementById('cfg-name').value = v.name;
 }
 
-function openConfig() {
-  fillCfgVendors();
-  document.getElementById('cfg-msg').textContent = '';
-  document.getElementById('config-overlay').classList.add('open');
+function cfgMsg(t) {
+  document.getElementById('cfg-msg').textContent = t;
 }
 
 function closeConfig() {
   document.getElementById('config-overlay').classList.remove('open');
-}
-
-function cfgMsg(t) {
-  document.getElementById('cfg-msg').textContent = t;
 }
 
 function applyColor() {
@@ -352,6 +375,70 @@ function manualRefresh() {
   document.getElementById('statusbar').textContent = 'Ubicaciones actualizadas — ' + t;
 }
 
+// ---------------- Visitas panel ----------------
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function fillVisVendors() {
+  var sel = document.getElementById('vis-vendor');
+  sel.innerHTML = '';
+  vendorsData.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).forEach(function (v) {
+    var o = document.createElement('option');
+    o.value = v.code;
+    o.textContent = v.name + ' (' + v.code + ')';
+    sel.appendChild(o);
+  });
+  document.getElementById('vis-fecha').value = todayStr();
+}
+
+function loadVisitasPanel() {
+  var code = document.getElementById('vis-vendor').value;
+  var fecha = document.getElementById('vis-fecha').value;
+  if (!code || !fecha) return;
+  var box = document.getElementById('vis-lista');
+  box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Cargando...</div>';
+  fetch('/api/visitas?code=' + encodeURIComponent(code) + '&fecha=' + fecha)
+    .then(function (r) { return r.json(); })
+    .then(function (arr) {
+      document.getElementById('vis-count').textContent = arr.length ? 'Visitados: ' + arr.length : '';
+      if (!arr.length) {
+        box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Sin visitas este día.</div>';
+        return;
+      }
+      box.innerHTML = '<div class="vlist">' + arr.map(function (v) {
+        return '<div class="vitem">' +
+          '<div style="flex:1">' +
+            '<div class="vi-name">' + esc(v.razon) + '</div>' +
+            '<div class="vi-det">Cliente: ' + esc(v.cliente) + (v.calle ? ' · ' + esc(v.calle) : '') + '</div>' +
+            (v.vta ? '<div class="vi-vta">' + esc(v.vta) + '</div>' : '') +
+          '</div>' +
+          '<button onclick="quitarVisitaPanel(\'' + esc(v.cliente) + '\')">Quitar</button>' +
+        '</div>';
+      }).join('') + '</div>';
+    }).catch(function () { box.innerHTML = '<div class="empty">Error al cargar.</div>'; });
+}
+
+function quitarVisitaPanel(c) {
+  var code = document.getElementById('vis-vendor').value;
+  var fecha = document.getElementById('vis-fecha').value;
+  fetch('/api/visitas', {
+    method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, cliente: c, fecha: fecha })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.ok) loadVisitasPanel();
+  }).catch(function () {});
+}
+
+function openConfig() {
+  fillCfgVendors();
+  fillVisVendors();
+  loadVisitasPanel();
+  document.getElementById('cfg-msg').textContent = '';
+  document.getElementById('config-overlay').classList.add('open');
+}
+
 var pdvCluster = null;
 var pdvPlain = null;
 var pdvPoints = [];
@@ -373,11 +460,13 @@ function togglePDV() {
         radius: 4, color: '#6b7280', weight: 1, fillColor: '#9ca3af', fillOpacity: 0.6
       });
       var dir = d.calle || '—';
+      if (d.altura) dir += ' ' + d.altura;
       m.bindPopup('<div class="popup-info">' +
         '<div class="name">' + esc(d.r) + '</div>' +
         '<div>Cliente: ' + (d.c ? esc(d.c) : '—') +
           ' &nbsp; <span style="color:#9ca3af;font-size:10px">' + esc(d.prov) + '</span></div>' +
         '<div>' + esc(dir) + '</div>' +
+        (d.vta ? '<div class="ruta">' + esc(d.vta) + '</div>' : '') +
         '<a href="https://www.google.com/maps/search/?api=1&query=' + d.lat + ',' + d.lon +
         '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;border:0;border-radius:6px;padding:5px 10px;background:#eff6ff;color:#1d4ed8;font-weight:600;text-decoration:none">Google Maps</a>' +
         '</div>');

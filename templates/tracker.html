@@ -39,6 +39,33 @@ h1 { font-size: 24px; margin-bottom: 4px; }
 .error { background: #3f1d1d; border: 1px solid #ef4444; color: #fca5a5;
   border-radius: 10px; padding: 10px; font-size: 13px; margin-top: 12px; display: none; }
 hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-height: 1.5; }
+.btn.visitas { background: #1d4ed8; color: #fff; margin-top: 10px; }
+#visitasBtn { display: block; width: 100%; margin-top: 10px; padding: 12px; border: 0;
+  border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer;
+  background: #1d4ed8; color: #fff; }
+.visita-count { font-size: 12px; color: #93c5fd; margin-top: 8px; display: block; }
+.visitas-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(15,20,32,.92);
+  display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
+.visitas-overlay.open { display: flex; }
+.visitas-box { background: #1a2234; border-radius: 14px; padding: 20px; width: 100%;
+  max-width: 440px; max-height: 90vh; overflow: auto; text-align: left; }
+.visitas-box h2 { font-size: 17px; margin-bottom: 12px; color: #fff; }
+.visitas-box input[type=search] { width: 100%; padding: 10px 12px; border: 1px solid #334155;
+  border-radius: 8px; background: #0f1420; color: #fff; font-size: 14px; margin-bottom: 10px; }
+.pdv-item { background: #0f1420; border-radius: 8px; padding: 10px 12px; margin-bottom: 6px;
+  cursor: pointer; border: 1px solid transparent; }
+.pdv-item:hover { border-color: #3b82f6; }
+.pdv-item .r { font-weight: 700; font-size: 13px; color: #fff; }
+.pdv-item .d { font-size: 11px; color: #8b93a7; margin-top: 2px; }
+.pdv-item .vta { font-size: 11px; color: #93c5fd; margin-top: 2px; }
+.pdv-item.visited { border-color: #22c55e; }
+.pdv-item.visited .r::after { content: ' ✓'; color: #22c55e; }
+.pdv-item small { color: #64748b; }
+.visitas-close { margin-top: 12px; padding: 10px; border: 0; border-radius: 8px; width: 100%;
+  background: #334155; color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; }
+.visitas-today { margin-top: 14px; border-top: 1px solid #334155; padding-top: 10px; }
+.visitas-today h3 { font-size: 13px; color: #8b93a7; text-transform: uppercase; margin-bottom: 8px; }
+.empty { color: #64748b; font-size: 12px; padding: 8px 0; }
 </style>
 </head>
 <body>
@@ -55,10 +82,25 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   </div>
   <div class="error" id="err"></div>
   <button class="btn start" id="btn">Iniciar envío</button>
+  <button id="visitasBtn">Registrar PDV visitado</button>
+  <span class="visita-count" id="visitaCount"></span>
   <hint>Dejá esta página abierta y la pantalla encendida mientras trabajás.<br>
   El GPS se envía automáticamente cada 10 segundos.<br><br>
   💡 Para usarla como app: en el navegador tocá el menú (⋮) y elegí
   <b>"Agregar a pantalla de inicio"</b>.</hint>
+</div>
+
+<div class="visitas-overlay" id="visitasOverlay">
+  <div class="visitas-box">
+    <h2>Registrar PDV visitado</h2>
+    <input type="search" id="visitasSearch" placeholder="Buscar por cliente, razón social, calle o ruta...">
+    <div id="visitasResults"></div>
+    <div class="visitas-today">
+      <h3>Visitados hoy</h3>
+      <div id="visitasToday"></div>
+    </div>
+    <button class="visitas-close" onclick="closeVisitas()">Cerrar</button>
+  </div>
 </div>
 <script>
 if ('serviceWorker' in navigator) {
@@ -160,6 +202,102 @@ document.getElementById('last').textContent = '--';
 document.addEventListener('visibilitychange', function () {
   if (!document.hidden && running) send();
 });
+
+// ---------------- Visitas PDV ----------------
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+var visitasCache = {};
+
+function loadVisitas() {
+  fetch(base + '/api/visitas?code=' + encodeURIComponent(code) + '&fecha=' + todayStr())
+    .then(function (r) { return r.json(); })
+    .then(function (arr) {
+      visitasCache = {};
+      arr.forEach(function (v) { visitasCache[v.cliente] = v; });
+      document.getElementById('visitaCount').textContent =
+        'PDV visitados hoy: ' + Object.keys(visitasCache).length;
+      renderVisitas();
+    }).catch(function () {});
+}
+
+function renderVisitas() {
+  var box = document.getElementById('visitasToday');
+  var keys = Object.keys(visitasCache);
+  if (!keys.length) {
+    box.innerHTML = '<div class="empty">Todavía no registraste visitas hoy.</div>';
+    return;
+  }
+  box.innerHTML = keys.map(function (c) {
+    var v = visitasCache[c];
+    return '<div class="pdv-item visited" onclick="quitarVisita(\'' + c + '\')">' +
+      '<div class="r">' + esc(v.razon) + '</div>' +
+      '<div class="d">Cliente: ' + esc(c) + (v.calle ? ' · ' + esc(v.calle) : '') + '</div>' +
+      (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
+      '<small>tocá para quitar</small></div>';
+  }).join('');
+}
+
+function quitarVisita(c) {
+  fetch(base + '/api/visitas', {
+    method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, cliente: c, fecha: todayStr() })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.ok) { loadVisitas(); }
+  }).catch(function () {});
+}
+
+function buscarPDV() {
+  var q = document.getElementById('visitasSearch').value.trim();
+  var box = document.getElementById('visitasResults');
+  if (!q) { box.innerHTML = ''; return; }
+  fetch(base + '/api/pdv?q=' + encodeURIComponent(q))
+    .then(function (r) { return r.json(); })
+    .then(function (arr) {
+      box.innerHTML = arr.map(function (d) {
+        var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
+        var vis = visitasCache[d.c];
+        return '<div class="pdv-item ' + (vis ? 'visited' : '') + '" onclick="marcarVisita(\'' + d.c + '\')">' +
+          '<div class="r">' + esc(d.r) + '</div>' +
+          '<div class="d">Cliente: ' + esc(d.c) + (dir ? ' · ' + esc(dir) : '') + '</div>' +
+          (d.vta ? '<div class="vta">' + esc(d.vta) + '</div>' : '') +
+          (vis ? '<small>ya registrado · tocá para quitar</small>' : '<small>tocá para registrar</small>') +
+          '</div>';
+      }).join('') || '<div class="empty">Sin resultados.</div>';
+    }).catch(function () { box.innerHTML = '<div class="empty">Error al buscar.</div>'; });
+}
+
+function marcarVisita(c) {
+  if (visitasCache[c]) { quitarVisita(c); return; }
+  fetch(base + '/api/visitas', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, cliente: c, fecha: todayStr() })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.ok) { loadVisitas(); }
+  }).catch(function () {});
+}
+
+function openVisitas() {
+  document.getElementById('visitasOverlay').classList.add('open');
+  document.getElementById('visitasSearch').value = '';
+  document.getElementById('visitasResults').innerHTML = '';
+  loadVisitas();
+}
+function closeVisitas() {
+  document.getElementById('visitasOverlay').classList.remove('open');
+}
+
+document.getElementById('visitasBtn').onclick = openVisitas;
+document.getElementById('visitasSearch').addEventListener('input', buscarPDV);
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+loadVisitas();
 </script>
 </body>
 </html>

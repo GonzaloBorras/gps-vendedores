@@ -3,240 +3,280 @@
     "name": "CARRIZO",
     "prov": "CATAMARCA",
     "code": "CARRIZO-01",
-    "color": "#1f77b4"
+    "color": "#1f77b4",
+    "grupo": "rutas"
   },
   {
     "name": "ERAUSQUIN",
     "prov": "CATAMARCA",
     "code": "ERAUSQUIN-02",
-    "color": "#ff7f0e"
+    "color": "#ff7f0e",
+    "grupo": "rutas"
   },
   {
     "name": "MAYA",
     "prov": "CATAMARCA",
     "code": "MAYA-03",
-    "color": "#2ca02c"
+    "color": "#2ca02c",
+    "grupo": "rutas"
   },
   {
     "name": "NINA",
     "prov": "CATAMARCA",
     "code": "NINA-04",
-    "color": "#d62728"
+    "color": "#d62728",
+    "grupo": "rutas"
   },
   {
     "name": "OVEJERO",
     "prov": "CATAMARCA",
     "code": "OVEJERO-05",
-    "color": "#9467bd"
+    "color": "#9467bd",
+    "grupo": "rutas"
   },
   {
     "name": "PABLO",
     "prov": "CATAMARCA",
     "code": "PABLO-06",
-    "color": "#8c564b"
+    "color": "#8c564b",
+    "grupo": "rutas"
   },
   {
     "name": "RAMIREZ",
     "prov": "CATAMARCA",
     "code": "RAMIREZ-07",
-    "color": "#e377c2"
+    "color": "#e377c2",
+    "grupo": "rutas"
   },
   {
     "name": "SORIA",
     "prov": "CATAMARCA",
     "code": "SORIA-08",
-    "color": "#7f7f7f"
+    "color": "#7f7f7f",
+    "grupo": "rutas"
   },
   {
     "name": "ANDRADE",
     "prov": "TUCUMAN",
     "code": "ANDRADE-09",
-    "color": "#bcbd22"
+    "color": "#bcbd22",
+    "grupo": "rutas"
   },
   {
     "name": "APAS",
     "prov": "TUCUMAN",
     "code": "APAS-10",
-    "color": "#17becf"
+    "color": "#17becf",
+    "grupo": "rutas"
   },
   {
     "name": "CALL",
     "prov": "TUCUMAN",
     "code": "CALL-11",
-    "color": "#aec7e8"
+    "color": "#aec7e8",
+    "grupo": "rutas"
   },
   {
     "name": "CAMPOS",
     "prov": "TUCUMAN",
     "code": "CAMPOS-12",
-    "color": "#ffbb78"
+    "color": "#ffbb78",
+    "grupo": "rutas"
   },
   {
     "name": "CASIVA",
     "prov": "TUCUMAN",
     "code": "CASIVA-13",
-    "color": "#98df8a"
+    "color": "#98df8a",
+    "grupo": "rutas"
   },
   {
     "name": "DFERNANDEZ",
     "prov": "TUCUMAN",
     "code": "DFERNANDEZ-14",
-    "color": "#ff9896"
+    "color": "#ff9896",
+    "grupo": "rutas"
   },
   {
     "name": "DIAZ",
     "prov": "TUCUMAN",
     "code": "DIAZ-15",
-    "color": "#c5b0d5"
+    "color": "#c5b0d5",
+    "grupo": "rutas"
   },
   {
     "name": "FERNANDEZ",
     "prov": "TUCUMAN",
     "code": "FERNANDEZ-16",
-    "color": "#c49c94"
+    "color": "#c49c94",
+    "grupo": "rutas"
   },
   {
     "name": "FRIAS",
     "prov": "TUCUMAN",
     "code": "FRIAS-17",
-    "color": "#f7b6d2"
+    "color": "#f7b6d2",
+    "grupo": "rutas"
   },
   {
     "name": "GALBORNOZ",
     "prov": "TUCUMAN",
     "code": "GALBORNOZ-18",
-    "color": "#c7c7c7"
+    "color": "#c7c7c7",
+    "grupo": "rutas"
   },
   {
     "name": "GALVAN",
     "prov": "TUCUMAN",
     "code": "GALVAN-19",
-    "color": "#dbdb8d"
+    "color": "#dbdb8d",
+    "grupo": "rutas"
   },
   {
     "name": "GONZALEZ",
     "prov": "TUCUMAN",
     "code": "GONZALEZ-20",
-    "color": "#9edae5"
+    "color": "#9edae5",
+    "grupo": "rutas"
   },
   {
     "name": "LUCENA",
     "prov": "TUCUMAN",
     "code": "LUCENA-21",
-    "color": "#393b79"
+    "color": "#393b79",
+    "grupo": "rutas"
   },
   {
     "name": "MARTINEZ",
     "prov": "TUCUMAN",
     "code": "MARTINEZ-22",
-    "color": "#f28e2b"
+    "color": "#f28e2b",
+    "grupo": "rutas"
   },
   {
     "name": "MELONI",
     "prov": "TUCUMAN",
     "code": "MELONI-23",
-    "color": "#76b7b2"
+    "color": "#76b7b2",
+    "grupo": "rutas"
   },
   {
     "name": "MORALES",
     "prov": "TUCUMAN",
     "code": "MORALES-24",
-    "color": "#b5cf6b"
+    "color": "#b5cf6b",
+    "grupo": "rutas"
   },
   {
     "name": "MORENO",
     "prov": "TUCUMAN",
     "code": "MORENO-25",
-    "color": "#1f77b4"
+    "color": "#1f77b4",
+    "grupo": "rutas"
   },
   {
     "name": "MUÑOZ",
     "prov": "TUCUMAN",
     "code": "MUNOZ-26",
-    "color": "#ff7f0e"
+    "color": "#ff7f0e",
+    "grupo": "rutas"
   },
   {
     "name": "ORELLANA",
     "prov": "TUCUMAN",
     "code": "ORELLANA-27",
-    "color": "#2ca02c"
+    "color": "#2ca02c",
+    "grupo": "rutas"
   },
   {
     "name": "PEREZ",
     "prov": "TUCUMAN",
     "code": "PEREZ-28",
-    "color": "#d62728"
+    "color": "#d62728",
+    "grupo": "rutas"
   },
   {
     "name": "RODRIGUEZ",
     "prov": "TUCUMAN",
     "code": "RODRIGUEZ-29",
-    "color": "#9467bd"
+    "color": "#9467bd",
+    "grupo": "rutas"
   },
   {
     "name": "SALINAS",
     "prov": "TUCUMAN",
     "code": "SALINAS-30",
-    "color": "#8c564b"
+    "color": "#8c564b",
+    "grupo": "rutas"
   },
   {
     "name": "Facundo Corbalan",
-    "prov": "VENDEDORES",
+    "prov": "TUCUMAN",
     "code": "CORBALAN-31",
-    "color": "#e377c2"
+    "color": "#e377c2",
+    "grupo": "merchan"
   },
   {
     "name": "Gonzalo Aguilar",
-    "prov": "VENDEDORES",
+    "prov": "TUCUMAN",
     "code": "AGUILAR-32",
-    "color": "#7f7f7f"
+    "color": "#7f7f7f",
+    "grupo": "merchan"
   },
   {
     "name": "Carlos Lazo",
-    "prov": "VENDEDORES",
+    "prov": "TUCUMAN",
     "code": "LAZO-33",
-    "color": "#bcbd22"
+    "color": "#bcbd22",
+    "grupo": "merchan"
   },
   {
     "name": "Matias Abib",
-    "prov": "VENDEDORES",
+    "prov": "TUCUMAN",
     "code": "ABIB-34",
-    "color": "#17becf"
+    "color": "#17becf",
+    "grupo": "merchan"
   },
   {
     "name": "Matias Emeterio",
-    "prov": "VENDEDORES",
+    "prov": "TUCUMAN",
     "code": "EMETERIO-35",
-    "color": "#aec7e8"
+    "color": "#aec7e8",
+    "grupo": "merchan"
   },
   {
     "name": "Santiago Vera",
-    "prov": "VENDEDORES",
+    "prov": "TUCUMAN",
     "code": "VERA-36",
-    "color": "#ffbb78"
+    "color": "#ffbb78",
+    "grupo": "merchan"
   },
   {
     "name": "Leonardo Silva",
-    "prov": "VENDEDORES",
+    "prov": "TUCUMAN",
     "code": "SILVA-37",
-    "color": "#98df8a"
+    "color": "#98df8a",
+    "grupo": "merchan"
   },
   {
     "name": "Augusto Madrid",
-    "prov": "VENDEDORES",
+    "prov": "TUCUMAN",
     "code": "MADRID-38",
-    "color": "#ff9896"
+    "color": "#ff9896",
+    "grupo": "merchan"
   },
   {
     "name": "Julian Albonoz",
-    "prov": "VENDEDORES",
+    "prov": "TUCUMAN",
     "code": "ALBONOZ-39",
-    "color": "#c5b0d5"
+    "color": "#c5b0d5",
+    "grupo": "merchan"
   },
   {
     "name": "Saul David",
-    "prov": "VENDEDORES",
+    "prov": "CATAMARCA",
     "code": "DAVID-40",
-    "color": "#c49c94"
+    "color": "#c49c94",
+    "grupo": "merchan"
   }
 ]

@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>GPS - {{ vendor.name }}</title>
+<meta name="theme-color" content="#0f1420">
+<link rel="manifest" href="/manifest.json?code={{ vendor.code }}">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="icon" type="image/png" href="/static/icon-192.png">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
@@ -52,8 +56,15 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   <div class="error" id="err"></div>
   <button class="btn start" id="btn">Iniciar envío</button>
   <hint>Dejá esta página abierta y la pantalla encendida mientras trabajás.<br>
-  El GPS se envía automáticamente cada 10 segundos.</hint>
+  El GPS se envía automáticamente cada 10 segundos.<br><br>
+  💡 Para usarla como app: en el navegador tocá el menú (⋮) y elegí
+  <b>"Agregar a pantalla de inicio"</b>.</hint>
 </div>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
+</script>
 <script>
 var code = {{ vendor.code|tojson }};
 var base = location.origin;

@@ -1,0 +1,182 @@
+[
+  {
+    "name": "CARRIZO",
+    "prov": "CATAMARCA",
+    "code": "CARRIZO-01",
+    "color": "#1f77b4"
+  },
+  {
+    "name": "ERAUSQUIN",
+    "prov": "CATAMARCA",
+    "code": "ERAUSQUIN-02",
+    "color": "#ff7f0e"
+  },
+  {
+    "name": "MAYA",
+    "prov": "CATAMARCA",
+    "code": "MAYA-03",
+    "color": "#2ca02c"
+  },
+  {
+    "name": "NINA",
+    "prov": "CATAMARCA",
+    "code": "NINA-04",
+    "color": "#d62728"
+  },
+  {
+    "name": "OVEJERO",
+    "prov": "CATAMARCA",
+    "code": "OVEJERO-05",
+    "color": "#9467bd"
+  },
+  {
+    "name": "PABLO",
+    "prov": "CATAMARCA",
+    "code": "PABLO-06",
+    "color": "#8c564b"
+  },
+  {
+    "name": "RAMIREZ",
+    "prov": "CATAMARCA",
+    "code": "RAMIREZ-07",
+    "color": "#e377c2"
+  },
+  {
+    "name": "SORIA",
+    "prov": "CATAMARCA",
+    "code": "SORIA-08",
+    "color": "#7f7f7f"
+  },
+  {
+    "name": "ANDRADE",
+    "prov": "TUCUMAN",
+    "code": "ANDRADE-09",
+    "color": "#bcbd22"
+  },
+  {
+    "name": "APAS",
+    "prov": "TUCUMAN",
+    "code": "APAS-10",
+    "color": "#17becf"
+  },
+  {
+    "name": "CALL",
+    "prov": "TUCUMAN",
+    "code": "CALL-11",
+    "color": "#aec7e8"
+  },
+  {
+    "name": "CAMPOS",
+    "prov": "TUCUMAN",
+    "code": "CAMPOS-12",
+    "color": "#ffbb78"
+  },
+  {
+    "name": "CASIVA",
+    "prov": "TUCUMAN",
+    "code": "CASIVA-13",
+    "color": "#98df8a"
+  },
+  {
+    "name": "DFERNANDEZ",
+    "prov": "TUCUMAN",
+    "code": "DFERNANDEZ-14",
+    "color": "#ff9896"
+  },
+  {
+    "name": "DIAZ",
+    "prov": "TUCUMAN",
+    "code": "DIAZ-15",
+    "color": "#c5b0d5"
+  },
+  {
+    "name": "FERNANDEZ",
+    "prov": "TUCUMAN",
+    "code": "FERNANDEZ-16",
+    "color": "#c49c94"
+  },
+  {
+    "name": "FRIAS",
+    "prov": "TUCUMAN",
+    "code": "FRIAS-17",
+    "color": "#f7b6d2"
+  },
+  {
+    "name": "GALBORNOZ",
+    "prov": "TUCUMAN",
+    "code": "GALBORNOZ-18",
+    "color": "#c7c7c7"
+  },
+  {
+    "name": "GALVAN",
+    "prov": "TUCUMAN",
+    "code": "GALVAN-19",
+    "color": "#dbdb8d"
+  },
+  {
+    "name": "GONZALEZ",
+    "prov": "TUCUMAN",
+    "code": "GONZALEZ-20",
+    "color": "#9edae5"
+  },
+  {
+    "name": "LUCENA",
+    "prov": "TUCUMAN",
+    "code": "LUCENA-21",
+    "color": "#393b79"
+  },
+  {
+    "name": "MARTINEZ",
+    "prov": "TUCUMAN",
+    "code": "MARTINEZ-22",
+    "color": "#f28e2b"
+  },
+  {
+    "name": "MELONI",
+    "prov": "TUCUMAN",
+    "code": "MELONI-23",
+    "color": "#76b7b2"
+  },
+  {
+    "name": "MORALES",
+    "prov": "TUCUMAN",
+    "code": "MORALES-24",
+    "color": "#b5cf6b"
+  },
+  {
+    "name": "MORENO",
+    "prov": "TUCUMAN",
+    "code": "MORENO-25",
+    "color": "#1f77b4"
+  },
+  {
+    "name": "MUÑOZ",
+    "prov": "TUCUMAN",
+    "code": "MUNOZ-26",
+    "color": "#ff7f0e"
+  },
+  {
+    "name": "ORELLANA",
+    "prov": "TUCUMAN",
+    "code": "ORELLANA-27",
+    "color": "#2ca02c"
+  },
+  {
+    "name": "PEREZ",
+    "prov": "TUCUMAN",
+    "code": "PEREZ-28",
+    "color": "#d62728"
+  },
+  {
+    "name": "RODRIGUEZ",
+    "prov": "TUCUMAN",
+    "code": "RODRIGUEZ-29",
+    "color": "#9467bd"
+  },
+  {
+    "name": "SALINAS",
+    "prov": "TUCUMAN",
+    "code": "SALINAS-30",
+    "color": "#8c564b"
+  }
+]

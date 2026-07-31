@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: gps-vendedores
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DASH_PIN
+        generateValue: true

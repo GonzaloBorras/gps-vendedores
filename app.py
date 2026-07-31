@@ -46,7 +46,8 @@ def init_db():
             code  TEXT PRIMARY KEY,
             name  TEXT NOT NULL,
             prov  TEXT NOT NULL,
-            color TEXT NOT NULL
+            color TEXT NOT NULL,
+            grupo TEXT NOT NULL DEFAULT 'rutas'
         );
         CREATE TABLE IF NOT EXISTS positions (
             id      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,10 +60,14 @@ def init_db():
         );
         CREATE INDEX IF NOT EXISTS idx_positions_code_ts ON positions(code, ts);
     ''')
+    cols = [r[1] for r in con.execute('PRAGMA table_info(vendors)')]
+    if 'grupo' not in cols:
+        con.execute("ALTER TABLE vendors ADD COLUMN grupo TEXT NOT NULL DEFAULT 'rutas'")
+    con.execute('DELETE FROM vendors')
     for v in VENDORS:
         con.execute(
-            'INSERT OR IGNORE INTO vendors(code, name, prov, color) VALUES (?,?,?,?)',
-            (v['code'], v['name'], v['prov'], v['color']))
+            'INSERT INTO vendors(code, name, prov, color, grupo) VALUES (?,?,?,?,?)',
+            (v['code'], v['name'], v['prov'], v['color'], v.get('grupo', 'rutas')))
     con.commit()
     con.close()
 
@@ -100,7 +105,7 @@ def track():
 def positions():
     now = int(time.time() * 1000)
     rows = get_db().execute('''
-        SELECT p.code, p.name, p.lat, p.lon, p.ts, v.prov, v.color
+        SELECT p.code, p.name, p.lat, p.lon, p.ts, v.prov, v.color, v.grupo
         FROM positions p
         JOIN (SELECT code, MAX(ts) AS mts FROM positions GROUP BY code) mx
           ON p.code = mx.code AND p.ts = mx.mts
@@ -113,6 +118,7 @@ def positions():
             'name': r['name'],
             'prov': r['prov'],
             'color': r['color'],
+            'grupo': r['grupo'],
             'lat': r['lat'],
             'lon': r['lon'],
             'ts': r['ts'],
@@ -136,7 +142,7 @@ def history():
 @app.route('/api/vendors')
 def vendors_api():
     rows = get_db().execute(
-        'SELECT code, name, prov, color FROM vendors ORDER BY prov, name').fetchall()
+        'SELECT code, name, prov, color, grupo FROM vendors ORDER BY prov, name').fetchall()
     return jsonify([dict(r) for r in rows])
 
 
@@ -159,7 +165,7 @@ def dashboard():
     if not session.get('auth'):
         return render_template('dashboard.html', locked=True, wrong=request.args.get('w') == '1')
     vendors = get_db().execute(
-        'SELECT code, name, prov, color FROM vendors ORDER BY prov, name').fetchall()
+        'SELECT code, name, prov, color, grupo FROM vendors ORDER BY prov, name').fetchall()
     return render_template('dashboard.html', locked=False, vendors=[dict(v) for v in vendors])
 
 

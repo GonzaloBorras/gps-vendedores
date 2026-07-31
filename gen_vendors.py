@@ -37,6 +37,19 @@ for src, prov in FILES:
 
 pairs = sorted(pairs)
 
+EXTRA_USERS = [
+    ('VENDEDORES', 'Facundo Corbalan', 'CORBALAN'),
+    ('VENDEDORES', 'Gonzalo Aguilar', 'AGUILAR'),
+    ('VENDEDORES', 'Carlos Lazo', 'LAZO'),
+    ('VENDEDORES', 'Matias Abib', 'ABIB'),
+    ('VENDEDORES', 'Matias Emeterio', 'EMETERIO'),
+    ('VENDEDORES', 'Santiago Vera', 'VERA'),
+    ('VENDEDORES', 'Leonardo Silva', 'SILVA'),
+    ('VENDEDORES', 'Augusto Madrid', 'MADRID'),
+    ('VENDEDORES', 'Julian Albonoz', 'ALBONOZ'),
+    ('VENDEDORES', 'Saul David', 'DAVID'),
+]
+
 vendors = []
 for i, (prov, name) in enumerate(pairs):
     slug = norm(name)
@@ -45,6 +58,15 @@ for i, (prov, name) in enumerate(pairs):
         'prov': prov,
         'code': '%s-%02d' % (slug, i + 1),
         'color': TAB20[i % len(TAB20)],
+    })
+
+n = len(vendors)
+for i, (prov, name, slug) in enumerate(EXTRA_USERS):
+    vendors.append({
+        'name': name,
+        'prov': prov,
+        'code': '%s-%02d' % (slug, n + i + 1),
+        'color': TAB20[(n + i) % len(TAB20)],
     })
 
 with open(OUT, 'w', encoding='utf-8') as f:

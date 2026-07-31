@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GPS Vendedores - Panel</title>
+<title>GPS Merchan - Panel</title>
 <meta name="theme-color" content="#1a1a2e">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
@@ -21,9 +21,12 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
   background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.25);
   display: flex; flex-direction: column; overflow: hidden;
 }
-.sidebar .head { padding: 14px 16px; background: #1a1a2e; color: #fff; }
+.sidebar .head { padding: 14px 16px; background: #1a1a2e; color: #fff; position: relative; }
 .sidebar .head h1 { font-size: 17px; }
 .sidebar .head .sub { font-size: 12px; color: #bbb; margin-top: 2px; }
+.gear { position: absolute; top: 10px; right: 12px; background: none; border: 1px solid #4b4b6b;
+  color: #fff; border-radius: 8px; padding: 3px 9px; cursor: pointer; font-size: 15px; }
+.gear:hover { background: #2a2a48; }
 .sidebar .filtros { padding: 10px 12px; border-bottom: 1px solid #eee; }
 .toggle-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151;
   padding: 2px 0 6px; cursor: pointer; }
@@ -69,6 +72,25 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .wrong { color: #dc2626; font-size: 12px; margin-top: 6px; }
 .leyenda { position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: #fff;
   border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.2); padding: 8px 10px; font-size: 11px; color: #555; }
+.config-overlay { position: absolute; inset: 0; z-index: 2100; background: rgba(15,20,32,.85);
+  display: none; align-items: center; justify-content: center; }
+.config-overlay.open { display: flex; }
+.config { background: #fff; border-radius: 12px; padding: 20px; width: 340px;
+  max-width: calc(100vw - 24px); max-height: calc(100vh - 40px); overflow: auto; }
+.config h2 { font-size: 16px; margin-bottom: 12px; color: #1a1a2e; }
+.config label { display: block; font-size: 12px; color: #555; margin: 10px 0 4px; }
+.config .row { display: flex; gap: 8px; align-items: center; }
+.config select, .config input[type=text] { width: 100%; padding: 8px 10px; border: 1px solid #ccc;
+  border-radius: 6px; font-size: 13px; }
+.config input[type=color] { width: 46px; height: 36px; border: 1px solid #ccc; border-radius: 6px;
+  padding: 2px; flex: none; }
+.config .row button { flex: 1; padding: 8px; border: 0; border-radius: 8px; background: #1a1a2e;
+  color: #fff; font-weight: 600; cursor: pointer; font-size: 13px; }
+.config .btn-block { width: 100%; padding: 9px; border: 0; border-radius: 8px; font-weight: 600;
+  cursor: pointer; font-size: 13px; margin-top: 8px; }
+.config .refresh { background: #059669; color: #fff; }
+.config .close { background: #e5e7eb; color: #374151; }
+.config .note { font-size: 11px; color: #9ca3af; margin-top: 10px; min-height: 14px; }
 </style>
 </head>
 <body>
@@ -87,8 +109,9 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 {% else %}
 <div class="sidebar">
   <div class="head">
-    <h1>GPS Vendedores</h1>
+    <h1>GPS Merchan</h1>
     <div class="sub">Tucumán &amp; Catamarca — <span id="activos">0</span> activos</div>
+    <button class="gear" onclick="openConfig()" title="Configuración">⚙</button>
   </div>
   <div class="tabs">
     <button class="tab active" id="tab-rutas" onclick="setGroup('rutas')">Rutas</button>
@@ -107,6 +130,26 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 </div>
 <div class="statusbar" id="statusbar"></div>
 <div class="leyenda">Verde: enviando ahora · Gris: sin señal (más de 2 min)</div>
+<div class="config-overlay" id="config-overlay">
+  <div class="config">
+    <h2>Configuración</h2>
+    <label>Colaborador</label>
+    <select id="cfg-vendor" onchange="syncCfgFields()"></select>
+    <label>Color del pin</label>
+    <div class="row">
+      <input type="color" id="cfg-color">
+      <button onclick="applyColor()">Aplicar color</button>
+    </div>
+    <label>Nombre del colaborador</label>
+    <div class="row">
+      <input type="text" id="cfg-name" placeholder="Nombre y apellido">
+      <button onclick="applyName()">Guardar</button>
+    </div>
+    <button class="btn-block refresh" onclick="manualRefresh()">Refrescar ubicaciones</button>
+    <button class="btn-block close" onclick="closeConfig()">Cerrar</button>
+    <div class="note" id="cfg-msg"></div>
+  </div>
+</div>
 {% endif %}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -220,6 +263,93 @@ function copyLink(code) {
   } else {
     window.prompt('Copiá este link para el vendedor:', url);
   }
+}
+
+function cfgVendorList() {
+  return vendorsData.slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+}
+
+function fillCfgVendors() {
+  var sel = document.getElementById('cfg-vendor');
+  var current = sel.value;
+  sel.innerHTML = '';
+  cfgVendorList().forEach(function (v) {
+    var o = document.createElement('option');
+    o.value = v.code;
+    o.textContent = v.name + ' (' + v.code + ')';
+    sel.appendChild(o);
+  });
+  if (current && vendorsData.some(function (v) { return v.code === current; })) sel.value = current;
+  syncCfgFields();
+}
+
+function syncCfgFields() {
+  var sel = document.getElementById('cfg-vendor');
+  var v = vendorsData.find(function (x) { return x.code === sel.value; });
+  if (!v) return;
+  document.getElementById('cfg-color').value = v.color;
+  document.getElementById('cfg-name').value = v.name;
+}
+
+function openConfig() {
+  fillCfgVendors();
+  document.getElementById('cfg-msg').textContent = '';
+  document.getElementById('config-overlay').classList.add('open');
+}
+
+function closeConfig() {
+  document.getElementById('config-overlay').classList.remove('open');
+}
+
+function cfgMsg(t) {
+  document.getElementById('cfg-msg').textContent = t;
+}
+
+function applyColor() {
+  var code = document.getElementById('cfg-vendor').value;
+  var color = document.getElementById('cfg-color').value;
+  fetch('/api/config/vendor', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, color: color })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) { cfgMsg('Error: ' + d.error); return; }
+    var v = vendorsData.find(function (x) { return x.code === code; });
+    if (v) v.color = color;
+    if (markers[code]) {
+      markers[code].setStyle({ fillColor: color });
+      markers[code]._pos.color = color;
+    }
+    cfgMsg('Color del pin actualizado.');
+  }).catch(function () { cfgMsg('Error de conexión.'); });
+}
+
+function applyName() {
+  var code = document.getElementById('cfg-vendor').value;
+  var name = document.getElementById('cfg-name').value.trim();
+  if (!name) { cfgMsg('Escribí un nombre.'); return; }
+  fetch('/api/config/vendor', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, name: name })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) { cfgMsg('Error: ' + d.error); return; }
+    var v = vendorsData.find(function (x) { return x.code === code; });
+    if (v) v.name = name;
+    if (markers[code]) {
+      markers[code]._pos.name = name;
+      markers[code].setPopupContent(makePopup(markers[code]._pos, markers[code]._pos));
+    }
+    cfgMsg('Nombre actualizado.');
+    applyFilters();
+    fillCfgVendors();
+    document.getElementById('cfg-vendor').value = code;
+    syncCfgFields();
+  }).catch(function () { cfgMsg('Error de conexión.'); });
+}
+
+function manualRefresh() {
+  refresh();
+  var t = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('statusbar').textContent = 'Ubicaciones actualizadas — ' + t;
 }
 
 var pdvCluster = null;

@@ -223,11 +223,20 @@ function copyLink(code) {
 }
 
 var pdvCluster = null;
+var pdvPlain = null;
+var pdvPoints = [];
 
 function togglePDV() {
   var on = document.getElementById('pdv-toggle').checked;
-  if (!on) { if (pdvCluster) map.removeLayer(pdvCluster); return; }
-  if (pdvCluster) { map.addLayer(pdvCluster); return; }
+  if (!on) {
+    if (pdvCluster) map.removeLayer(pdvCluster);
+    if (pdvPlain) map.removeLayer(pdvPlain);
+    return;
+  }
+  if (pdvCluster) {
+    if (map.getZoom() >= 16) map.addLayer(pdvPlain); else map.addLayer(pdvCluster);
+    return;
+  }
   fetch('/api/pdv').then(function (r) { return r.json(); }).then(function (arr) {
     var pts = arr.map(function (d) {
       var m = L.circleMarker([d.lat, d.lon], {
@@ -244,12 +253,26 @@ function togglePDV() {
         '</div>');
       return m;
     });
+    pdvPoints = pts;
     pdvCluster = L.markerClusterGroup({ disableClusteringAtZoom: 16, maxClusterRadius: 40, showCoverageOnHover: false });
     pdvCluster.addLayers(pts);
-    map.addLayer(pdvCluster);
+    pdvPlain = L.layerGroup(pts);
+    if (map.getZoom() >= 16) map.addLayer(pdvPlain); else map.addLayer(pdvCluster);
     document.getElementById('statusbar').textContent = 'PDV cargados: ' + arr.length;
   }).catch(function () {});
 }
+
+function syncPDVZoom() {
+  if (!pdvCluster || !pdvPlain) return;
+  if (!document.getElementById('pdv-toggle').checked) return;
+  if (map.getZoom() >= 16) {
+    if (!map.hasLayer(pdvPlain)) { map.removeLayer(pdvCluster); map.addLayer(pdvPlain); }
+  } else {
+    if (!map.hasLayer(pdvCluster)) { map.removeLayer(pdvPlain); map.addLayer(pdvCluster); }
+  }
+}
+map.on('zoomend', syncPDVZoom);
+map.on('moveend', syncPDVZoom);
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

@@ -189,6 +189,35 @@ def logout():
     return redirect('/')
 
 
+@app.route('/manifest.json')
+def manifest():
+    code = request.args.get('code', '').strip().upper()
+    if code in VENDOR_BY_CODE:
+        start_url = '/tracker/' + code
+    else:
+        start_url = '/tracker/'
+    return jsonify({
+        'name': 'GPS Vendedores',
+        'short_name': 'GPS Vendedores',
+        'start_url': start_url,
+        'scope': '/',
+        'display': 'standalone',
+        'background_color': '#0f1420',
+        'theme_color': '#0f1420',
+        'icons': [
+            {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
+            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png'},
+            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
+        ],
+    })
+
+
+@app.route('/sw.js')
+def sw():
+    with open(os.path.join(BASE_DIR, 'sw.js'), encoding='utf-8') as f:
+        return (f.read(), 200, {'Content-Type': 'application/javascript; charset=utf-8', 'Service-Worker-Allowed': '/'})
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, threaded=True, debug=True)

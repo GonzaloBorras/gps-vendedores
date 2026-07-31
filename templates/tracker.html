@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GPS - {{ vendor.name }}</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #0f1420; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; text-align: center;
+}
+.card {
+  background: #1a2234; border-radius: 16px; padding: 28px 22px;
+  max-width: 400px; width: 100%; box-shadow: 0 8px 30px rgba(0,0,0,.4);
+}
+.dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+.dot.on { background: #22c55e; box-shadow: 0 0 10px #22c55e; animation: pulse 1.6s infinite; }
+.dot.off { background: #ef4444; }
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: .4; } 100% { opacity: 1; } }
+h1 { font-size: 24px; margin-bottom: 4px; }
+.prov { color: #93c5fd; font-size: 14px; margin-bottom: 18px; }
+.status { display: flex; align-items: center; justify-content: center; font-size: 15px; margin-bottom: 20px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.metric { background: #0f1420; border-radius: 10px; padding: 12px; }
+.metric .label { font-size: 11px; color: #8b93a7; text-transform: uppercase; }
+.metric .value { font-size: 16px; font-weight: 600; margin-top: 4px; }
+.btn { display: block; width: 100%; margin-top: 16px; padding: 12px; border: 0;
+  border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
+.btn.start { background: #22c55e; color: #07120a; }
+.btn.stop { background: #ef4444; color: #fff; }
+.error { background: #3f1d1d; border: 1px solid #ef4444; color: #fca5a5;
+  border-radius: 10px; padding: 10px; font-size: 13px; margin-top: 12px; display: none; }
+hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="dot on" id="dot"></div>
+  <h1>{{ vendor.name }}</h1>
+  <div class="prov">{{ vendor.prov }}</div>
+  <div class="status"><span id="stateText">Iniciando...</span></div>
+  <div class="grid">
+    <div class="metric"><div class="label">Latitud</div><div class="value" id="lat">--</div></div>
+    <div class="metric"><div class="label">Longitud</div><div class="value" id="lon">--</div></div>
+    <div class="metric"><div class="label">Precisión</div><div class="value" id="acc">--</div></div>
+    <div class="metric"><div class="label">Último envío</div><div class="value" id="last">--</div></div>
+  </div>
+  <div class="error" id="err"></div>
+  <button class="btn start" id="btn">Iniciar envío</button>
+  <hint>Dejá esta página abierta y la pantalla encendida mientras trabajás.<br>
+  El GPS se envía automáticamente cada 10 segundos.</hint>
+</div>
+<script>
+var code = {{ vendor.code|tojson }};
+var base = location.origin;
+var running = false;
+var sessionId = localStorage.getItem('gps_session');
+if (!sessionId) { sessionId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); localStorage.setItem('gps_session', sessionId); }
+
+var lastLat = null, lastLon = null, lastAcc = null;
+var watchId = null;
+var lastSent = '--';
+
+function setState(txt, on) {
+  document.getElementById('stateText').textContent = txt;
+  var d = document.getElementById('dot');
+  d.className = 'dot ' + (on ? 'on' : 'off');
+}
+function showErr(msg) {
+  var e = document.getElementById('err');
+  e.textContent = msg; e.style.display = 'block';
+}
+function hideErr() { document.getElementById('err').style.display = 'none'; }
+
+function send() {
+  if (lastLat === null) return;
+  fetch(base + '/api/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, lat: lastLat, lon: lastLon, session: sessionId })
+  }).then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.ok) {
+        var t = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        lastSent = t;
+        document.getElementById('last').textContent = t;
+        setState('Enviando ubicación', true);
+        hideErr();
+      } else {
+        showErr('Error del servidor: ' + (d.error || 'desconocido'));
+      }
+    })
+    .catch(function () { showErr('No se pudo contactar el servidor. Revisá tu conexión.'); });
+}
+
+function onPos(p) {
+  lastLat = p.coords.latitude;
+  lastLon = p.coords.longitude;
+  lastAcc = Math.round(p.coords.accuracy);
+  document.getElementById('lat').textContent = lastLat.toFixed(6);
+  document.getElementById('lon').textContent = lastLon.toFixed(6);
+  document.getElementById('acc').textContent = lastAcc + ' m';
+  hideErr();
+}
+function onErr(e) {
+  var msgs = {
+    1: 'Permiso de ubicación denegado. Activá la ubicación del navegador.',
+    2: 'No se pudo obtener la ubicación. ¿GPS activado?',
+    3: 'Se agotó el tiempo esperando el GPS. Salí a un lugar abierto.'
+  };
+  showErr(msgs[e.code] || ('Error de GPS: ' + e.code));
+}
+
+function start() {
+  if (!('geolocation' in navigator)) { showErr('Tu navegador no soporta geolocalización.'); return; }
+  running = true;
+  watchId = navigator.geolocation.watchPosition(onPos, onErr, {
+    enableHighAccuracy: true, timeout: 20000, maximumAge: 5000
+  });
+  setState('Buscando GPS...', true);
+  document.getElementById('btn').textContent = 'Detener envío';
+  document.getElementById('btn').className = 'btn stop';
+  document.getElementById('btn').onclick = stop;
+  window._int = setInterval(send, 10000);
+  // Evitar apagado de pantalla cuando el navegador lo permita
+  if (navigator.wakeLock) {
+    navigator.wakeLock.request('screen').then(function (wl) { window._wake = wl; }).catch(function () {});
+  }
+}
+function stop() {
+  running = false;
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  clearInterval(window._int);
+  setState('Envío detenido', false);
+  document.getElementById('btn').textContent = 'Iniciar envío';
+  document.getElementById('btn').className = 'btn start';
+  document.getElementById('btn').onclick = start;
+  if (window._wake) window._wake.release().catch(function () {});
+}
+
+document.getElementById('btn').onclick = start;
+document.getElementById('last').textContent = '--';
+
+// Reanudar automáticamente si la pestaña vuelve al frente
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && running) send();
+});
+</script>
+</body>
+</html>

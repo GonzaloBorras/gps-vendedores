@@ -81,6 +81,17 @@ def init_db():
             ts      INTEGER NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_positions_code_ts ON positions(code, ts);
+        CREATE TABLE IF NOT EXISTS visitas (
+            fecha   TEXT NOT NULL,
+            code    TEXT NOT NULL,
+            cliente TEXT NOT NULL,
+            razon   TEXT NOT NULL DEFAULT '',
+            calle   TEXT NOT NULL DEFAULT '',
+            vta     TEXT NOT NULL DEFAULT '',
+            ts      INTEGER NOT NULL,
+            PRIMARY KEY (fecha, code, cliente)
+        );
+        CREATE INDEX IF NOT EXISTS idx_visitas_fecha_code ON visitas(fecha, code);
     ''')
     cols = [r[1] for r in con.execute('PRAGMA table_info(vendors)')]
     if 'grupo' not in cols:
@@ -205,9 +216,78 @@ def config_vendor():
 @app.route('/api/pdv')
 def pdv_api():
     prov = request.args.get('prov', '').strip().upper()
+    q = request.args.get('q', '').strip().lower()
+    vta = request.args.get('vta', '').strip().lower()
+    items = PDV
     if prov:
-        return jsonify([p for p in PDV if p['prov'] == prov])
-    return jsonify(PDV)
+        items = [p for p in items if p['prov'] == prov]
+    if vta:
+        items = [p for p in items if vta in (p.get('vta') or '').lower()]
+    if q:
+        items = [p for p in items
+                 if q in (p.get('r') or '').lower()
+                 or q in (p.get('c') or '').lower()
+                 or q in (p.get('calle') or '').lower()
+                 or q in (p.get('vta') or '').lower()]
+        items = items[:50]
+    return jsonify(items)
+
+
+@app.route('/api/visitas', methods=['GET'])
+def visitas_get():
+    code = request.args.get('code', '').strip().upper()
+    fecha = request.args.get('fecha', '').strip()
+    sql = 'SELECT fecha, code, cliente, razon, calle, vta, ts FROM visitas'
+    conds, params = [], []
+    if code:
+        conds.append('code = ?')
+        params.append(code)
+    if fecha:
+        conds.append('fecha = ?')
+        params.append(fecha)
+    if conds:
+        sql += ' WHERE ' + ' AND '.join(conds)
+    sql += ' ORDER BY ts'
+    rows = get_db().execute(sql, params).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/visitas', methods=['POST'])
+def visitas_post():
+    body = request.get_json(force=True, silent=True) or {}
+    code = str(body.get('code', '')).strip().upper()
+    v = VENDOR_BY_CODE.get(code)
+    if not v:
+        return jsonify({'ok': False, 'error': 'codigo invalido'}), 403
+    cliente = str(body.get('cliente', '')).strip()
+    if not cliente:
+        return jsonify({'ok': False, 'error': 'falta cliente'}), 400
+    fecha = str(body.get('fecha', '')).strip() or time.strftime('%Y-%m-%d')
+    if len(fecha) != 10:
+        return jsonify({'ok': False, 'error': 'fecha invalida'}), 400
+    pdv = next((p for p in PDV if p.get('c') == cliente), None)
+    if not pdv:
+        return jsonify({'ok': False, 'error': 'cliente no encontrado en PDV'}), 404
+    db = get_db()
+    ts = int(time.time() * 1000)
+    db.execute(
+        'INSERT OR REPLACE INTO visitas(fecha, code, cliente, razon, calle, vta, ts) VALUES (?,?,?,?,?,?,?)',
+        (fecha, code, cliente, pdv.get('r', ''), pdv.get('calle', ''), pdv.get('vta', ''), ts))
+    db.commit()
+    return jsonify({'ok': True, 'ts': ts})
+
+
+@app.route('/api/visitas', methods=['DELETE'])
+def visitas_delete():
+    body = request.get_json(force=True, silent=True) or {}
+    code = str(body.get('code', '')).strip().upper()
+    cliente = str(body.get('cliente', '')).strip()
+    fecha = str(body.get('fecha', '')).strip() or time.strftime('%Y-%m-%d')
+    db = get_db()
+    db.execute('DELETE FROM visitas WHERE code = ? AND cliente = ? AND fecha = ?',
+               (code, cliente, fecha))
+    db.commit()
+    return jsonify({'ok': True})
 
 
 # ---------------- Páginas ----------------

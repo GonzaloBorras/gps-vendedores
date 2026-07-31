@@ -38,16 +38,16 @@ for src, prov in FILES:
 pairs = sorted(pairs)
 
 EXTRA_USERS = [
-    ('VENDEDORES', 'Facundo Corbalan', 'CORBALAN'),
-    ('VENDEDORES', 'Gonzalo Aguilar', 'AGUILAR'),
-    ('VENDEDORES', 'Carlos Lazo', 'LAZO'),
-    ('VENDEDORES', 'Matias Abib', 'ABIB'),
-    ('VENDEDORES', 'Matias Emeterio', 'EMETERIO'),
-    ('VENDEDORES', 'Santiago Vera', 'VERA'),
-    ('VENDEDORES', 'Leonardo Silva', 'SILVA'),
-    ('VENDEDORES', 'Augusto Madrid', 'MADRID'),
-    ('VENDEDORES', 'Julian Albonoz', 'ALBONOZ'),
-    ('VENDEDORES', 'Saul David', 'DAVID'),
+    ('TUCUMAN', 'Facundo Corbalan', 'CORBALAN'),
+    ('TUCUMAN', 'Gonzalo Aguilar', 'AGUILAR'),
+    ('TUCUMAN', 'Carlos Lazo', 'LAZO'),
+    ('TUCUMAN', 'Matias Abib', 'ABIB'),
+    ('TUCUMAN', 'Matias Emeterio', 'EMETERIO'),
+    ('TUCUMAN', 'Santiago Vera', 'VERA'),
+    ('TUCUMAN', 'Leonardo Silva', 'SILVA'),
+    ('TUCUMAN', 'Augusto Madrid', 'MADRID'),
+    ('TUCUMAN', 'Julian Albonoz', 'ALBONOZ'),
+    ('CATAMARCA', 'Saul David', 'DAVID'),
 ]
 
 vendors = []
@@ -58,6 +58,7 @@ for i, (prov, name) in enumerate(pairs):
         'prov': prov,
         'code': '%s-%02d' % (slug, i + 1),
         'color': TAB20[i % len(TAB20)],
+        'grupo': 'rutas',
     })
 
 n = len(vendors)
@@ -67,6 +68,7 @@ for i, (prov, name, slug) in enumerate(EXTRA_USERS):
         'prov': prov,
         'code': '%s-%02d' % (slug, n + i + 1),
         'color': TAB20[(n + i) % len(TAB20)],
+        'grupo': 'merchan',
     })
 
 with open(OUT, 'w', encoding='utf-8') as f:

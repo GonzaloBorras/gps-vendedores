@@ -23,10 +23,17 @@ def load(src, prov):
             dropped += 1
             continue
         c = '' if pd.isna(df.iat[i, 0]) else str(int(df.iat[i, 0]))
+        def s(idx):
+            v = df.iat[i, idx]
+            return '' if pd.isna(v) else str(v)
+        altura = s(3)
+        vta = s(6)
         out.append({
             'c': c,
-            'r': '' if pd.isna(df.iat[i, 1]) else str(df.iat[i, 1]),
-            'calle': '' if pd.isna(df.iat[i, 2]) else str(df.iat[i, 2]),
+            'r': s(1),
+            'calle': s(2),
+            'altura': altura,
+            'vta': vta,
             'lat': round(lat, 6),
             'lon': round(lon, 6),
             'prov': prov,

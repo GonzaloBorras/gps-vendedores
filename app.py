@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+import re
 import sqlite3
 import time
 
@@ -10,9 +11,24 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get('DB_PATH', os.path.join(BASE_DIR, 'gps.db'))
 VENDORS_FILE = os.path.join(BASE_DIR, 'vendors.json')
 PDV_FILE = os.path.join(BASE_DIR, 'pdv.json')
+OVERRIDES_FILE = os.path.join(BASE_DIR, 'overrides.json')
 
 with open(VENDORS_FILE, encoding='utf-8') as f:
     VENDORS = json.load(f)
+
+OVERRIDES = {}
+if os.path.exists(OVERRIDES_FILE):
+    try:
+        with open(OVERRIDES_FILE, encoding='utf-8') as f:
+            OVERRIDES = json.load(f)
+    except Exception:
+        OVERRIDES = {}
+
+for v in VENDORS:
+    o = OVERRIDES.get(v['code'])
+    if o:
+        v['name'] = o.get('name', v['name'])
+        v['color'] = o.get('color', v['color'])
 
 PDV = []
 if os.path.exists(PDV_FILE):
@@ -152,6 +168,40 @@ def vendors_api():
     return jsonify([dict(r) for r in rows])
 
 
+@app.route('/api/config/vendor', methods=['POST'])
+def config_vendor():
+    body = request.get_json(force=True, silent=True) or {}
+    code = str(body.get('code', '')).strip().upper()
+    v = VENDOR_BY_CODE.get(code)
+    if not v:
+        return jsonify({'ok': False, 'error': 'codigo invalido'}), 404
+
+    name = body.get('name')
+    color = body.get('color')
+    if name is not None:
+        name = str(name).strip()
+        if not name or len(name) > 60:
+            return jsonify({'ok': False, 'error': 'nombre invalido'}), 400
+        v['name'] = name
+    if color is not None:
+        color = str(color).strip()
+        if not re.fullmatch(r'#[0-9a-fA-F]{6}', color):
+            return jsonify({'ok': False, 'error': 'color invalido'}), 400
+        v['color'] = color
+
+    OVERRIDES[code] = {'name': v['name'], 'color': v['color']}
+    try:
+        with open(OVERRIDES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(OVERRIDES, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+    db = get_db()
+    db.execute('UPDATE vendors SET name=?, color=? WHERE code=?', (v['name'], v['color'], code))
+    db.commit()
+    return jsonify({'ok': True, 'vendor': {'code': code, 'name': v['name'], 'color': v['color']}})
+
+
 @app.route('/api/pdv')
 def pdv_api():
     prov = request.args.get('prov', '').strip().upper()
@@ -197,8 +247,8 @@ def manifest():
     else:
         start_url = '/tracker/'
     return jsonify({
-        'name': 'GPS Vendedores',
-        'short_name': 'GPS Vendedores',
+        'name': 'GPS Merchan',
+        'short_name': 'GPS Merchan',
         'start_url': start_url,
         'scope': '/',
         'display': 'standalone',

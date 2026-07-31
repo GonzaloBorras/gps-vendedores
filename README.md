@@ -4,8 +4,8 @@ Sistema de seguimiento GPS en vivo para vendedores de Tucumán y Catamarca.
 
 ## Qué hace
 
-- **Vendedor**: abre su link en el celular, pulsa "Iniciar envío" y el GPS se envía automáticamente cada 10 segundos.
-- **Panel**: mapa en vivo con la posición de todos los vendedores, estado (activo/sin señal), historial del recorrido del día y botón para copiar los links de cada vendedor.
+- **Vendedor**: abre su link en el celular, pulsa "Iniciar envío" y el GPS se envía automáticamente cada 10 segundos. También puede registrar los PDV que visita en el día con el botón "Registrar PDV visitado".
+- **Panel**: mapa en vivo con la posición de todos los vendedores, estado (activo/sin señal), historial del recorrido del día, botón para copiar los links de cada vendedor y, en Configuración, la lista de PDV visitados por cada colaborador y día (con razón social, calle, número de cliente y ruta/vendedor).
 
 ## Links
 
@@ -99,6 +99,13 @@ python app.py
 | `DASH_PIN` | `1234` | PIN para entrar al panel |
 | `DB_PATH` | `gps.db` | Ruta del archivo SQLite |
 | `PORT` | `5000` | Puerto del servidor |
+
+## Registro de PDV visitados
+
+- El vendedor marca sus visitas desde su tracker (`/tracker/<codigo>` → "Registrar PDV visitado"), buscando por razón social, número de cliente, calle o ruta.
+- El panel las consulta en **Configuración ⚙ → "PDV visitados por día"** (elige colaborador y fecha).
+- API: `POST /api/visitas`, `GET /api/visitas?code=X&fecha=YYYY-MM-DD`, `DELETE /api/visitas`.
+- `pdv.json` incluye por cada cliente: `c` (número de cliente), `r` (razón social), `calle`, `altura`, `lat`, `lon`, `prov` y `vta` (ruta de venta / vendedor).
 
 ## Cómo funciona
 

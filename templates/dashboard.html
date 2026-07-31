@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GPS Vendedores - Panel</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
@@ -19,6 +21,9 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .sidebar .head h1 { font-size: 17px; }
 .sidebar .head .sub { font-size: 12px; color: #bbb; margin-top: 2px; }
 .sidebar .filtros { padding: 10px 12px; border-bottom: 1px solid #eee; }
+.toggle-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151;
+  padding: 2px 0 6px; cursor: pointer; }
+.toggle-row input { width: auto; margin: 0; }
 .tabs { display: flex; gap: 6px; padding: 10px 12px 0; }
 .tab { flex: 1; padding: 8px; border: 1px solid #ddd; background: #fff; border-radius: 8px;
   font-weight: 600; font-size: 13px; cursor: pointer; color: #555; }
@@ -89,6 +94,10 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
     <input type="text" id="search" placeholder="Buscar vendedor...">
     <select id="prov"><option value="">Todas las provincias</option>
       <option>TUCUMAN</option><option>CATAMARCA</option></select>
+    <label class="toggle-row">
+      <input type="checkbox" id="pdv-toggle" onchange="togglePDV()" checked>
+      <span>Mostrar PDV (clientes)</span>
+    </label>
   </div>
   <div class="list" id="list"></div>
 </div>
@@ -97,6 +106,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 {% endif %}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 {% if not locked %}
 var vendorsData = {{ vendors|tojson }};
@@ -203,6 +213,35 @@ function copyLink(code) {
   }
 }
 
+var pdvCluster = null;
+
+function togglePDV() {
+  var on = document.getElementById('pdv-toggle').checked;
+  if (!on) { if (pdvCluster) map.removeLayer(pdvCluster); return; }
+  if (pdvCluster) { map.addLayer(pdvCluster); return; }
+  fetch('/api/pdv').then(function (r) { return r.json(); }).then(function (arr) {
+    var pts = arr.map(function (d) {
+      var m = L.circleMarker([d.lat, d.lon], {
+        radius: 4, color: '#6b7280', weight: 1, fillColor: '#9ca3af', fillOpacity: 0.6
+      });
+      var dir = d.calle || '—';
+      m.bindPopup('<div class="popup-info">' +
+        '<div class="name">' + esc(d.r) + '</div>' +
+        '<div>Cliente: ' + (d.c ? esc(d.c) : '—') +
+          ' &nbsp; <span style="color:#9ca3af;font-size:10px">' + esc(d.prov) + '</span></div>' +
+        '<div>' + esc(dir) + '</div>' +
+        '<a href="https://www.google.com/maps/search/?api=1&query=' + d.lat + ',' + d.lon +
+        '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;border:0;border-radius:6px;padding:5px 10px;background:#eff6ff;color:#1d4ed8;font-weight:600;text-decoration:none">Google Maps</a>' +
+        '</div>');
+      return m;
+    });
+    pdvCluster = L.markerClusterGroup({ disableClusteringAtZoom: 16, maxClusterRadius: 40, showCoverageOnHover: false });
+    pdvCluster.addLayers(pts);
+    map.addLayer(pdvCluster);
+    document.getElementById('statusbar').textContent = 'PDV cargados: ' + arr.length;
+  }).catch(function () {});
+}
+
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -237,6 +276,7 @@ document.getElementById('tab-merchan').textContent = 'Merchan (' + vendorsData.f
 map.setView([-27.8, -65.6], 9);
 refresh();
 setInterval(refresh, 5000);
+togglePDV();
 {% endif %}
 </script>
 </body>

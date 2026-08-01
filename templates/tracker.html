@@ -343,6 +343,7 @@ function start() {
   btn.disabled = true;
   setState('Verificando ubicación...', true);
   navigator.geolocation.getCurrentPosition(function (pos) {
+    lastAcc = Math.round(pos.coords.accuracy) || 0;
     fetch(base + '/api/start-check', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -366,7 +367,7 @@ function start() {
     btn.disabled = false;
     resetBtn();
     onErr(err);
-  }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 });
+  }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
 }
 function stopTracking() {
   stopWorker();
@@ -578,7 +579,7 @@ function marcarVisita(c) {
   if (visitasCache[c]) { quitarVisita(c); return; }
   fetch(base + '/api/visitas', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: code, cliente: c, fecha: todayStr(), validate: true })
+    body: JSON.stringify({ code: code, cliente: c, fecha: todayStr(), validate: true, accuracy: lastAcc || null })
   }).then(function (r) { return r.json(); }).then(function (d) {
     if (d.ok) {
       visitaSeq.push(c);

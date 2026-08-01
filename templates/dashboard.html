@@ -150,6 +150,23 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .rutas-empty { font-size: 12px; color: #9ca3af; padding: 8px; }
 .alertbar { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 3000; background: #fef2f2; color: #b91c1c; border-bottom: 2px solid #f87171; padding: 8px 12px; font-size: 13px; text-align: center; box-shadow: 0 2px 8px rgba(185,28,28,.2); }
 .gps-alert { margin-top: 6px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; }
+.config textarea { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; }
+.config .vlist { max-height: 200px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px; margin-top: 6px; background: #fafafa; }
+.config .vlist .vitem { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; font-size: 12px; border: 1px solid transparent; }
+.config .vlist .vitem:hover { background: #eef2ff; }
+.config .vlist .vitem .vi-name { font-weight: 600; color: #1f2937; }
+.config .vlist .vitem .vi-det { font-size: 10px; color: #6b7280; }
+.config .vlist .vitem button { border: 0; background: #fee2e2; color: #b91c1c; border-radius: 5px; padding: 3px 7px; font-size: 11px; cursor: pointer; margin-left: auto; }
+.config .vlist .vitem input[type=number] { width: 70px; padding: 5px 6px; margin: 0; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; }
+.rep-tab { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+.rep-tab th, .rep-tab td { border: 1px solid #e5e7eb; padding: 4px 6px; text-align: center; }
+.rep-tab th { background: #f1f5f9; color: #334155; }
+.rep-tab .tot { background: #eef2ff; font-weight: 700; }
+.rep-badge { display: inline-block; border-radius: 4px; padding: 0 5px; font-weight: 700; }
+.rep-ok { background: #dcfce7; color: #166534; }
+.rep-low { background: #fef9c3; color: #854d0e; }
+.rep-bad { background: #fee2e2; color: #b91c1c; }
+.exp-link { display: block; width: 100%; margin-top: 6px; padding: 8px; border: 0; border-radius: 8px; background: #059669; color: #fff; text-align: center; text-decoration: none; font-weight: 600; font-size: 13px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -225,6 +242,62 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
       <label>Merchan</label>
       <select id="rutas-vendor" onchange="loadRutas()"></select>
       <div class="rutas-grid" id="rutas-grid"></div>
+    </div>
+    <div class="visitas-sec">
+      <h3>Jornada (turno por vendedor)</h3>
+      <label>Colaborador</label>
+      <select id="shift-vendor" onchange="syncShiftFields()"></select>
+      <label>Horas de jornada</label>
+      <div class="row">
+        <input type="number" id="shift-hours" min="1" max="24" step="0.5" value="8">
+        <button onclick="applyShift()">Guardar</button>
+      </div>
+    </div>
+    <div class="visitas-sec">
+      <h3>Ausencias / día libre</h3>
+      <label>Colaborador</label>
+      <select id="abs-vendor"></select>
+      <label>Fecha</label>
+      <div class="row">
+        <input type="date" id="abs-fecha">
+        <select id="abs-motivo" style="flex:1;margin:0">
+          <option>Día libre</option><option>Permiso</option><option>Capacitación</option><option>Licencia</option><option>Otro</option>
+        </select>
+      </div>
+      <button class="btn-block" style="background:#1d4ed8;color:#fff" onclick="addAbsence()">Agregar ausencia</button>
+      <div class="vlist" id="abs-lista"></div>
+    </div>
+    <div class="visitas-sec">
+      <h3>Radio del PDV (validación por ubicación)</h3>
+      <input type="search" id="pdvr-search" placeholder="Buscar PDV por nombre, cliente, calle..." oninput="searchPdvRadius()">
+      <div class="vres" id="pdvr-res"></div>
+    </div>
+    <div class="visitas-sec">
+      <h3>Comunicación con los merchans</h3>
+      <label>Destino</label>
+      <select id="msg-vendor"></select>
+      <label>Mensaje</label>
+      <textarea id="msg-text" rows="3" placeholder="Ej: Recordá iniciar el envío al llegar al primer PDV de la ruta."></textarea>
+      <button class="btn-block" style="background:#1d4ed8;color:#fff" onclick="sendMessage()">Enviar (con aviso push)</button>
+    </div>
+    <div class="visitas-sec">
+      <h3>Geocercas (entradas/salidas de PDV)</h3>
+      <label>Colaborador</label>
+      <select id="geo-vendor" onchange="loadGeoevents()"></select>
+      <div class="vlist" id="geo-lista"></div>
+    </div>
+    <div class="visitas-sec">
+      <h3>Reporte de cumplimiento</h3>
+      <label>Colaborador</label>
+      <select id="rep-vendor"></select>
+      <div class="row">
+        <input type="date" id="rep-desde">
+        <input type="date" id="rep-hasta">
+      </div>
+      <button class="btn-block refresh" onclick="loadReporte()">Generar reporte</button>
+      <div id="rep-lista"></div>
+      <a class="exp-link" id="exp-visitas" target="_blank" rel="noopener">Exportar visitas (CSV)</a>
+      <a class="exp-link" id="exp-recorrido" target="_blank" rel="noopener">Exportar recorrido (CSV)</a>
     </div>
     <button class="btn-block close" onclick="closeConfig()">Cerrar</button>
     <div class="note" id="cfg-msg"></div>
@@ -322,6 +395,7 @@ function makePopup(v, pos) {
     hoy +
     '<div style="margin-top:4px">' +
     '<button class="btn btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Ver recorrido</button> ' +
+    '<button class="btn btn-route" onclick="playRoute(\'' + esc(v.code) + '\')">Reproducir</button> ' +
     '<a class="btn btn-gmaps" href="https://www.google.com/maps/search/?api=1&query=' + pos.lat + ',' + pos.lon +
     '" target="_blank" rel="noopener">Google Maps</a>' +
     '</div></div>';
@@ -390,6 +464,8 @@ function renderMerchanMeta() {
       ' · PDV: ' + (n && n.razon
         ? esc(n.razon) + ' (' + (n.dist_m < 1000 ? n.dist_m + ' m' : (n.dist_m / 1000).toFixed(1) + ' km') + ')'
         : '—');
+    if (n && n.pendiente) html += ' <span class="hoy-badge" style="background:#dc2626">🎯 PDV pendiente</span>';
+    else if (n && n.dentro) html += ' <span class="hoy-badge" style="background:#059669">✔ en PDV</span>';
     if (totalHoy) html += ' · Ruta hoy: <b>' + pendHoy + '</b><span class="hoy-badge">HOY</span>';
     el.innerHTML = html;
   });
@@ -502,13 +578,51 @@ function renderAlerts(arr) {
 
 function showRoute(code) {
   if (routeLayer) map.removeLayer(routeLayer);
-  fetch('/api/history?code=' + encodeURIComponent(code) + '&days=1').then(function (r) { return r.json(); }).then(function (pts) {
-    if (!pts.length) { toast('Sin recorrido registrado en las últimas 24 hs'); return; }
+  fetch('/api/history?code=' + encodeURIComponent(code) + '&fecha=' + todayStr()).then(function (r) { return r.json(); }).then(function (pts) {
+    if (!pts.length) { toast('Sin recorrido registrado hoy'); return; }
     routeLayer = L.polyline(pts.map(function (p) { return [p.lat, p.lon]; }), {
       color: '#6366f1', weight: 3, opacity: 0.8
     }).addTo(map);
     map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
   }).catch(function () {});
+}
+
+var replayMarker = null;
+var replayTimer = null;
+function stopReplay() {
+  if (replayTimer) { clearInterval(replayTimer); replayTimer = null; }
+  if (replayMarker) { map.removeLayer(replayMarker); replayMarker = null; }
+}
+function playRoute(code) {
+  stopReplay();
+  fetch('/api/history?code=' + encodeURIComponent(code) + '&fecha=' + todayStr()).then(function (r) { return r.json(); }).then(function (pts) {
+    if (!pts.length) { toast('Sin recorrido hoy para reproducir'); return; }
+    if (routeLayer) map.removeLayer(routeLayer);
+    routeLayer = L.polyline(pts.map(function (p) { return [p.lat, p.lon]; }), {
+      color: '#6366f1', weight: 3, opacity: 0.8
+    }).addTo(map);
+    map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
+    replayMarker = L.circleMarker([pts[0].lat, pts[0].lon], {
+      radius: 8, color: '#fff', weight: 2, fillColor: '#f59e0b', fillOpacity: 1
+    }).addTo(map);
+    var totalMs = Math.max(pts[pts.length - 1].ts - pts[0].ts, 1000);
+    var dur = Math.max(8000, totalMs / 1000 * 100);
+    var t0 = Date.now();
+    replayTimer = setInterval(function () {
+      var frac = (Date.now() - t0) / dur;
+      if (frac >= 1) {
+        frac = 1;
+        stopReplay();
+        document.getElementById('statusbar').textContent = 'Recorrido de ' + code + ' (finalizado)';
+      }
+      var idx = Math.min(pts.length - 1, Math.floor(frac * (pts.length - 1)));
+      var p = pts[idx];
+      replayMarker.setLatLng([p.lat, p.lon]);
+      var dt = new Date(p.ts);
+      dt = new Date(dt.getTime() - 3 * 3600 * 1000);
+      document.getElementById('statusbar').textContent = 'Reproduciendo ' + code + ' — ' + dt.toLocaleTimeString('es-AR');
+    }, 200);
+  }).catch(function () { toast('Error al reproducir.'); });
 }
 
 function flyTo(code) {
@@ -797,10 +911,192 @@ function openConfig() {
   fillCfgVendors();
   fillVisVendors();
   fillRutasVendors();
+  fillShiftVendors();
+  fillAbsVendors();
+  fillMsgVendors();
+  fillGeoVendors();
+  fillRepVendors();
   loadVisitasPanel();
   loadRutas();
+  loadAbsences();
+  loadGeoevents();
+  syncShiftFields();
+  document.getElementById('abs-fecha').value = todayStr();
+  document.getElementById('rep-desde').value = todayStr();
+  document.getElementById('rep-hasta').value = todayStr();
   document.getElementById('cfg-msg').textContent = '';
   document.getElementById('config-overlay').classList.add('open');
+}
+
+// ---------------- Config: jornada, ausencias, radio PDV, mensajes, geocercas, reportes ----------------
+function sortedAll() { return vendorsData.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }); }
+function sortedMerchans() { return vendorsData.filter(function (v) { return v.grupo === 'merchan'; }).sort(function (a, b) { return a.name.localeCompare(b.name); }); }
+
+function fillShiftVendors() {
+  var sel = document.getElementById('shift-vendor');
+  sel.innerHTML = '';
+  sortedAll().forEach(function (v) {
+    var o = document.createElement('option');
+    o.value = v.code;
+    o.textContent = v.name + ' (' + v.code + ')';
+    sel.appendChild(o);
+  });
+}
+function syncShiftFields() {
+  var code = document.getElementById('shift-vendor').value;
+  fetch('/api/shift?code=' + encodeURIComponent(code)).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.ok) document.getElementById('shift-hours').value = Math.round(d.shift_ms / 3600000 * 2) / 2;
+  }).catch(function () {});
+}
+function applyShift() {
+  var code = document.getElementById('shift-vendor').value;
+  var hours = document.getElementById('shift-hours').value;
+  fetch('/api/config/shift', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, shift_hours: Number(hours) }) })
+    .then(function (r) { return r.json(); }).then(function (d) { cfgMsg(d.ok ? 'Jornada guardada.' : 'Error: ' + d.error); })
+    .catch(function () { cfgMsg('Error de conexión.'); });
+}
+
+function fillAbsVendors() {
+  var sel = document.getElementById('abs-vendor');
+  sel.innerHTML = '';
+  sortedMerchans().forEach(function (v) {
+    var o = document.createElement('option');
+    o.value = v.code;
+    o.textContent = v.name;
+    sel.appendChild(o);
+  });
+}
+function loadAbsences() {
+  var code = document.getElementById('abs-vendor').value;
+  var box = document.getElementById('abs-lista');
+  if (!code) { box.innerHTML = ''; return; }
+  fetch('/api/absence?code=' + encodeURIComponent(code)).then(function (r) { return r.json(); }).then(function (arr) {
+    if (!arr.length) { box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Sin ausencias.</div>'; return; }
+    box.innerHTML = arr.map(function (x) {
+      return '<div class="vitem"><div style="flex:1"><div class="vi-name">' + esc(x.fecha) + ' — ' + esc(x.motivo) + '</div></div><button onclick="removeAbsence(\'' + esc(x.fecha) + '\')">Quitar</button></div>';
+    }).join('');
+  }).catch(function () {});
+}
+function addAbsence() {
+  var code = document.getElementById('abs-vendor').value;
+  var fecha = document.getElementById('abs-fecha').value;
+  var motivo = document.getElementById('abs-motivo').value;
+  if (!code || !fecha) { cfgMsg('Elegí colaborador y fecha.'); return; }
+  fetch('/api/absence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, fecha: fecha, motivo: motivo }) })
+    .then(function (r) { return r.json(); }).then(function (d) { if (d.ok) { loadAbsences(); cfgMsg('Ausencia cargada.'); } else cfgMsg('Error: ' + d.error); })
+    .catch(function () { cfgMsg('Error de conexión.'); });
+}
+function removeAbsence(fecha) {
+  var code = document.getElementById('abs-vendor').value;
+  fetch('/api/absence', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, fecha: fecha }) })
+    .then(function (r) { return r.json(); }).then(function (d) { if (d.ok) loadAbsences(); }).catch(function () {});
+}
+
+function searchPdvRadius() {
+  var q = document.getElementById('pdvr-search').value.trim();
+  var box = document.getElementById('pdvr-res');
+  if (!q) { box.innerHTML = ''; return; }
+  fetch('/api/pdv?q=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (arr) {
+    if (!arr.length) { box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Sin resultados.</div>'; return; }
+    box.innerHTML = '<div class="vlist">' + arr.map(function (d) {
+      return '<div class="vitem" style="flex-wrap:wrap"><div style="flex:1;min-width:120px"><div class="vi-name">' + esc(d.r) + '</div><div class="vi-det">Cliente: ' + esc(d.c) + ' · radio actual: ' + (d.radius || 150) + ' m</div></div>' +
+        '<input type="number" id="rad-' + esc(d.c) + '" value="' + (d.radius || 150) + '" min="20" max="2000">' +
+        '<button style="margin-left:0;background:#dcfce7;color:#166534" onclick="setPdvRadius(\'' + esc(d.c) + '\')">Guardar</button></div>';
+    }).join('') + '</div>';
+  }).catch(function () { box.innerHTML = '<div class="empty">Error.</div>'; });
+}
+function setPdvRadius(c) {
+  var v = document.getElementById('rad-' + c).value;
+  fetch('/api/pdv/radius', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cliente: c, radius_m: Number(v) }) })
+    .then(function (r) { return r.json(); }).then(function (d) { cfgMsg(d.ok ? 'Radio guardado (' + d.radius_m + ' m).' : 'Error: ' + d.error); })
+    .catch(function () { cfgMsg('Error de conexión.'); });
+}
+
+function fillMsgVendors() {
+  var sel = document.getElementById('msg-vendor');
+  sel.innerHTML = '';
+  var o = document.createElement('option');
+  o.value = 'ALL';
+  o.textContent = 'Todos los merchans';
+  sel.appendChild(o);
+  sortedMerchans().forEach(function (v) {
+    var x = document.createElement('option');
+    x.value = v.code;
+    x.textContent = v.name;
+    sel.appendChild(x);
+  });
+}
+function sendMessage() {
+  var code = document.getElementById('msg-vendor').value;
+  var msj = document.getElementById('msg-text').value.trim();
+  if (!msj) { cfgMsg('Escribí un mensaje.'); return; }
+  fetch('/api/comunicar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, msj: msj }) })
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (d.ok) { document.getElementById('msg-text').value = ''; cfgMsg('Mensaje enviado a ' + d.n + ' merchan(s) con aviso push.'); }
+      else cfgMsg('Error: ' + d.error);
+    }).catch(function () { cfgMsg('Error de conexión.'); });
+}
+
+function fillGeoVendors() {
+  var sel = document.getElementById('geo-vendor');
+  sel.innerHTML = '';
+  sortedMerchans().forEach(function (v) {
+    var o = document.createElement('option');
+    o.value = v.code;
+    o.textContent = v.name;
+    sel.appendChild(o);
+  });
+}
+function loadGeoevents() {
+  var code = document.getElementById('geo-vendor').value;
+  var box = document.getElementById('geo-lista');
+  if (!code) { box.innerHTML = ''; return; }
+  fetch('/api/geoevents?code=' + encodeURIComponent(code) + '&limit=20').then(function (r) { return r.json(); }).then(function (arr) {
+    if (!arr.length) { box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Sin eventos todavía.</div>'; return; }
+    box.innerHTML = arr.map(function (x) {
+      var t = new Date(x.ts);
+      t = new Date(t.getTime() - 3 * 3600 * 1000);
+      var icono = x.tipo === 'enter' ? '🟢 entró a' : '⚪ salió de';
+      var dist = x.dist_m != null ? ' (' + x.dist_m + ' m)' : '';
+      return '<div class="vitem"><div style="flex:1"><div class="vi-name">' + icono + ' ' + esc(x.razon || x.cliente) + dist + '</div><div class="vi-det">Cliente: ' + esc(x.cliente) + ' · ' + t.toLocaleString('es-AR') + '</div></div></div>';
+    }).join('');
+  }).catch(function () {});
+}
+
+function fillRepVendors() {
+  var sel = document.getElementById('rep-vendor');
+  sel.innerHTML = '';
+  sortedMerchans().forEach(function (v) {
+    var o = document.createElement('option');
+    o.value = v.code;
+    o.textContent = v.name;
+    sel.appendChild(o);
+  });
+}
+function loadReporte() {
+  var code = document.getElementById('rep-vendor').value;
+  var desde = document.getElementById('rep-desde').value;
+  var hasta = document.getElementById('rep-hasta').value;
+  var box = document.getElementById('rep-lista');
+  var ev = document.getElementById('exp-visitas');
+  var er = document.getElementById('exp-recorrido');
+  ev.href = '/api/export/visitas.csv?desde=' + (desde || '2020-01-01') + '&hasta=' + (hasta || '2099-12-31') + '&code=' + code;
+  er.href = code ? '/api/export/recorrido.csv?code=' + code + '&fecha=' + (desde || todayStr()) : '#';
+  if (!code || !desde || !hasta) { box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Elegí colaborador y rango de fechas.</div>'; return; }
+  box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Cargando...</div>';
+  fetch('/api/reporte?code=' + encodeURIComponent(code) + '&desde=' + desde + '&hasta=' + hasta)
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) { box.innerHTML = '<div class="empty">' + esc(d.error || 'Error') + '</div>'; return; }
+      var tot = d.totals;
+      var rows = d.days.map(function (x) {
+        var cls = x.pct >= 80 ? 'rep-ok' : (x.pct >= 50 ? 'rep-low' : 'rep-bad');
+        return '<tr><td>' + esc(x.fecha) + '</td><td>' + esc(x.dia) + '</td><td>' + x.scheduled + '</td><td>' + x.visitados_ruta + '/' + x.visitas_totales + '</td><td><span class="rep-badge ' + cls + '">' + x.pct + '%</span></td><td>' + x.km + '</td><td>' + x.horas + '</td></tr>';
+      }).join('');
+      var tcls = tot.pct >= 80 ? 'rep-ok' : (tot.pct >= 50 ? 'rep-low' : 'rep-bad');
+      box.innerHTML = '<table class="rep-tab"><tr><th>Fecha</th><th>Día</th><th>PDV ruta</th><th>Visitas (ruta/total)</th><th>Cumpl.</th><th>Km</th><th>Hs act.</th></tr>' +
+        rows +
+        '<tr class="tot"><td colspan="2">Total</td><td>' + tot.scheduled + '</td><td>' + tot.visitados_ruta + '/' + tot.visitas_totales + '</td><td><span class="rep-badge ' + tcls + '">' + tot.pct + '%</span></td><td>' + tot.km + '</td><td>' + tot.horas + '</td></tr></table>';
+    }).catch(function () { box.innerHTML = '<div class="empty">Error al generar.</div>'; });
 }
 
 var pdvCluster = null;

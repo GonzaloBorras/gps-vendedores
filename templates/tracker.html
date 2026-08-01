@@ -94,7 +94,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   <button id="visitasBtn">Registrar PDV visitado</button>
   <span class="visita-count" id="visitaCount"></span>
   <div class="jornada" id="jornada"></div>
-  <hint>Dejá esta página abierta mientras trabajás.<br>
+  <hint>Para iniciar el envío tenés que estar en el PDV.<br>
   El GPS se envía automáticamente cada 10 segundos y la jornada
   se corta sola a las 8 horas.<br><br>
   💡 Para usarla como app: en el navegador tocá el menú (⋮) y elegí
@@ -308,8 +308,14 @@ function requestWakeLock() {
     });
   }).catch(function () {});
 }
-function start() {
-  if (!('geolocation' in navigator)) { showErr('Tu navegador no soporta geolocalización.'); return; }
+function resetBtn() {
+  running = false;
+  document.getElementById('btn').textContent = 'Iniciar envío';
+  document.getElementById('btn').className = 'btn start';
+  document.getElementById('btn').onclick = start;
+  setState('Envío detenido', false);
+}
+function beginLive() {
   running = true;
   var storedStart = Number(localStorage.getItem('gps_shift_start') || 0);
   shiftStart = (storedStart && Date.now() - storedStart < SHIFT_MS) ? storedStart : Date.now();
@@ -328,6 +334,39 @@ function start() {
     if (primerPDV) localStorage.setItem('gps_primer_pdv', primerPDV.razon);
     updateJornadaBanner();
   });
+}
+function start() {
+  if (!('geolocation' in navigator)) { showErr('Tu navegador no soporta geolocalización.'); return; }
+  hideErr();
+  var btn = document.getElementById('btn');
+  btn.textContent = 'Verificando que estás en el PDV...';
+  btn.disabled = true;
+  setState('Verificando ubicación...', true);
+  navigator.geolocation.getCurrentPosition(function (pos) {
+    fetch(base + '/api/start-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, lat: pos.coords.latitude, lon: pos.coords.longitude })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      btn.disabled = false;
+      if (d.ok) {
+        beginLive();
+      } else {
+        resetBtn();
+        var msg = 'Para iniciar el envío tenés que estar en un PDV.';
+        if (d.pdv && d.dist_m != null) msg += ' El PDV más cercano es ' + d.pdv.razon + ' (' + fmtDist(d.dist_m) + ').';
+        showErr(msg);
+      }
+    }).catch(function () {
+      btn.disabled = false;
+      resetBtn();
+      showErr('Error al validar la ubicación. Revisá tu conexión.');
+    });
+  }, function (err) {
+    btn.disabled = false;
+    resetBtn();
+    onErr(err);
+  }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 });
 }
 function stopTracking() {
   stopWorker();

@@ -180,6 +180,36 @@ def gps_status():
     return jsonify({'ok': True})
 
 
+@app.route('/api/start-check', methods=['POST'])
+def start_check():
+    body = request.get_json(force=True, silent=True) or {}
+    code = str(body.get('code', '')).strip().upper()
+    if code not in VENDOR_BY_CODE:
+        return jsonify({'ok': False, 'error': 'codigo invalido'}), 404
+    try:
+        lat = float(body.get('lat'))
+        lon = float(body.get('lon'))
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'coordenadas invalidas'}), 400
+    if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+        return jsonify({'ok': False, 'error': 'coordenadas fuera de rango'}), 400
+    best = None
+    for p in PDV:
+        pl, po = p.get('lat'), p.get('lon')
+        if pl and po and (pl != 0 or po != 0):
+            d = _haversine(lat, lon, pl, po)
+            if best is None or d < best[0]:
+                best = (d, p)
+    if not best:
+        return jsonify({'ok': False, 'error': 'sin PDV'}), 404
+    d, p = best
+    return jsonify({
+        'ok': d <= VISIT_RADIUS_M,
+        'dist_m': int(d),
+        'pdv': {'cliente': p['c'], 'razon': p['r']}
+    })
+
+
 @app.route('/api/positions')
 def positions():
     db = get_db()

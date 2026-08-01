@@ -111,6 +111,19 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .vres .vitem { border: 1px solid #e5e7eb; }
 .vres .vitem button { background: #dcfce7; color: #166534; }
 .visitas-count { font-size: 12px; color: #047857; margin-top: 6px; }
+.rutas-grid { margin-top: 8px; }
+.rutas-dia { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+.rutas-dia h4 { margin: 0; padding: 6px 10px; font-size: 12px; background: #f1f5f9; color: #334155;
+  display: flex; justify-content: space-between; align-items: center; }
+.rutas-dia h4 .rd-n { font-weight: 700; }
+.rutas-dia h4 .rd-c { color: #059669; font-weight: 600; }
+.rutas-dia ul { list-style: none; margin: 0; padding: 4px 8px; }
+.rutas-dia li { padding: 4px 2px; font-size: 12px; border-bottom: 1px dashed #eee; }
+.rutas-dia li:last-child { border-bottom: 0; }
+.rutas-dia li .rd-name { font-weight: 600; color: #1f2937; }
+.rutas-dia li .rd-det { font-size: 10px; color: #6b7280; }
+.rutas-dia li .rd-vta { font-size: 10px; color: #4338ca; }
+.rutas-empty { font-size: 12px; color: #9ca3af; padding: 8px; }
 </style>
 </head>
 <body>
@@ -177,6 +190,12 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
       <div class="vres" id="vis-res"></div>
       <div id="vis-lista"></div>
       <div class="visitas-count" id="vis-count"></div>
+    </div>
+    <div class="visitas-sec">
+      <h3>PDV asignados por día (ruteo semanal)</h3>
+      <label>Merchan</label>
+      <select id="rutas-vendor" onchange="loadRutas()"></select>
+      <div class="rutas-grid" id="rutas-grid"></div>
     </div>
     <button class="btn-block close" onclick="closeConfig()">Cerrar</button>
     <div class="note" id="cfg-msg"></div>
@@ -471,10 +490,60 @@ function addVisitaPanel(c) {
   }).catch(function () {});
 }
 
+// ---------------- Ruteo semanal (PDV asignados por día) ----------------
+var RUTAS_DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+var RUTAS_DIA_NAMES = { LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado' };
+
+function fillRutasVendors() {
+  var sel = document.getElementById('rutas-vendor');
+  sel.innerHTML = '';
+  vendorsData.filter(function (v) { return v.grupo === 'merchan'; })
+    .sort(function (a, b) { return a.name.localeCompare(b.name); })
+    .forEach(function (v) {
+      var o = document.createElement('option');
+      o.value = v.code;
+      o.textContent = v.name + ' (' + v.code + ')';
+      sel.appendChild(o);
+    });
+}
+
+function loadRutas() {
+  var code = document.getElementById('rutas-vendor').value;
+  var grid = document.getElementById('rutas-grid');
+  if (!code) { grid.innerHTML = ''; return; }
+  grid.innerHTML = '<div class="rutas-empty">Cargando...</div>';
+  fetch('/api/rutas?merchan=' + encodeURIComponent(code))
+    .then(function (r) { return r.json(); })
+    .then(function (arr) {
+      var days = {};
+      arr.forEach(function (v) {
+        (days[v.dia] = days[v.dia] || []).push(v);
+      });
+      var html = RUTAS_DIAS.map(function (d) {
+        var lst = days[d] || [];
+        var items = lst.map(function (v) {
+          var dir = (v.calle || '') + (v.altura ? ' ' + v.altura : '');
+          var det = 'Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '');
+          return '<li>' +
+            '<div class="rd-name">' + esc(v.razon) + '</div>' +
+            '<div class="rd-det">' + det + '</div>' +
+            (v.vta ? '<div class="rd-vta">' + esc(v.vta) + '</div>' : '') +
+          '</li>';
+        }).join('');
+        return '<div class="rutas-dia"><h4><span class="rd-n">' + RUTAS_DIA_NAMES[d] + '</span>' +
+          '<span class="rd-c">' + lst.length + ' PDV</span></h4>' +
+          (items ? '<ul>' + items + '</ul>' : '<div class="rutas-empty">Sin ruta este día.</div>') + '</div>';
+      }).join('');
+      grid.innerHTML = html;
+    }).catch(function () { grid.innerHTML = '<div class="rutas-empty">Error al cargar.</div>'; });
+}
+
 function openConfig() {
   fillCfgVendors();
   fillVisVendors();
+  fillRutasVendors();
   loadVisitasPanel();
+  loadRutas();
   document.getElementById('cfg-msg').textContent = '';
   document.getElementById('config-overlay').classList.add('open');
 }

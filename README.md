@@ -4,8 +4,10 @@ Sistema de seguimiento GPS en vivo para vendedores de Tucumán y Catamarca.
 
 ## Qué hace
 
-- **Vendedor**: abre su link en el celular, pulsa "Iniciar envío" y el GPS se envía automáticamente cada 10 segundos. También puede registrar los PDV que visita en el día con el botón "Registrar PDV visitado".
-- **Panel**: mapa en vivo con la posición de todos los vendedores, estado (activo/sin señal), historial del recorrido del día, botón para copiar los links de cada vendedor y, en Configuración, la lista de PDV visitados por cada colaborador y día (con razón social, calle, número de cliente y ruta/vendedor).
+- **Vendedor**: abre su link en el celular, pulsa "Iniciar envío" y el GPS se envía automáticamente cada 10 segundos. Puede registrar los PDV que visita con el botón "Registrar PDV visitado", que además muestra **"Mi ruta de hoy"** con los PDV que le tocan ese día para ir marcándolos. La pantalla no se apaga mientras envía (Wake Lock) y se puede hacer zoom/pinch en el mapa y en la página.
+- **Panel**: mapa en vivo con la posición de todos los vendedores, estado (activo/sin señal), historial del recorrido del día, botón para copiar los links de cada vendedor y, en Configuración, la lista de PDV visitados por cada colaborador y día, más el ruteo semanal por merchan.
+- **Panel – merchan**: al tocar el nombre de un merchan, el mapa salta al **PDV más cercano** a su última posición (marcador rojo, con distancia, razón social y ruta de venta). Cada tarjeta muestra además las **visitas del día**, el **PDV más cercano** y cuántos PDV le tocan **hoy** (destacado con HOY).
+- Los PDV (clientes) se muestran en el mapa con el toggle "Mostrar PDV (clientes)" (apagado por defecto) y el botón "📍 Zoom a la provincia seleccionada" acerca la vista a los vendedores del filtro.
 
 ## Links
 
@@ -102,18 +104,18 @@ python app.py
 
 ## Registro de PDV visitados
 
-- El vendedor marca sus visitas desde su tracker (`/tracker/<codigo>` → "Registrar PDV visitado"), buscando por razón social, número de cliente, calle o ruta.
+- El vendedor marca sus visitas desde su tracker (`/tracker/<codigo>` → "Registrar PDV visitado"), buscando por razón social, número de cliente, calle o ruta. La sección **"Mi ruta de hoy"** le muestra los PDV asignados para ese día y los marca/quita con un toque.
 - El panel las consulta en **Configuración ⚙ → "PDV visitados por día"** (elige colaborador y fecha).
-- API: `POST /api/visitas`, `GET /api/visitas?code=X&fecha=YYYY-MM-DD`, `DELETE /api/visitas`.
+- API: `POST /api/visitas`, `GET /api/visitas?code=X&fecha=YYYY-MM-DD`, `DELETE /api/visitas`, `GET /api/visitas/resumen` (cantidad por vendedor).
 - `pdv.json` incluye por cada cliente: `c` (número de cliente), `r` (razón social), `calle`, `altura`, `lat`, `lon`, `prov` y `vta` (ruta de venta / vendedor).
 
 ## Ruteo semanal por merchan
 
-- El panel muestra en **Configuración ⚙ → "PDV asignados por día (ruteo semanal)"** qué PDV le toca visitar a cada merchan y qué día (Lunes a Sábado).
+- El panel muestra en **Configuración ⚙ → "PDV asignados por día (ruteo semanal)"** qué PDV le toca visitar a cada merchan y qué día (Lunes a Sábado); el día actual aparece resaltado con "HOY". El ruteo también alimenta el popup del merchan y la sección "Mi ruta de hoy" del tracker.
 - La asignación se genera desde los Excel de ruta semanal de la carpeta `C:\Users\gborrasar\Desktop\ruteos` (cada archivo se identifica por el nombre del merchan; se leen solo las hojas de día, se ignora la de Faltantes).
 - Para regenerar después de actualizar los Excel: `python gen_rutas.py` (escribe `rutas.json` con la estructura `merchan → día → [[código cliente, razón social]]`).
 - La razón social se completa desde `pdv.json` por número de cliente; si el cliente no está en el maestro, se usa la razón social que trae el Excel.
-- API: `GET /api/rutas?merchan=LAZO-33&dia=MIERCOLES` (filtros opcionales).
+- API: `GET /api/rutas?merchan=LAZO-33&dia=MIERCOLES` (filtros opcionales), `GET /api/nearest-pdv?code=X` (PDV más cercano a la última posición), `GET /api/merchan-pdv` (PDV más cercano de todos los vendedores).
 
 ## Cómo funciona
 

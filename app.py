@@ -110,6 +110,12 @@ def init_db():
             PRIMARY KEY (fecha, code, cliente)
         );
         CREATE INDEX IF NOT EXISTS idx_visitas_fecha_code ON visitas(fecha, code);
+        CREATE TABLE IF NOT EXISTS alerts (
+            code TEXT PRIMARY KEY,
+            tipo TEXT NOT NULL DEFAULT 'gps_off',
+            ts INTEGER NOT NULL,
+            msj TEXT NOT NULL DEFAULT ''
+        );
     ''')
     cols = [r[1] for r in con.execute('PRAGMA table_info(vendors)')]
     if 'grupo' not in cols:
@@ -148,20 +154,42 @@ def track():
     db.execute(
         'INSERT INTO positions(code, name, lat, lon, session, ts) VALUES (?,?,?,?,?,?)',
         (code, vendor['name'], lat, lon, str(body.get('session'))[:64], ts))
+    db.execute('DELETE FROM alerts WHERE code = ?', (code,))
     db.commit()
     return jsonify({'ok': True, 'ts': ts})
 
 
+@app.route('/api/gps-status', methods=['POST'])
+def gps_status():
+    body = request.get_json(force=True, silent=True) or {}
+    code = str(body.get('code', '')).strip().upper()
+    if code not in VENDOR_BY_CODE:
+        return jsonify({'ok': False, 'error': 'codigo invalido'}), 404
+    db = get_db()
+    ts = int(time.time() * 1000)
+    if body.get('gps'):
+        db.execute('DELETE FROM alerts WHERE code = ?', (code,))
+    else:
+        db.execute(
+            '''INSERT INTO alerts(code, tipo, ts, msj) VALUES (?, 'gps_off', ?, ?)
+               ON CONFLICT(code) DO UPDATE SET ts = excluded.ts, msj = excluded.msj''',
+            (code, ts, 'Ubicación apagada o sin señal GPS'))
+    db.commit()
+    return jsonify({'ok': True})
+
+
 @app.route('/api/positions')
 def positions():
+    db = get_db()
     now = int(time.time() * 1000)
-    rows = get_db().execute('''
+    rows = db.execute('''
         SELECT p.code, p.name, p.lat, p.lon, p.ts, v.prov, v.color, v.grupo
         FROM positions p
         JOIN (SELECT code, MAX(ts) AS mts FROM positions GROUP BY code) mx
           ON p.code = mx.code AND p.ts = mx.mts
         JOIN vendors v ON v.code = p.code
     ''').fetchall()
+    alerts = {a['code']: a['ts'] for a in db.execute('SELECT code, ts FROM alerts').fetchall()}
     out = []
     for r in rows:
         out.append({
@@ -175,6 +203,28 @@ def positions():
             'ts': r['ts'],
             'active': (now - r['ts']) < ACTIVE_MS,
             'last': now - r['ts'],
+            'gpsAlert': r['code'] in alerts,
+            'gpsAlertTs': alerts.get(r['code']),
+        })
+    for code, a_ts in alerts.items():
+        if code in {r['code'] for r in rows}:
+            continue
+        v = VENDOR_BY_CODE.get(code)
+        if not v:
+            continue
+        out.append({
+            'code': code,
+            'name': v.get('name', code),
+            'prov': v.get('prov', ''),
+            'color': v.get('color', '#666666'),
+            'grupo': v.get('grupo', 'rutas'),
+            'lat': None,
+            'lon': None,
+            'ts': None,
+            'active': False,
+            'last': None,
+            'gpsAlert': True,
+            'gpsAlertTs': a_ts,
         })
     return jsonify(out)
 

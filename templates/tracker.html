@@ -63,6 +63,8 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .pdv-item small { color: #64748b; }
 .visitas-close { margin-top: 12px; padding: 10px; border: 0; border-radius: 8px; width: 100%;
   background: #334155; color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; }
+.visitas-msg { display: none; margin-top: 12px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 600; line-height: 1.4; }
+.pdv-far { opacity: .45; }
 .visitas-today { margin-top: 14px; border-top: 1px solid #334155; padding-top: 10px; }
 .visitas-today h3 { font-size: 13px; color: #8b93a7; text-transform: uppercase; margin-bottom: 8px; }
 .empty { color: #64748b; font-size: 12px; padding: 8px 0; }
@@ -110,6 +112,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
       <h3>Visitados hoy</h3>
       <div id="visitasToday"></div>
     </div>
+    <div class="visitas-msg" id="visitasMsg"></div>
     <button class="visitas-close" onclick="closeVisitas()">Cerrar</button>
   </div>
 </div>
@@ -385,6 +388,30 @@ var RUTA_TODAY = { 1: 'LUNES', 2: 'MARTES', 3: 'MIERCOLES', 4: 'JUEVES', 5: 'VIE
 var RUTA_DIA_NAME = { LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado' }[RUTA_TODAY] || 'hoy';
 var rutaHoy = [];
 
+function visitasMsg(msg) {
+  var m = document.getElementById('visitasMsg');
+  m.textContent = msg || '';
+  m.style.display = msg ? 'block' : 'none';
+}
+function pdvDistM(p) {
+  if (lastLat === null || !p || p.lat == null || p.lat === 0) return null;
+  var R = 6371000;
+  var dLat = (p.lat - lastLat) * Math.PI / 180;
+  var dLon = (p.lon - lastLon) * Math.PI / 180;
+  var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lastLat * Math.PI / 180) * Math.cos(p.lat * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return Math.round(R * 2 * Math.asin(Math.sqrt(a)));
+}
+function fmtDist(d) {
+  return d === null ? '' : (d < 1000 ? 'a ' + d + ' m' : 'a ' + (d / 1000).toFixed(1) + ' km');
+}
+function pdvDistTxt(p) {
+  var d = pdvDistM(p);
+  if (d === null) return '';
+  return ' · <span class="dist">' + fmtDist(d) + '</span>';
+}
+
 function loadRutaHoy(cb) {
   if (!RUTA_TODAY) { renderRutaHoy(); if (cb) cb(); return; }
   fetch(base + '/api/rutas?merchan=' + encodeURIComponent(code))
@@ -412,9 +439,10 @@ function renderRutaHoy() {
     rutaHoy.map(function (v) {
       var dir = (v.calle || '') + (v.altura ? ' ' + v.altura : '');
       var vis = visitasCache[v.cliente];
-      return '<div class="pdv-item ' + (vis ? 'visited' : '') + '" onclick="marcarRuta(\'' + v.cliente + '\')">' +
+      var d = pdvDistM(v);
+      return '<div class="pdv-item ' + (vis ? 'visited' : '') + (d !== null && d > 150 ? ' pdv-far' : '') + '" onclick="marcarRuta(\'' + v.cliente + '\')">' +
         '<div class="r">' + esc(v.razon) + '</div>' +
-        '<div class="d">Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '') + '</div>' +
+        '<div class="d">Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(v) + '</div>' +
         (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
         (vis ? '<small>registrado · tocá para quitar</small>' : '<small>tocá para marcar como visitado</small>') +
         '</div>';
@@ -496,9 +524,10 @@ function buscarPDV() {
       box.innerHTML = arr.map(function (d) {
         var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
         var vis = visitasCache[d.c];
-        return '<div class="pdv-item ' + (vis ? 'visited' : '') + '" onclick="marcarVisita(\'' + d.c + '\')">' +
+        var dm = pdvDistM(d);
+        return '<div class="pdv-item ' + (vis ? 'visited' : '') + (dm !== null && dm > 150 ? ' pdv-far' : '') + '" onclick="marcarVisita(\'' + d.c + '\')">' +
           '<div class="r">' + esc(d.r) + '</div>' +
-          '<div class="d">Cliente: ' + esc(d.c) + (dir ? ' · ' + esc(dir) : '') + '</div>' +
+          '<div class="d">Cliente: ' + esc(d.c) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(d) + '</div>' +
           (d.vta ? '<div class="vta">' + esc(d.vta) + '</div>' : '') +
           (vis ? '<small>ya registrado · tocá para quitar</small>' : '<small>tocá para registrar</small>') +
           '</div>';
@@ -510,24 +539,29 @@ function marcarVisita(c) {
   if (visitasCache[c]) { quitarVisita(c); return; }
   fetch(base + '/api/visitas', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: code, cliente: c, fecha: todayStr() })
+    body: JSON.stringify({ code: code, cliente: c, fecha: todayStr(), validate: true })
   }).then(function (r) { return r.json(); }).then(function (d) {
     if (d.ok) {
       visitaSeq.push(c);
+      visitasMsg('');
       loadVisitas();
+    } else {
+      visitasMsg(d.error || 'No se pudo registrar la visita.');
     }
-  }).catch(function () {});
+  }).catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
 }
 
 function openVisitas() {
   document.getElementById('visitasOverlay').classList.add('open');
   document.getElementById('visitasSearch').value = '';
   document.getElementById('visitasResults').innerHTML = '';
+  visitasMsg('');
   if (!rutaHoy.length) loadRutaHoy();
   loadVisitas();
 }
 function closeVisitas() {
   document.getElementById('visitasOverlay').classList.remove('open');
+  visitasMsg('');
 }
 
 document.getElementById('visitasBtn').onclick = openVisitas;

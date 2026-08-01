@@ -52,6 +52,7 @@ DASH_PIN = os.environ.get('DASH_PIN', '1234')
 
 ACTIVE_MS = 120000  # 2 minutos: se considera activo si mandó posición hace menos que esto
 VISIT_RADIUS_M = 150  # radio para validar que el merchan está en el PDV
+START_RADIUS_M = 400  # radio para permitir iniciar en vivo (tolerancia a coords aproximadas)
 VISIT_MAX_MS = 5 * 60 * 1000  # la posición para validar la visita no puede tener más de 5 min
 
 
@@ -204,7 +205,7 @@ def start_check():
         return jsonify({'ok': False, 'error': 'sin PDV'}), 404
     d, p = best
     return jsonify({
-        'ok': d <= VISIT_RADIUS_M,
+        'ok': d <= START_RADIUS_M,
         'dist_m': int(d),
         'pdv': {'cliente': p['c'], 'razon': p['r']}
     })
@@ -489,8 +490,13 @@ def visitas_post():
         if not row or now - row['ts'] > VISIT_MAX_MS:
             return jsonify({'ok': False, 'error': 'No hay una posición reciente para validar. Iniciá el envío en vivo y acercate al PDV.'}), 400
         if pdv and pdv.get('lat') and pdv.get('lon') and (pdv['lat'] != 0 or pdv['lon'] != 0):
+            try:
+                acc = float(body.get('accuracy') or 0)
+            except (TypeError, ValueError):
+                acc = 0
+            limit = VISIT_RADIUS_M + max(0, acc - 50)  # tolerancia al ruido del GPS
             d = _haversine(row['lat'], row['lon'], pdv['lat'], pdv['lon'])
-            if d > VISIT_RADIUS_M:
+            if d > limit:
                 return jsonify({'ok': False, 'error': 'No estás en el PDV (%s). Estás a %d m de ese PDV.' % (pdv.get('r', ''), int(d))}), 400
     ts = int(time.time() * 1000)
     db.execute(

@@ -8,6 +8,9 @@
 <link rel="manifest" href="/manifest.json?code={{ vendor.code }}">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 <link rel="icon" type="image/png" href="/static/icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
@@ -79,7 +82,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .msg-banner button { margin-top: 6px; background: #1d4ed8; color: #fff; border: 0; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .push-btn { display: block; width: 100%; margin-top: 10px; padding: 10px; border: 1px solid #334155; border-radius: 10px; background: #1a2234; color: #93c5fd; font-size: 13px; font-weight: 600; cursor: pointer; }
 .push-btn.on { border-color: #22c55e; color: #22c55e; }
-.foto-overlay { position: fixed; inset: 0; z-index: 2100; background: rgba(15,20,32,.92); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
+.foto-overlay { position: fixed; inset: 0; z-index: 2300; background: rgba(15,20,32,.92); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
 .foto-overlay.open { display: flex; }
 .foto-box { background: #1a2234; border-radius: 14px; padding: 20px; width: 100%; max-width: 380px; text-align: center; }
 .foto-box h2 { font-size: 16px; margin-bottom: 4px; }
@@ -91,6 +94,36 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .btn-foto { background: #22c55e; color: #07120a; }
 .btn-no-foto { width: 100%; margin-top: 8px; padding: 10px; border: 0; border-radius: 8px; background: #334155; color: #fff; font-weight: 600; cursor: pointer; font-size: 13px; }
 .btn-foto-cancel { width: 100%; margin-top: 6px; padding: 9px; border: 0; border-radius: 8px; background: transparent; color: #8b93a7; font-weight: 600; cursor: pointer; font-size: 12px; }
+.btn.mapa { background: #7c3aed; color: #fff; margin-top: 10px; }
+.mapa-overlay { position: fixed; inset: 0; z-index: 2050; background: rgba(15,20,32,.92); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 10px; }
+.mapa-overlay.open { display: flex; }
+.mapa-box { background: #1a2234; border-radius: 14px; width: 100%; max-width: 620px; max-height: 94vh; display: flex; flex-direction: column; overflow: hidden; }
+.mapa-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; }
+.mapa-head h2 { font-size: 16px; }
+.mapa-close { background: #334155; border: 0; color: #fff; width: 32px; height: 32px; border-radius: 8px; font-size: 15px; cursor: pointer; }
+#mapa { height: 58vh; width: 100%; background: #0f1420; }
+.mapa-foot { padding: 10px 14px; }
+.btn-addpdv { width: 100%; padding: 11px; border: 0; border-radius: 10px; background: #7c3aed; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+.mapa-msg { font-size: 11px; color: #8b93a7; padding: 0 14px 10px; text-align: center; }
+.mapa-pop .mp-name { font-weight: 700; font-size: 13px; }
+.mapa-pop .mp-det { font-size: 11px; color: #555; margin-top: 2px; }
+.mapa-pop .mp-vta { font-size: 11px; color: #1d4ed8; }
+.mapa-pop .mp-dist { font-size: 11px; color: #059669; }
+.mapa-pop button { margin-top: 6px; width: 100%; padding: 7px; border: 0; border-radius: 6px; background: #1d4ed8; color: #fff; font-weight: 700; font-size: 12px; cursor: pointer; }
+.addpdv-overlay { position: fixed; inset: 0; z-index: 2150; background: rgba(15,20,32,.92); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
+.addpdv-overlay.open { display: flex; }
+.addpdv-box { background: #1a2234; border-radius: 14px; padding: 20px; width: 100%; max-width: 400px; text-align: left; }
+.addpdv-box h2 { font-size: 16px; margin-bottom: 2px; }
+.addpdv-sub { font-size: 12px; color: #8b93a7; margin-bottom: 8px; }
+.addpdv-box label { display: block; font-size: 11px; color: #8b93a7; margin: 10px 0 4px; }
+.addpdv-box input[type=text] { width: 100%; padding: 9px 10px; border: 1px solid #334155; border-radius: 8px; background: #0f1420; color: #fff; font-size: 14px; }
+.addpdv-box .row { display: flex; gap: 8px; }
+.addpdv-box .row > div { flex: 1; }
+.addpdv-coords { font-size: 12px; color: #22c55e; margin-top: 10px; }
+.addpdv-msg { font-size: 12px; color: #fca5a5; margin-top: 8px; min-height: 14px; }
+.btn-addpdv-save { width: 100%; margin-top: 12px; padding: 12px; border: 0; border-radius: 10px; background: #22c55e; color: #07120a; font-weight: 700; font-size: 14px; cursor: pointer; }
+.btn-addpdv-save:disabled { opacity: .5; }
+.addpdv-cancel { width: 100%; margin-top: 6px; padding: 9px; border: 0; border-radius: 8px; background: transparent; color: #8b93a7; font-weight: 600; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -111,6 +144,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   <div class="msg-banner" id="msgBanner"></div>
   <button class="btn start" id="btn">Iniciar envío</button>
   <button id="visitasBtn">Registrar PDV visitado</button>
+  <button class="btn mapa" id="mapaBtn">🗺️ Mapa de PDV</button>
   <span class="visita-count" id="visitaCount"></span>
   <button class="push-btn" id="pushBtn" onclick="enablePush()">🔔 Activar avisos en este celular</button>
   <div class="jornada" id="jornada"></div>
@@ -150,6 +184,47 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
     <button class="btn-foto-cancel" onclick="closeFoto()">Cancelar</button>
   </div>
 </div>
+
+<div class="mapa-overlay" id="mapaOverlay">
+  <div class="mapa-box">
+    <div class="mapa-head">
+      <h2>Mapa de PDV</h2>
+      <button class="mapa-close" onclick="closeMapa()">✕</button>
+    </div>
+    <div id="mapa"></div>
+    <div class="mapa-foot">
+      <button class="btn-addpdv" onclick="openAddPdv()">➕ Agregar PDV en mi ubicación</button>
+    </div>
+    <div class="mapa-msg" id="mapaMsg"></div>
+  </div>
+</div>
+
+<div class="addpdv-overlay" id="addpdvOverlay">
+  <div class="addpdv-box">
+    <h2>Agregar PDV</h2>
+    <div class="addpdv-sub">Se guarda en tu ubicación actual.</div>
+    <label>Razón social *</label>
+    <input type="text" id="addPdvRazon" placeholder="Nombre del comercio">
+    <div class="row">
+      <div>
+        <label>Calle</label>
+        <input type="text" id="addPdvCalle" placeholder="Opcional">
+      </div>
+      <div>
+        <label>Altura</label>
+        <input type="text" id="addPdvAltura" placeholder="Opcional">
+      </div>
+    </div>
+    <label>Zona / venta</label>
+    <input type="text" id="addPdvVta" placeholder="Opcional">
+    <div class="addpdv-coords" id="addPdvCoords"></div>
+    <div class="addpdv-msg" id="addPdvMsg"></div>
+    <button class="btn-addpdv-save" id="addPdvSave" onclick="guardarPdv()">Guardar PDV</button>
+    <button class="addpdv-cancel" onclick="closeAddPdv()">Cancelar</button>
+  </div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
@@ -244,6 +319,7 @@ function onPos(p) {
   hideErr();
   gpsOk = true;
   reportGps();
+  updateMyPosition();
 }
 function onErr(e) {
   var msgs = {
@@ -271,6 +347,7 @@ function startWorker() {
         hideErr();
         gpsOk = true;
         reportGps();
+        updateMyPosition();
       } else if (d.type === 'sent') {
         if (d.ok) {
           lastSent = d.ts;
@@ -540,6 +617,7 @@ function loadVisitas() {
         'PDV visitados hoy: ' + Object.keys(visitasCache).length;
       renderVisitas();
       renderRutaHoy();
+      updatePdvMarkers();
       restoreJornadaBanner();
     }).catch(function () {});
 }
@@ -670,6 +748,165 @@ function confirmarFoto(conFoto) {
       .catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
   }
 }
+
+// ---------------- Mapa de PDV ----------------
+var pdvAll = [];
+var pdvMarkers = {};
+var pdvClusterLayer = null;
+var pdvPlainLayer = null;
+var myMarker = null;
+var myCircle = null;
+var mapa = null;
+
+function initMapa() {
+  if (mapa) return;
+  mapa = L.map('mapa').setView([lastLat || -33, lastLon || -64], lastLat ? 15 : 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(mapa);
+  myMarker = L.circleMarker([lastLat || -33, lastLon || -64], {
+    radius: 8, color: '#1d4ed8', weight: 2, fillColor: '#1d4ed8', fillOpacity: 0.4
+  }).addTo(mapa);
+  myCircle = L.circle([lastLat || -33, lastLon || -64], {
+    radius: 150, color: '#1d4ed8', opacity: 0.2, fillOpacity: 0.05
+  }).addTo(mapa);
+  mapa.on('zoomend', syncPdvZoomM);
+  mapa.on('moveend', syncPdvZoomM);
+}
+function updateMyPosition() {
+  if (lastLat === null || !myMarker || !myCircle) return;
+  myMarker.setLatLng([lastLat, lastLon]);
+  myCircle.setLatLng([lastLat, lastLon]);
+}
+function openMapa() {
+  document.getElementById('mapaOverlay').classList.add('open');
+  initMapa();
+  setTimeout(function () { mapa.invalidateSize(); }, 80);
+  if (!pdvAll.length) cargarPdvMapa();
+  if (lastLat !== null) { updateMyPosition(); mapa.setView([lastLat, lastLon], Math.max(mapa.getZoom(), 15)); }
+  else if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      lastLat = pos.coords.latitude; lastLon = pos.coords.longitude;
+      lastAcc = Math.round(pos.coords.accuracy) || lastAcc;
+      updateMyPosition();
+      mapa.setView([lastLat, lastLon], 15);
+    }, function () {}, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
+  }
+}
+function closeMapa() { document.getElementById('mapaOverlay').classList.remove('open'); }
+
+function makePdvMarker(d) {
+  var vis = !!visitasCache[d.c];
+  var m = L.circleMarker([d.lat, d.lon], {
+    radius: 6, color: vis ? '#22c55e' : '#9ca3af', weight: 1,
+    fillColor: vis ? '#22c55e' : '#9ca3af', fillOpacity: 0.85
+  });
+  var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
+  var dm = pdvDistM(d);
+  m.bindPopup('<div class="mapa-pop">' +
+    '<div class="mp-name">' + esc(d.r) + '</div>' +
+    '<div class="mp-det">Cliente: ' + esc(d.c) + (dir ? ' · ' + esc(dir) : '') + '</div>' +
+    (d.vta ? '<div class="mp-vta">' + esc(d.vta) + '</div>' : '') +
+    (dm !== null ? '<div class="mp-dist">Estás a ' + fmtDist(dm) + '</div>' : '') +
+    '<button onclick="mapaMarcarVisita(\'' + d.c + '\',\'' + esc(d.r) + '\')">Registrar visita</button>' +
+    '</div>');
+  return m;
+}
+function mapaMarcarVisita(c, nombre) {
+  if (mapa) mapa.closePopup();
+  marcarVisita(c, nombre);
+}
+function syncPdvZoomM() {
+  if (!pdvClusterLayer || !pdvPlainLayer || !mapa) return;
+  if (mapa.getZoom() >= 16) {
+    if (!mapa.hasLayer(pdvPlainLayer)) { mapa.removeLayer(pdvClusterLayer); mapa.addLayer(pdvPlainLayer); }
+  } else {
+    if (!mapa.hasLayer(pdvClusterLayer)) { mapa.removeLayer(pdvPlainLayer); mapa.addLayer(pdvClusterLayer); }
+  }
+}
+function cargarPdvMapa() {
+  var el = document.getElementById('mapaMsg');
+  el.textContent = 'Cargando PDV...';
+  fetch(base + '/api/pdv').then(function (r) { return r.json(); }).then(function (arr) {
+    pdvAll = arr;
+    pdvMarkers = {};
+    pdvClusterLayer = L.markerClusterGroup({ disableClusteringAtZoom: 16, maxClusterRadius: 40, showCoverageOnHover: false });
+    arr.forEach(function (d) { pdvMarkers[d.c] = makePdvMarker(d); });
+    var pts = Object.keys(pdvMarkers).map(function (k) { return pdvMarkers[k]; });
+    pdvClusterLayer.addLayers(pts);
+    pdvPlainLayer = L.layerGroup(pts);
+    mapa.addLayer(pdvClusterLayer);
+    el.textContent = 'PDV en el mapa: ' + arr.length;
+  }).catch(function () { el.textContent = 'Error al cargar los PDV.'; });
+}
+function updatePdvMarkers() {
+  if (!mapa) return;
+  Object.keys(pdvMarkers).forEach(function (c) {
+    var m = pdvMarkers[c];
+    var vis = !!visitasCache[c];
+    m.setStyle({ color: vis ? '#22c55e' : '#9ca3af', fillColor: vis ? '#22c55e' : '#9ca3af' });
+  });
+}
+
+// ---------------- Agregar PDV en mi ubicación ----------------
+var addPdvLat = null, addPdvLon = null;
+function openAddPdv() {
+  document.getElementById('addPdvMsg').textContent = '';
+  document.getElementById('addPdvRazon').value = '';
+  document.getElementById('addPdvCalle').value = '';
+  document.getElementById('addPdvAltura').value = '';
+  document.getElementById('addPdvVta').value = '';
+  document.getElementById('addPdvSave').disabled = true;
+  addPdvLat = null; addPdvLon = null;
+  var c = document.getElementById('addPdvCoords');
+  c.textContent = 'Buscando tu ubicación...';
+  document.getElementById('addpdvOverlay').classList.add('open');
+  var use = function (lat, lon) {
+    addPdvLat = lat; addPdvLon = lon;
+    c.textContent = 'Ubicación: ' + lat.toFixed(6) + ', ' + lon.toFixed(6);
+    document.getElementById('addPdvSave').disabled = false;
+  };
+  if (lastLat !== null) { use(lastLat, lastLon); return; }
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      lastLat = pos.coords.latitude; lastLon = pos.coords.longitude;
+      lastAcc = Math.round(pos.coords.accuracy) || lastAcc;
+      use(lastLat, lastLon);
+    }, function () { c.textContent = 'No se pudo obtener la ubicación. Revisá el GPS.'; },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
+  } else {
+    c.textContent = 'Tu navegador no soporta geolocalización.';
+  }
+}
+function closeAddPdv() { document.getElementById('addpdvOverlay').classList.remove('open'); }
+function guardarPdv() {
+  var razon = document.getElementById('addPdvRazon').value.trim();
+  var msg = document.getElementById('addPdvMsg');
+  if (!razon) { msg.textContent = 'Escribí la razón social.'; return; }
+  if (addPdvLat === null) { msg.textContent = 'Todavía no hay ubicación. Esperá a que se cargue.'; return; }
+  var calle = document.getElementById('addPdvCalle').value.trim();
+  var altura = document.getElementById('addPdvAltura').value.trim();
+  var vta = document.getElementById('addPdvVta').value.trim();
+  msg.textContent = 'Guardando...';
+  fetch(base + '/api/pdv', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, lat: addPdvLat, lon: addPdvLon, razon: razon, calle: calle, altura: altura, vta: vta })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.ok) {
+      msg.textContent = '';
+      document.getElementById('addpdvOverlay').classList.remove('open');
+      var n = { c: d.cliente, r: d.razon, calle: calle, altura: altura, vta: vta, prov: '', lat: d.lat, lon: d.lon };
+      pdvAll.push(n);
+      var m = makePdvMarker(n);
+      pdvMarkers[n.c] = m;
+      if (pdvClusterLayer) pdvClusterLayer.addLayer(m);
+      if (pdvPlainLayer) pdvPlainLayer.addLayer(m);
+      marcarVisita(n.c, n.r);
+    } else {
+      msg.textContent = d.error || 'No se pudo guardar el PDV.';
+    }
+  }).catch(function () { msg.textContent = 'Error de conexión al guardar.'; });
+}
+
+document.getElementById('mapaBtn').onclick = openMapa;
 
 // ---------------- Ausencias, mensajes y avisos ----------------
 function checkAbsence() {

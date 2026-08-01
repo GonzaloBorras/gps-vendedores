@@ -68,6 +68,9 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .empty { color: #64748b; font-size: 12px; padding: 8px 0; }
 .ruta-hoy-title { font-size: 13px; color: #93c5fd; text-transform: uppercase; margin: 14px 0 8px; }
 .ruta-hoy-count { color: #8b93a7; font-weight: 400; font-size: 11px; }
+.jornada { display: none; background: #eef4ff; border: 1px solid #c9dcff; color: #2b4a8f; border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.5; margin-top: 14px; text-align: center; }
+.jornada b { font-weight: 600; }
+.jornada.done { background: #f1f6ef; border-color: #cfe0c9; color: #3d6b33; }
 </style>
 </head>
 <body>
@@ -86,8 +89,10 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   <button class="btn start" id="btn">Iniciar envío</button>
   <button id="visitasBtn">Registrar PDV visitado</button>
   <span class="visita-count" id="visitaCount"></span>
-  <hint>Dejá esta página abierta y la pantalla encendida mientras trabajás.<br>
-  El GPS se envía automáticamente cada 10 segundos.<br><br>
+  <div class="jornada" id="jornada"></div>
+  <hint>Dejá esta página abierta mientras trabajás.<br>
+  El GPS se envía automáticamente cada 10 segundos y la jornada
+  se corta sola a las 8 horas.<br><br>
   💡 Para usarla como app: en el navegador tocá el menú (⋮) y elegí
   <b>"Agregar a pantalla de inicio"</b>.</hint>
 </div>
@@ -121,6 +126,14 @@ if (!sessionId) { sessionId = Date.now().toString(36) + Math.random().toString(3
 var lastLat = null, lastLon = null, lastAcc = null;
 var watchId = null;
 var lastSent = '--';
+var worker = null;
+
+var SHIFT_MS = 8 * 60 * 60 * 1000;
+var shiftStart = null;
+var shiftTimer = null;
+var shiftCount = null;
+var primerPDV = null;
+var visitaSeq = [];
 
 function setState(txt, on) {
   document.getElementById('stateText').textContent = txt;
@@ -172,18 +185,80 @@ function onErr(e) {
   showErr(msgs[e.code] || ('Error de GPS: ' + e.code));
 }
 
-function start() {
+// Web Worker: sigue enviando aunque la pantalla esté apagada.
+function startWorker() {
+  if (typeof Worker === 'undefined') return false;
+  try {
+    worker = new Worker(base + '/static/gps-worker.js');
+    worker.onmessage = function (e) {
+      var d = e.data;
+      if (d.type === 'pos') {
+        lastLat = d.lat; lastLon = d.lon; lastAcc = d.acc;
+        document.getElementById('lat').textContent = lastLat.toFixed(6);
+        document.getElementById('lon').textContent = lastLon.toFixed(6);
+        document.getElementById('acc').textContent = lastAcc + ' m';
+        hideErr();
+      } else if (d.type === 'sent') {
+        if (d.ok) {
+          lastSent = d.ts;
+          document.getElementById('last').textContent = d.ts;
+          setState('Enviando ubicación', true);
+          hideErr();
+        } else {
+          showErr('Error del servidor: ' + (d.error || 'desconocido'));
+        }
+      } else if (d.type === 'err') {
+        onErr({ code: d.code });
+      } else if (d.type === 'unsupported') {
+        stopWorker();
+        startMainThread();
+      }
+    };
+    worker.postMessage({ action: 'start', code: code, session: sessionId, base: base });
+    return true;
+  } catch (e) {
+    stopWorker();
+    return false;
+  }
+}
+function stopWorker() {
+  if (worker) { try { worker.terminate(); } catch (e) {} worker = null; }
+}
+
+function startMainThread() {
   if (!('geolocation' in navigator)) { showErr('Tu navegador no soporta geolocalización.'); return; }
-  running = true;
   watchId = navigator.geolocation.watchPosition(onPos, onErr, {
     enableHighAccuracy: true, timeout: 20000, maximumAge: 5000
   });
-  setState('Buscando GPS...', true);
-  document.getElementById('btn').textContent = 'Detener envío';
-  document.getElementById('btn').className = 'btn stop';
-  document.getElementById('btn').onclick = stop;
   window._int = setInterval(send, 10000);
-  requestWakeLock();
+}
+
+function fmtRemaining(ms) {
+  var total = Math.max(0, Math.floor(ms / 60000));
+  return Math.floor(total / 60) + 'h ' + (total % 60 < 10 ? '0' : '') + (total % 60) + 'm';
+}
+function lastVisitedRazon() {
+  for (var i = visitaSeq.length - 1; i >= 0; i--) {
+    var v = visitasCache[visitaSeq[i]];
+    if (v) return v.razon;
+  }
+  return 'ninguno';
+}
+function updateJornadaBanner() {
+  var b = document.getElementById('jornada');
+  if (!shiftStart || !running) return;
+  var left = SHIFT_MS - (Date.now() - shiftStart);
+  b.className = 'jornada';
+  b.innerHTML = 'Jornada iniciada · Primer PDV de hoy: <b>' + (primerPDV ? esc(primerPDV.razon) : '—') + '</b><br>' +
+    'Se corta en <b>' + fmtRemaining(left) + '</b>';
+  b.style.display = 'block';
+}
+function scheduleShiftEnd() {
+  clearTimeout(shiftTimer);
+  clearInterval(shiftCount);
+  var left = SHIFT_MS - (Date.now() - shiftStart);
+  shiftTimer = setTimeout(finishShift, Math.max(left, 1000));
+  shiftCount = setInterval(updateJornadaBanner, 60000);
 }
 function requestWakeLock() {
   if (!navigator.wakeLock || window._wake) return;
@@ -195,16 +270,59 @@ function requestWakeLock() {
     });
   }).catch(function () {});
 }
-function stop() {
-  running = false;
+function start() {
+  if (!('geolocation' in navigator)) { showErr('Tu navegador no soporta geolocalización.'); return; }
+  running = true;
+  var storedStart = Number(localStorage.getItem('gps_shift_start') || 0);
+  shiftStart = (storedStart && Date.now() - storedStart < SHIFT_MS) ? storedStart : Date.now();
+  localStorage.setItem('gps_shift_start', String(shiftStart));
+  localStorage.removeItem('gps_shift_done');
+  scheduleShiftEnd();
+  setState('Buscando GPS...', true);
+  document.getElementById('btn').textContent = 'Detener envío';
+  document.getElementById('btn').className = 'btn stop';
+  document.getElementById('btn').onclick = stop;
+  if (!startWorker()) startMainThread();
+  requestWakeLock();
+  loadRutaHoy(function () {
+    primerPDV = rutaHoy[0] || null;
+    if (primerPDV) localStorage.setItem('gps_primer_pdv', primerPDV.razon);
+    updateJornadaBanner();
+  });
+}
+function stopTracking() {
+  stopWorker();
   if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  watchId = null;
   clearInterval(window._int);
-  setState('Envío detenido', false);
+  clearTimeout(shiftTimer);
+  clearInterval(shiftCount);
+  if (window._wake) window._wake.release().catch(function () {});
+  window._wake = null;
   document.getElementById('btn').textContent = 'Iniciar envío';
   document.getElementById('btn').className = 'btn start';
   document.getElementById('btn').onclick = start;
-  if (window._wake) window._wake.release().catch(function () {});
-  window._wake = null;
+}
+function stop() {
+  running = false;
+  shiftStart = null;
+  stopTracking();
+  setState('Envío detenido', false);
+  document.getElementById('jornada').className = 'jornada done';
+  document.getElementById('jornada').innerHTML = 'Envío detenido · Último PDV visitado: <b>' + esc(lastVisitedRazon()) + '</b>';
+  document.getElementById('jornada').style.display = 'block';
+  localStorage.removeItem('gps_shift_start');
+}
+function finishShift() {
+  running = false;
+  shiftStart = null;
+  stopTracking();
+  setState('Jornada finalizada (8 hs)', false);
+  document.getElementById('jornada').className = 'jornada done';
+  document.getElementById('jornada').innerHTML = 'Jornada finalizada (8 hs) · Último PDV visitado: <b>' + esc(lastVisitedRazon()) + '</b>';
+  document.getElementById('jornada').style.display = 'block';
+  localStorage.removeItem('gps_shift_start');
+  localStorage.setItem('gps_shift_done', visitaSeq.length ? visitaSeq[visitaSeq.length - 1] : '');
 }
 
 document.getElementById('btn').onclick = start;
@@ -230,14 +348,15 @@ var RUTA_TODAY = { 1: 'LUNES', 2: 'MARTES', 3: 'MIERCOLES', 4: 'JUEVES', 5: 'VIE
 var RUTA_DIA_NAME = { LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado' }[RUTA_TODAY] || 'hoy';
 var rutaHoy = [];
 
-function loadRutaHoy() {
-  if (!RUTA_TODAY) { renderRutaHoy(); return; }
+function loadRutaHoy(cb) {
+  if (!RUTA_TODAY) { renderRutaHoy(); if (cb) cb(); return; }
   fetch(base + '/api/rutas?merchan=' + encodeURIComponent(code))
     .then(function (r) { return r.json(); })
     .then(function (arr) {
       rutaHoy = arr.filter(function (v) { return v.dia === RUTA_TODAY; });
       renderRutaHoy();
-    }).catch(function () { renderRutaHoy(); });
+      if (cb) cb();
+    }).catch(function () { renderRutaHoy(); if (cb) cb(); });
 }
 
 function renderRutaHoy() {
@@ -273,10 +392,13 @@ function loadVisitas() {
     .then(function (arr) {
       visitasCache = {};
       arr.forEach(function (v) { visitasCache[v.cliente] = v; });
+      visitaSeq = visitaSeq.filter(function (c) { return !!visitasCache[c]; });
+      arr.forEach(function (v) { if (visitaSeq.indexOf(v.cliente) === -1) visitaSeq.push(v.cliente); });
       document.getElementById('visitaCount').textContent =
         'PDV visitados hoy: ' + Object.keys(visitasCache).length;
       renderVisitas();
       renderRutaHoy();
+      restoreJornadaBanner();
     }).catch(function () {});
 }
 
@@ -302,8 +424,29 @@ function quitarVisita(c) {
     method: 'DELETE', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code: code, cliente: c, fecha: todayStr() })
   }).then(function (r) { return r.json(); }).then(function (d) {
-    if (d.ok) { loadVisitas(); }
+    if (d.ok) {
+      var i = visitaSeq.indexOf(c);
+      if (i > -1) visitaSeq.splice(i, 1);
+      loadVisitas();
+    }
   }).catch(function () {});
+}
+
+function restoreJornadaBanner() {
+  var b = document.getElementById('jornada');
+  var st = localStorage.getItem('gps_shift_start');
+  if (st && Date.now() - Number(st) < SHIFT_MS) {
+    if (!running) start();
+    return;
+  }
+  if (st) localStorage.removeItem('gps_shift_start');
+  var done = localStorage.getItem('gps_shift_done');
+  if (done !== null) {
+    var lc = done ? visitasCache[done] : null;
+    b.className = 'jornada done';
+    b.innerHTML = 'La jornada de 8 h finalizó · Último PDV visitado: <b>' + esc(lc ? lc.razon : 'ninguno') + '</b>';
+    b.style.display = 'block';
+  }
 }
 
 function buscarPDV() {
@@ -332,7 +475,10 @@ function marcarVisita(c) {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code: code, cliente: c, fecha: todayStr() })
   }).then(function (r) { return r.json(); }).then(function (d) {
-    if (d.ok) { loadVisitas(); }
+    if (d.ok) {
+      visitaSeq.push(c);
+      loadVisitas();
+    }
   }).catch(function () {});
 }
 

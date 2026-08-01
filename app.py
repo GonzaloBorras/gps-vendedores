@@ -280,11 +280,12 @@ def rutas_api():
 @app.route('/api/nearest-pdv')
 def nearest_pdv():
     code = request.args.get('code', '').strip().upper()
+    now = int(time.time() * 1000)
     row = get_db().execute(
-        'SELECT lat, lon, ts FROM positions WHERE code = ? ORDER BY ts DESC LIMIT 1',
-        (code,)).fetchone()
+        'SELECT lat, lon, ts FROM positions WHERE code = ? AND ts >= ? ORDER BY ts DESC LIMIT 1',
+        (code, now - ACTIVE_MS)).fetchone()
     if not row:
-        return jsonify({'ok': False, 'error': 'sin posicion'}), 404
+        return jsonify({'ok': False, 'error': 'sin posicion reciente (el vendedor no inició el envío en vivo)'}), 404
     lat, lon = row['lat'], row['lon']
     best = None
     for p in PDV:
@@ -345,11 +346,13 @@ def visitas_resumen():
 
 @app.route('/api/merchan-pdv')
 def merchan_pdv():
+    now = int(time.time() * 1000)
     rows = get_db().execute('''
         SELECT p.code, p.lat, p.lon FROM positions p
         JOIN (SELECT code, MAX(ts) AS mts FROM positions GROUP BY code) mx
           ON p.code = mx.code AND p.ts = mx.mts
-    ''').fetchall()
+        WHERE p.ts >= ?
+    ''', (now - ACTIVE_MS,)).fetchall()
     out = {}
     for r in rows:
         lat, lon = r['lat'], r['lon']

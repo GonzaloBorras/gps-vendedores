@@ -74,6 +74,23 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .jornada b { font-weight: 600; }
 .jornada.done { background: #f1f6ef; border-color: #cfe0c9; color: #3d6b33; }
 .gps-warn { display: none; margin-top: 12px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 600; text-align: center; line-height: 1.4; }
+.aviso { display: none; margin-top: 12px; background: #fefce8; border: 1px solid #fde047; color: #854d0e; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 600; text-align: center; line-height: 1.4; }
+.msg-banner { display: none; margin-top: 12px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 600; text-align: center; line-height: 1.4; }
+.msg-banner button { margin-top: 6px; background: #1d4ed8; color: #fff; border: 0; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.push-btn { display: block; width: 100%; margin-top: 10px; padding: 10px; border: 1px solid #334155; border-radius: 10px; background: #1a2234; color: #93c5fd; font-size: 13px; font-weight: 600; cursor: pointer; }
+.push-btn.on { border-color: #22c55e; color: #22c55e; }
+.foto-overlay { position: fixed; inset: 0; z-index: 2100; background: rgba(15,20,32,.92); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
+.foto-overlay.open { display: flex; }
+.foto-box { background: #1a2234; border-radius: 14px; padding: 20px; width: 100%; max-width: 380px; text-align: center; }
+.foto-box h2 { font-size: 16px; margin-bottom: 4px; }
+.foto-box .pdv-name { color: #93c5fd; font-size: 13px; margin-bottom: 12px; }
+.foto-box img { max-width: 100%; max-height: 220px; border-radius: 8px; margin: 10px 0; display: none; }
+.foto-box input[type=file] { width: 100%; padding: 8px; border: 1px solid #334155; border-radius: 8px; background: #0f1420; color: #fff; font-size: 12px; margin-bottom: 10px; }
+.foto-box .row { display: flex; gap: 8px; }
+.foto-box .row button { flex: 1; padding: 10px; border: 0; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; }
+.btn-foto { background: #22c55e; color: #07120a; }
+.btn-no-foto { width: 100%; margin-top: 8px; padding: 10px; border: 0; border-radius: 8px; background: #334155; color: #fff; font-weight: 600; cursor: pointer; font-size: 13px; }
+.btn-foto-cancel { width: 100%; margin-top: 6px; padding: 9px; border: 0; border-radius: 8px; background: transparent; color: #8b93a7; font-weight: 600; cursor: pointer; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -90,9 +107,12 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   </div>
   <div class="error" id="err"></div>
   <div class="gps-warn" id="gpsWarn">🚫 Ubicación apagada o sin señal GPS. El administrador va a recibir una alerta. Activá la ubicación del celular.</div>
+  <div class="aviso" id="absenceBanner"></div>
+  <div class="msg-banner" id="msgBanner"></div>
   <button class="btn start" id="btn">Iniciar envío</button>
   <button id="visitasBtn">Registrar PDV visitado</button>
   <span class="visita-count" id="visitaCount"></span>
+  <button class="push-btn" id="pushBtn" onclick="enablePush()">🔔 Activar avisos en este celular</button>
   <div class="jornada" id="jornada"></div>
   <hint>Para iniciar el envío tenés que estar en el PDV.<br>
   El GPS se envía automáticamente cada 10 segundos y la jornada
@@ -116,6 +136,20 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
     <button class="visitas-close" onclick="closeVisitas()">Cerrar</button>
   </div>
 </div>
+
+<div class="foto-overlay" id="fotoOverlay">
+  <div class="foto-box">
+    <h2>Registrar visita</h2>
+    <div class="pdv-name" id="fotoPdvName"></div>
+    <input type="file" id="fotoInput" accept="image/*" capture="environment" onchange="fotoPreview()">
+    <img id="fotoPreview" alt="Vista previa">
+    <div class="row">
+      <button class="btn-foto" onclick="confirmarFoto(true)">Registrar con foto</button>
+    </div>
+    <button class="btn-no-foto" onclick="confirmarFoto(false)">Registrar sin foto</button>
+    <button class="btn-foto-cancel" onclick="closeFoto()">Cancelar</button>
+  </div>
+</div>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
@@ -134,6 +168,9 @@ var lastSent = '--';
 var worker = null;
 
 var SHIFT_MS = 8 * 60 * 60 * 1000;
+fetch(base + '/api/shift?code=' + encodeURIComponent(code)).then(function (r) { return r.json(); }).then(function (d) {
+  if (d && d.ok && d.shift_ms) SHIFT_MS = d.shift_ms;
+}).catch(function () {});
 var shiftStart = null;
 var shiftTimer = null;
 var shiftCount = null;
@@ -480,7 +517,7 @@ function renderRutaHoy() {
       var dir = (v.calle || '') + (v.altura ? ' ' + v.altura : '');
       var vis = visitasCache[v.cliente];
       var d = pdvDistM(v);
-      return '<div class="pdv-item ' + (vis ? 'visited' : '') + (d !== null && d > 150 ? ' pdv-far' : '') + '" onclick="marcarRuta(\'' + v.cliente + '\')">' +
+      return '<div class="pdv-item ' + (vis ? 'visited' : '') + (d !== null && d > (v.radius || 150) ? ' pdv-far' : '') + '" onclick="marcarVisita(\'' + v.cliente + '\',\'' + esc(v.razon) + '\')">' +
         '<div class="r">' + esc(v.razon) + '</div>' +
         '<div class="d">Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(v) + '</div>' +
         (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
@@ -489,7 +526,7 @@ function renderRutaHoy() {
     }).join('');
 }
 
-function marcarRuta(c) { marcarVisita(c); }
+function marcarRuta(c) { marcarVisita(c, (rutaHoy.find(function (x) { return x.cliente === c; }) || {}).razon); }
 
 function loadVisitas() {
   fetch(base + '/api/visitas?code=' + encodeURIComponent(code) + '&fecha=' + todayStr())
@@ -565,7 +602,7 @@ function buscarPDV() {
         var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
         var vis = visitasCache[d.c];
         var dm = pdvDistM(d);
-        return '<div class="pdv-item ' + (vis ? 'visited' : '') + (dm !== null && dm > 150 ? ' pdv-far' : '') + '" onclick="marcarVisita(\'' + d.c + '\')">' +
+        return '<div class="pdv-item ' + (vis ? 'visited' : '') + (dm !== null && dm > (d.radius || 150) ? ' pdv-far' : '') + '" onclick="marcarVisita(\'' + d.c + '\',\'' + esc(d.r) + '\')">' +
           '<div class="r">' + esc(d.r) + '</div>' +
           '<div class="d">Cliente: ' + esc(d.c) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(d) + '</div>' +
           (d.vta ? '<div class="vta">' + esc(d.vta) + '</div>' : '') +
@@ -575,12 +612,37 @@ function buscarPDV() {
     }).catch(function () { box.innerHTML = '<div class="empty">Error al buscar.</div>'; });
 }
 
-function marcarVisita(c) {
+var pendingFotoCliente = null;
+var pdvNameCache = {};
+function marcarVisita(c, nombre) {
   if (visitasCache[c]) { quitarVisita(c); return; }
-  fetch(base + '/api/visitas', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: code, cliente: c, fecha: todayStr(), validate: true, accuracy: lastAcc || null })
-  }).then(function (r) { return r.json(); }).then(function (d) {
+  if (nombre) pdvNameCache[c] = nombre;
+  pendingFotoCliente = c;
+  document.getElementById('fotoPdvName').textContent = pdvNameCache[c] || c;
+  document.getElementById('fotoInput').value = '';
+  document.getElementById('fotoPreview').style.display = 'none';
+  document.getElementById('fotoOverlay').classList.add('open');
+}
+function closeFoto() {
+  pendingFotoCliente = null;
+  document.getElementById('fotoOverlay').classList.remove('open');
+}
+function fotoPreview() {
+  var f = document.getElementById('fotoInput').files[0];
+  var img = document.getElementById('fotoPreview');
+  if (f) {
+    img.src = URL.createObjectURL(f);
+    img.style.display = 'block';
+  } else {
+    img.style.display = 'none';
+  }
+}
+function confirmarFoto(conFoto) {
+  var c = pendingFotoCliente;
+  if (!c) return;
+  closeFoto();
+  var f = document.getElementById('fotoInput').files[0];
+  var onDone = function (d) {
     if (d.ok) {
       visitaSeq.push(c);
       visitasMsg('');
@@ -588,7 +650,100 @@ function marcarVisita(c) {
     } else {
       visitasMsg(d.error || 'No se pudo registrar la visita.');
     }
-  }).catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
+  };
+  if (conFoto && f) {
+    var fd = new FormData();
+    fd.append('code', code);
+    fd.append('cliente', c);
+    fd.append('fecha', todayStr());
+    fd.append('validate', 'true');
+    fd.append('accuracy', lastAcc || '0');
+    fd.append('foto', f);
+    fetch(base + '/api/visitas', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); }).then(onDone)
+      .catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
+  } else {
+    fetch(base + '/api/visitas', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, cliente: c, fecha: todayStr(), validate: true, accuracy: lastAcc || null })
+    }).then(function (r) { return r.json(); }).then(onDone)
+      .catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
+  }
+}
+
+// ---------------- Ausencias, mensajes y avisos ----------------
+function checkAbsence() {
+  fetch(base + '/api/absence?code=' + encodeURIComponent(code) + '&fecha=' + todayStr())
+    .then(function (r) { return r.json(); })
+    .then(function (arr) {
+      if (arr && arr.length) {
+        var b = document.getElementById('absenceBanner');
+        b.textContent = '📅 Hoy no es tu día de trabajo (' + arr[0].motivo + ').';
+        b.style.display = 'block';
+        var btn = document.getElementById('btn');
+        btn.disabled = true;
+        btn.textContent = 'Hoy no es tu día de trabajo';
+      }
+    }).catch(function () {});
+}
+function loadMessages() {
+  fetch(base + '/api/messages?code=' + encodeURIComponent(code))
+    .then(function (r) { return r.json(); })
+    .then(function (arr) {
+      if (arr && arr.length) {
+        var b = document.getElementById('msgBanner');
+        b.innerHTML = '📣 <b>Aviso de la coordinación:</b><br>' +
+          arr.map(function (x) { return esc(x.msj); }).join('<br>') +
+          '<br><button onclick="marcarVistos()">Entendido</button>';
+        b.style.display = 'block';
+      }
+    }).catch(function () {});
+}
+function marcarVistos() {
+  fetch(base + '/api/messages/visto', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code })
+  }).then(function () { document.getElementById('msgBanner').style.display = 'none'; }).catch(function () {});
+}
+
+// ---------------- Notificaciones push ----------------
+var awaitPublicKey = null;
+fetch(base + '/api/push/vapid').then(function (r) { return r.json(); })
+  .then(function (d) { awaitPublicKey = d.publicKey; }).catch(function () {});
+function urlBase64ToUint8Array(s) {
+  var pad = s.replace(/=+$/, '');
+  var arr = atob(pad.replace(/-/g, '+').replace(/_/g, '/'));
+  var out = new Uint8Array(arr.length);
+  for (var i = 0; i < arr.length; i++) out[i] = arr.charCodeAt(i);
+  return out;
+}
+function pushBtnOn() {
+  var b = document.getElementById('pushBtn');
+  b.textContent = '🔔 Avisos activados';
+  b.className = 'push-btn on';
+}
+function enablePush() {
+  var b = document.getElementById('pushBtn');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !awaitPublicKey) {
+    b.textContent = 'Avisos no disponibles en este navegador';
+    return;
+  }
+  Notification.requestPermission().then(function (perm) {
+    if (perm !== 'granted') { b.textContent = 'Permiso denegado. Activá los avisos en el navegador.'; return; }
+    navigator.serviceWorker.ready.then(function (reg) {
+      return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(awaitPublicKey) });
+    }).then(function (sub) {
+      return fetch(base + '/api/push/subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code, subscription: sub.toJSON() })
+      });
+    }).then(function () { pushBtnOn(); })
+      .catch(function () { b.textContent = 'No se pudieron activar los avisos.'; });
+  });
+}
+if ('serviceWorker' in navigator && 'PushManager' in window) {
+  navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); })
+    .then(function (sub) { if (sub) pushBtnOn(); }).catch(function () {});
 }
 
 function openVisitas() {
@@ -614,6 +769,9 @@ function esc(s) {
 
 loadVisitas();
 loadRutaHoy();
+checkAbsence();
+loadMessages();
+setInterval(loadMessages, 60000);
 </script>
 </body>
 </html>

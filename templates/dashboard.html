@@ -111,6 +111,12 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .config .refresh { background: #059669; color: #fff; }
 .config .close { background: #e5e7eb; color: #374151; }
 .config .note { font-size: 11px; color: #9ca3af; margin-top: 10px; min-height: 14px; }
+.config .cfg-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; margin-bottom: 6px; }
+.config .cfg-tab { white-space: nowrap; padding: 7px 12px; border: 0; border-radius: 8px; background: #f1f5f9; color: #475569; font-size: 12px; font-weight: 600; cursor: pointer; }
+.config .cfg-tab.active { background: #1d4ed8; color: #fff; }
+.config .cfg-pane { display: none; }
+.config .cfg-pane.active { display: block; }
+.config .cfg-pane h3 { font-size: 14px; color: #1a1a2e; margin: 10px 0 2px; }
 .visitas-sec { margin-top: 14px; border-top: 1px solid #eee; padding-top: 10px; }
 .visitas-sec h3 { font-size: 14px; color: #1a1a2e; margin-bottom: 8px; }
 .visitas-sec input[type=date] { width: 100%; padding: 8px 10px; border: 1px solid #ccc;
@@ -212,22 +218,35 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 <div class="config-overlay" id="config-overlay">
   <div class="config">
     <h2>Configuración</h2>
-    <label>Colaborador</label>
-    <select id="cfg-vendor" onchange="syncCfgFields()"></select>
-    <label>Color del pin</label>
-    <div class="row">
-      <input type="color" id="cfg-color">
-      <button onclick="applyColor()">Aplicar color</button>
+    <div class="cfg-tabs" id="cfgTabs">
+      <button class="cfg-tab active" data-tab="general" onclick="openCfgTab('general')">General</button>
+      <button class="cfg-tab" data-tab="visitas" onclick="openCfgTab('visitas')">Visitas</button>
+      <button class="cfg-tab" data-tab="ruteo" onclick="openCfgTab('ruteo')">Ruteo</button>
+      <button class="cfg-tab" data-tab="jornada" onclick="openCfgTab('jornada')">Jornada</button>
+      <button class="cfg-tab" data-tab="ausencias" onclick="openCfgTab('ausencias')">Ausencias</button>
+      <button class="cfg-tab" data-tab="radio" onclick="openCfgTab('radio')">Radio PDV</button>
+      <button class="cfg-tab" data-tab="mensajes" onclick="openCfgTab('mensajes')">Mensajes</button>
+      <button class="cfg-tab" data-tab="geocercas" onclick="openCfgTab('geocercas')">Geocercas</button>
+      <button class="cfg-tab" data-tab="reporte" onclick="openCfgTab('reporte')">Reporte</button>
     </div>
-    <label>Nombre del colaborador</label>
-    <div class="row">
-      <input type="text" id="cfg-name" placeholder="Nombre y apellido">
-      <button onclick="applyName()">Guardar</button>
+    <div class="cfg-pane active" id="pane-general">
+      <label>Merchan</label>
+      <select id="cfg-vendor" onchange="syncCfgFields()"></select>
+      <label>Color del pin</label>
+      <div class="row">
+        <input type="color" id="cfg-color">
+        <button onclick="applyColor()">Aplicar color</button>
+      </div>
+      <label>Nombre del merchan</label>
+      <div class="row">
+        <input type="text" id="cfg-name" placeholder="Nombre y apellido">
+        <button onclick="applyName()">Guardar</button>
+      </div>
+      <button class="btn-block refresh" onclick="manualRefresh()">Refrescar ubicaciones</button>
     </div>
-    <button class="btn-block refresh" onclick="manualRefresh()">Refrescar ubicaciones</button>
-    <div class="visitas-sec">
+    <div class="cfg-pane" id="pane-visitas">
       <h3>PDV visitados por día</h3>
-      <label>Colaborador</label>
+      <label>Merchan</label>
       <select id="vis-vendor" onchange="loadVisitasPanel()"></select>
       <label>Fecha</label>
       <input type="date" id="vis-fecha" onchange="loadVisitasPanel()">
@@ -237,15 +256,15 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
       <div id="vis-lista"></div>
       <div class="visitas-count" id="vis-count"></div>
     </div>
-    <div class="visitas-sec">
+    <div class="cfg-pane" id="pane-ruteo">
       <h3>PDV asignados por día (ruteo semanal)</h3>
       <label>Merchan</label>
       <select id="rutas-vendor" onchange="loadRutas()"></select>
       <div class="rutas-grid" id="rutas-grid"></div>
     </div>
-    <div class="visitas-sec">
-      <h3>Jornada (turno por vendedor)</h3>
-      <label>Colaborador</label>
+    <div class="cfg-pane" id="pane-jornada">
+      <h3>Jornada (turno por merchan)</h3>
+      <label>Merchan</label>
       <select id="shift-vendor" onchange="syncShiftFields()"></select>
       <label>Horas de jornada</label>
       <div class="row">
@@ -253,10 +272,10 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
         <button onclick="applyShift()">Guardar</button>
       </div>
     </div>
-    <div class="visitas-sec">
+    <div class="cfg-pane" id="pane-ausencias">
       <h3>Ausencias / día libre</h3>
-      <label>Colaborador</label>
-      <select id="abs-vendor"></select>
+      <label>Merchan</label>
+      <select id="abs-vendor" onchange="loadAbsences()"></select>
       <label>Fecha</label>
       <div class="row">
         <input type="date" id="abs-fecha">
@@ -267,12 +286,12 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
       <button class="btn-block" style="background:#1d4ed8;color:#fff" onclick="addAbsence()">Agregar ausencia</button>
       <div class="vlist" id="abs-lista"></div>
     </div>
-    <div class="visitas-sec">
+    <div class="cfg-pane" id="pane-radio">
       <h3>Radio del PDV (validación por ubicación)</h3>
       <input type="search" id="pdvr-search" placeholder="Buscar PDV por nombre, cliente, calle..." oninput="searchPdvRadius()">
       <div class="vres" id="pdvr-res"></div>
     </div>
-    <div class="visitas-sec">
+    <div class="cfg-pane" id="pane-mensajes">
       <h3>Comunicación con los merchans</h3>
       <label>Destino</label>
       <select id="msg-vendor"></select>
@@ -280,15 +299,15 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
       <textarea id="msg-text" rows="3" placeholder="Ej: Recordá iniciar el envío al llegar al primer PDV de la ruta."></textarea>
       <button class="btn-block" style="background:#1d4ed8;color:#fff" onclick="sendMessage()">Enviar (con aviso push)</button>
     </div>
-    <div class="visitas-sec">
+    <div class="cfg-pane" id="pane-geocercas">
       <h3>Geocercas (entradas/salidas de PDV)</h3>
-      <label>Colaborador</label>
+      <label>Merchan</label>
       <select id="geo-vendor" onchange="loadGeoevents()"></select>
       <div class="vlist" id="geo-lista"></div>
     </div>
-    <div class="visitas-sec">
+    <div class="cfg-pane" id="pane-reporte">
       <h3>Reporte de cumplimiento</h3>
-      <label>Colaborador</label>
+      <label>Merchan</label>
       <select id="rep-vendor"></select>
       <div class="row">
         <input type="date" id="rep-desde">
@@ -677,7 +696,8 @@ function copyLink(code) {
 }
 
 function cfgVendorList() {
-  return vendorsData.slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+  return vendorsData.filter(function (v) { return v.grupo === 'merchan'; })
+    .sort(function (a, b) { return a.name.localeCompare(b.name); });
 }
 
 function fillCfgVendors() {
@@ -766,7 +786,7 @@ function todayStr() {
 function fillVisVendors() {
   var sel = document.getElementById('vis-vendor');
   sel.innerHTML = '';
-  vendorsData.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).forEach(function (v) {
+  sortedMerchans().forEach(function (v) {
     var o = document.createElement('option');
     o.value = v.code;
     o.textContent = v.name + ' (' + v.code + ')';
@@ -916,26 +936,36 @@ function openConfig() {
   fillMsgVendors();
   fillGeoVendors();
   fillRepVendors();
-  loadVisitasPanel();
-  loadRutas();
-  loadAbsences();
-  loadGeoevents();
   syncShiftFields();
   document.getElementById('abs-fecha').value = todayStr();
   document.getElementById('rep-desde').value = todayStr();
   document.getElementById('rep-hasta').value = todayStr();
   document.getElementById('cfg-msg').textContent = '';
+  openCfgTab(currentCfgTab);
   document.getElementById('config-overlay').classList.add('open');
 }
 
+var currentCfgTab = 'general';
+function openCfgTab(tab) {
+  currentCfgTab = tab;
+  var tabs = document.querySelectorAll('.cfg-tab');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.toggle('active', tabs[i].getAttribute('data-tab') === tab);
+  var panes = document.querySelectorAll('.cfg-pane');
+  for (var j = 0; j < panes.length; j++) panes[j].classList.toggle('active', panes[j].id === 'pane-' + tab);
+  if (tab === 'visitas') loadVisitasPanel();
+  if (tab === 'ruteo') loadRutas();
+  if (tab === 'ausencias') loadAbsences();
+  if (tab === 'geocercas') loadGeoevents();
+  if (tab === 'reporte') loadReporte();
+}
+
 // ---------------- Config: jornada, ausencias, radio PDV, mensajes, geocercas, reportes ----------------
-function sortedAll() { return vendorsData.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }); }
 function sortedMerchans() { return vendorsData.filter(function (v) { return v.grupo === 'merchan'; }).sort(function (a, b) { return a.name.localeCompare(b.name); }); }
 
 function fillShiftVendors() {
   var sel = document.getElementById('shift-vendor');
   sel.innerHTML = '';
-  sortedAll().forEach(function (v) {
+  sortedMerchans().forEach(function (v) {
     var o = document.createElement('option');
     o.value = v.code;
     o.textContent = v.name + ' (' + v.code + ')';

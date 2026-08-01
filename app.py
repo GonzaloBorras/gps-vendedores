@@ -331,15 +331,16 @@ def visitas_get():
 
 @app.route('/api/visitas/resumen')
 def visitas_resumen():
-    fecha = request.args.get('fecha', '').strip()
-    sql = 'SELECT code, COUNT(*) AS n FROM visitas'
-    params = []
-    if fecha:
-        sql += ' WHERE fecha = ?'
-        params.append(fecha)
-    sql += ' GROUP BY code'
-    rows = get_db().execute(sql, params).fetchall()
-    return jsonify({r['code']: r['n'] for r in rows})
+    from datetime import date
+    fecha = request.args.get('fecha', '').strip() or date.today().isoformat()
+    rows = get_db().execute(
+        'SELECT code, cliente FROM visitas WHERE fecha = ? ORDER BY ts', (fecha,)).fetchall()
+    out = {}
+    for r in rows:
+        item = out.setdefault(r['code'], {'n': 0, 'clientes': []})
+        item['n'] += 1
+        item['clientes'].append(r['cliente'])
+    return jsonify(out)
 
 
 @app.route('/api/merchan-pdv')

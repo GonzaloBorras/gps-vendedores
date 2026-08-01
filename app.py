@@ -11,6 +11,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get('DB_PATH', os.path.join(BASE_DIR, 'gps.db'))
 VENDORS_FILE = os.path.join(BASE_DIR, 'vendors.json')
 PDV_FILE = os.path.join(BASE_DIR, 'pdv.json')
+RUTAS_FILE = os.path.join(BASE_DIR, 'rutas.json')
 OVERRIDES_FILE = os.path.join(BASE_DIR, 'overrides.json')
 
 with open(VENDORS_FILE, encoding='utf-8') as f:
@@ -34,6 +35,13 @@ PDV = []
 if os.path.exists(PDV_FILE):
     with open(PDV_FILE, encoding='utf-8') as f:
         PDV = json.load(f)
+
+PDV_BY_CODE = {p['c']: p for p in PDV}
+
+RUTAS = {}
+if os.path.exists(RUTAS_FILE):
+    with open(RUTAS_FILE, encoding='utf-8') as f:
+        RUTAS = json.load(f)
 
 VENDOR_BY_CODE = {v['code'].upper(): v for v in VENDORS}
 
@@ -231,6 +239,32 @@ def pdv_api():
                  or q in (p.get('vta') or '').lower()]
         items = items[:50]
     return jsonify(items)
+
+
+@app.route('/api/rutas')
+def rutas_api():
+    merchan = request.args.get('merchan', '').strip().upper()
+    dia = request.args.get('dia', '').strip().upper()
+    out = []
+    for m, dias in RUTAS.items():
+        if merchan and m != merchan:
+            continue
+        for d, items in dias.items():
+            if dia and d != dia:
+                continue
+            for i, (c, razon_fb) in enumerate(items, 1):
+                p = PDV_BY_CODE.get(c) or {}
+                out.append({
+                    'merchan': m,
+                    'dia': d,
+                    'orden': i,
+                    'cliente': c,
+                    'razon': p.get('r') or razon_fb,
+                    'calle': p.get('calle', ''),
+                    'altura': p.get('altura', ''),
+                    'vta': p.get('vta', ''),
+                })
+    return jsonify(out)
 
 
 @app.route('/api/visitas', methods=['GET'])

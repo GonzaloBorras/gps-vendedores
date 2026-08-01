@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import math
 import os
 import re
 import sqlite3
@@ -60,6 +61,15 @@ def get_db():
         db.execute('PRAGMA journal_mode=WAL')
         db.execute('PRAGMA busy_timeout=5000')
     return db
+
+
+def _haversine(lat1, lon1, lat2, lon2):
+    R = 6371000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return R * 2 * math.asin(math.sqrt(a))
 
 
 @app.teardown_appcontext
@@ -265,6 +275,39 @@ def rutas_api():
                     'vta': p.get('vta', ''),
                 })
     return jsonify(out)
+
+
+@app.route('/api/nearest-pdv')
+def nearest_pdv():
+    code = request.args.get('code', '').strip().upper()
+    row = get_db().execute(
+        'SELECT lat, lon, ts FROM positions WHERE code = ? ORDER BY ts DESC LIMIT 1',
+        (code,)).fetchone()
+    if not row:
+        return jsonify({'ok': False, 'error': 'sin posicion'}), 404
+    lat, lon = row['lat'], row['lon']
+    best = None
+    for p in PDV:
+        pl, po = p.get('lat'), p.get('lon')
+        if pl and po and (pl != 0 or po != 0):
+            d = _haversine(lat, lon, pl, po)
+            if best is None or d < best[0]:
+                best = (d, p)
+    if not best:
+        return jsonify({'ok': False, 'error': 'sin pdv'}), 404
+    d, p = best
+    return jsonify({
+        'ok': True,
+        'dist_m': int(d),
+        'cliente': p['c'],
+        'razon': p['r'],
+        'calle': p.get('calle', ''),
+        'altura': p.get('altura', ''),
+        'vta': p.get('vta', ''),
+        'lat': p['lat'],
+        'lon': p['lon'],
+        'ts': row['ts'],
+    })
 
 
 @app.route('/api/visitas', methods=['GET'])

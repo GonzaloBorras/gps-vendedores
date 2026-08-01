@@ -222,6 +222,7 @@ var markers = {};
 var routeLayer = null;
 var currentGroup = 'rutas';
 var markerLayer = L.layerGroup().addTo(map);
+var renderedCodes = null;
 
 function markerIcon(color) {
   return L.circleMarker([0, 0], {
@@ -268,6 +269,28 @@ function renderSidebar(list) {
     });
     box.appendChild(el);
   });
+  var act = list.filter(function (v) { var p = markers[v.code] && markers[v.code]._pos; return p && p.active; }).length;
+  document.getElementById('activos').textContent = act;
+  renderedCodes = list.map(function (v) { return v.code; }).join('\u0001');
+}
+
+function updateSidebarStatus(list) {
+  var els = document.getElementById('list').children;
+  for (var i = 0; i < list.length; i++) {
+    var v = list[i];
+    var el = els[i];
+    if (!el) continue;
+    var pos = markers[v.code] && markers[v.code]._pos;
+    var on = pos && pos.active;
+    var dot = el.querySelector('.dot');
+    if (dot) dot.className = 'dot ' + (on ? 'on' : 'off');
+    var last = el.querySelector('.last');
+    if (last) last.textContent = pos
+      ? ('Última señal: hace ' + (Math.round(pos.last / 1000) < 60
+        ? Math.round(pos.last / 1000) + ' seg'
+        : Math.round(pos.last / 60000) + ' min'))
+      : 'Sin señal';
+  }
   var act = list.filter(function (v) { var p = markers[v.code] && markers[v.code]._pos; return p && p.active; }).length;
   document.getElementById('activos').textContent = act;
 }
@@ -655,7 +678,12 @@ function applyFilters() {
   });
   markerLayer.clearLayers();
   list.forEach(function (v) { if (markers[v.code]) markerLayer.addLayer(markers[v.code]); });
-  renderSidebar(list);
+  var key = list.map(function (v) { return v.code; }).join('\u0001');
+  if (key !== renderedCodes) {
+    renderSidebar(list);
+  } else {
+    updateSidebarStatus(list);
+  }
 }
 
 function setGroup(g) {

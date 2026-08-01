@@ -1,3 +1,11 @@
+databases:
+  - name: gps-vendedores-db
+    databaseName: gps_vendedores
+    user: gps_vendedores
+    plan: free
+    region: virginia
+    version: "17"
+
 services:
   - type: web
     name: gps-vendedores
@@ -10,3 +18,7 @@ services:
         generateValue: true
       - key: DASH_PIN
         generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gps-vendedores-db
+          property: connectionString

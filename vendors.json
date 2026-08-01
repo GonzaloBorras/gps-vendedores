@@ -278,5 +278,12 @@
     "code": "DAVID-40",
     "color": "#c49c94",
     "grupo": "merchan"
+  },
+  {
+    "name": "Gonzalo Borras",
+    "prov": "TUCUMAN",
+    "code": "GONZALO-41",
+    "color": "#e6194b",
+    "grupo": "merchan"
   }
 ]

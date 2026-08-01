@@ -329,6 +329,50 @@ def visitas_get():
     return jsonify([dict(r) for r in rows])
 
 
+@app.route('/api/visitas/resumen')
+def visitas_resumen():
+    fecha = request.args.get('fecha', '').strip()
+    sql = 'SELECT code, COUNT(*) AS n FROM visitas'
+    params = []
+    if fecha:
+        sql += ' WHERE fecha = ?'
+        params.append(fecha)
+    sql += ' GROUP BY code'
+    rows = get_db().execute(sql, params).fetchall()
+    return jsonify({r['code']: r['n'] for r in rows})
+
+
+@app.route('/api/merchan-pdv')
+def merchan_pdv():
+    rows = get_db().execute('''
+        SELECT p.code, p.lat, p.lon FROM positions p
+        JOIN (SELECT code, MAX(ts) AS mts FROM positions GROUP BY code) mx
+          ON p.code = mx.code AND p.ts = mx.mts
+    ''').fetchall()
+    out = {}
+    for r in rows:
+        lat, lon = r['lat'], r['lon']
+        best = None
+        for p in PDV:
+            pl, po = p.get('lat'), p.get('lon')
+            if pl and po and (pl != 0 or po != 0):
+                d = _haversine(lat, lon, pl, po)
+                if best is None or d < best[0]:
+                    best = (d, p)
+        if best:
+            d, p = best
+            out[r['code']] = {
+                'cliente': p['c'],
+                'razon': p['r'],
+                'calle': p.get('calle', ''),
+                'altura': p.get('altura', ''),
+                'dist_m': int(d),
+                'lat': p['lat'],
+                'lon': p['lon'],
+            }
+    return jsonify(out)
+
+
 @app.route('/api/visitas', methods=['POST'])
 def visitas_post():
     body = request.get_json(force=True, silent=True) or {}
@@ -343,13 +387,16 @@ def visitas_post():
     if len(fecha) != 10:
         return jsonify({'ok': False, 'error': 'fecha invalida'}), 400
     pdv = next((p for p in PDV if p.get('c') == cliente), None)
-    if not pdv:
+    razon = pdv.get('r', '') if pdv else str(body.get('razon', '')).strip()
+    calle = pdv.get('calle', '') if pdv else str(body.get('calle', '')).strip()
+    vta = pdv.get('vta', '') if pdv else str(body.get('vta', '')).strip()
+    if not pdv and not razon:
         return jsonify({'ok': False, 'error': 'cliente no encontrado en PDV'}), 404
     db = get_db()
     ts = int(time.time() * 1000)
     db.execute(
         'INSERT OR REPLACE INTO visitas(fecha, code, cliente, razon, calle, vta, ts) VALUES (?,?,?,?,?,?,?)',
-        (fecha, code, cliente, pdv.get('r', ''), pdv.get('calle', ''), pdv.get('vta', ''), ts))
+        (fecha, code, cliente, razon, calle, vta, ts))
     db.commit()
     return jsonify({'ok': True, 'ts': ts})
 

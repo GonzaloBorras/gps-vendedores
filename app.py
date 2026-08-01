@@ -51,6 +51,8 @@ app.secret_key = os.environ.get('SECRET_KEY', 'cambiar-esta-clave-por-una-segura
 DASH_PIN = os.environ.get('DASH_PIN', '1234')
 
 ACTIVE_MS = 120000  # 2 minutos: se considera activo si mandó posición hace menos que esto
+VISIT_RADIUS_M = 150  # radio para validar que el merchan está en el PDV
+VISIT_MAX_MS = 5 * 60 * 1000  # la posición para validar la visita no puede tener más de 5 min
 
 
 def get_db():
@@ -323,6 +325,8 @@ def rutas_api():
                     'calle': p.get('calle', ''),
                     'altura': p.get('altura', ''),
                     'vta': p.get('vta', ''),
+                    'lat': p.get('lat'),
+                    'lon': p.get('lon'),
                 })
     return jsonify(out)
 
@@ -447,6 +451,17 @@ def visitas_post():
     if not pdv and not razon:
         return jsonify({'ok': False, 'error': 'cliente no encontrado en PDV'}), 404
     db = get_db()
+    if body.get('validate'):
+        row = db.execute(
+            'SELECT lat, lon, ts FROM positions WHERE code = ? ORDER BY ts DESC LIMIT 1',
+            (code,)).fetchone()
+        now = int(time.time() * 1000)
+        if not row or now - row['ts'] > VISIT_MAX_MS:
+            return jsonify({'ok': False, 'error': 'No hay una posición reciente para validar. Iniciá el envío en vivo y acercate al PDV.'}), 400
+        if pdv and pdv.get('lat') and pdv.get('lon') and (pdv['lat'] != 0 or pdv['lon'] != 0):
+            d = _haversine(row['lat'], row['lon'], pdv['lat'], pdv['lon'])
+            if d > VISIT_RADIUS_M:
+                return jsonify({'ok': False, 'error': 'No estás en el PDV (%s). Estás a %d m de ese PDV.' % (pdv.get('r', ''), int(d))}), 400
     ts = int(time.time() * 1000)
     db.execute(
         'INSERT OR REPLACE INTO visitas(fecha, code, cliente, razon, calle, vta, ts) VALUES (?,?,?,?,?,?,?)',

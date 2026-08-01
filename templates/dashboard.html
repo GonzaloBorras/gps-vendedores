@@ -48,18 +48,37 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .dot.on { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
 .dot.off { background: #9ca3af; }
 .vendor .actions { display: flex; gap: 6px; margin-top: 6px; }
-.vendor button { flex: 1; border: 0; border-radius: 6px; padding: 5px 8px; font-size: 11px;
+.vendor button { border: 0; border-radius: 6px; padding: 5px 8px; font-size: 11px;
   font-weight: 600; cursor: pointer; }
 .btn-route { background: #eef2ff; color: #4338ca; }
 .btn-copy { background: #ecfdf5; color: #047857; }
 .btn-gmaps { background: #eff6ff; color: #1d4ed8; text-decoration: none; text-align: center; padding: 5px 8px; }
 .vendor .last { font-size: 11px; color: #6b7280; margin-top: 4px; }
+.vendor .card-meta { font-size: 11px; color: #6b7280; margin-top: 3px; line-height: 1.5; }
+.vendor .card-meta b { color: #1f2937; }
+.vendor .card-meta .hoy-badge { display: inline-block; background: #1d4ed8; color: #fff; border-radius: 4px;
+  padding: 0 5px; font-size: 9px; font-weight: 700; margin-left: 4px; vertical-align: middle; }
+.card-actions { position: relative; margin-top: 6px; }
+.card-actions .dots { border: 1px solid #e5e7eb; background: #fff; border-radius: 6px; padding: 3px 10px;
+  font-size: 13px; font-weight: 700; color: #6b7280; cursor: pointer; }
+.card-actions .acts { display: none; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.card-actions.open .acts { display: flex; }
+.card-actions .acts button, .card-actions .acts a { flex: 1; min-width: 90px; }
 #statusbar { position: absolute; bottom: 10px; left: 10px; z-index: 1000;
   background: #fff; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.2);
   padding: 6px 14px; font-size: 12px; color: #374151; }
+#toast { position: absolute; bottom: 56px; left: 50%; transform: translateX(-50%); z-index: 2200;
+  background: #1a1a2e; color: #fff; border-radius: 8px; padding: 8px 16px; font-size: 13px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.35); display: none; max-width: 90vw; }
 .popup-info { font-size: 12px; }
 .popup-info .name { font-weight: 700; font-size: 13px; }
 .popup-info .ruta { color: #555; }
+.popup-info .btn { border: 0; border-radius: 6px; padding: 5px 10px; font-size: 11px; font-weight: 600;
+  cursor: pointer; text-decoration: none; display: inline-block; margin-top: 6px; }
+.popup-info .btn-route { background: #eef2ff; color: #4338ca; }
+.popup-info .btn-gmaps { background: #eff6ff; color: #1d4ed8; }
+.zoom-prov { width: 100%; margin-top: 4px; padding: 7px; border: 0; border-radius: 6px; background: #1a1a2e;
+  color: #fff; font-weight: 600; font-size: 12px; cursor: pointer; }
 .overlay { position: absolute; inset: 0; z-index: 2000; background: rgba(15,20,32,.9);
   display: flex; align-items: center; justify-content: center; }
 .login { background: #fff; border-radius: 12px; padding: 24px; width: 300px; text-align: center; }
@@ -71,7 +90,8 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
   background: #1a1a2e; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
 .wrong { color: #dc2626; font-size: 12px; margin-top: 6px; }
 .leyenda { position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: #fff;
-  border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.2); padding: 8px 10px; font-size: 11px; color: #555; }
+  border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.2); padding: 8px 10px; font-size: 12px; color: #555;
+  line-height: 1.5; }
 .config-overlay { position: absolute; inset: 0; z-index: 2100; background: rgba(15,20,32,.85);
   display: none; align-items: center; justify-content: center; }
 .config-overlay.open { display: flex; }
@@ -113,10 +133,14 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .visitas-count { font-size: 12px; color: #047857; margin-top: 6px; }
 .rutas-grid { margin-top: 8px; }
 .rutas-dia { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+.rutas-dia.hoy { border: 2px solid #1d4ed8; }
+.rutas-dia.hoy h4 { background: #eff6ff; }
 .rutas-dia h4 { margin: 0; padding: 6px 10px; font-size: 12px; background: #f1f5f9; color: #334155;
   display: flex; justify-content: space-between; align-items: center; }
 .rutas-dia h4 .rd-n { font-weight: 700; }
 .rutas-dia h4 .rd-c { color: #059669; font-weight: 600; }
+.rutas-dia h4 .rd-hoy { background: #1d4ed8; color: #fff; border-radius: 4px; font-size: 9px;
+  font-weight: 700; padding: 1px 5px; margin-left: 6px; }
 .rutas-dia ul { list-style: none; margin: 0; padding: 4px 8px; }
 .rutas-dia li { padding: 4px 2px; font-size: 12px; border-bottom: 1px dashed #eee; }
 .rutas-dia li:last-child { border-bottom: 0; }
@@ -155,14 +179,16 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
     <select id="prov"><option value="">Todas las provincias</option>
       <option>TUCUMAN</option><option>CATAMARCA</option></select>
     <label class="toggle-row">
-      <input type="checkbox" id="pdv-toggle" onchange="togglePDV()" checked>
+      <input type="checkbox" id="pdv-toggle" onchange="togglePDV()">
       <span>Mostrar PDV (clientes)</span>
     </label>
+    <button class="zoom-prov" onclick="zoomProvincia()">📍 Zoom a la provincia seleccionada</button>
   </div>
   <div class="list" id="list"></div>
 </div>
 <div class="statusbar" id="statusbar"></div>
-<div class="leyenda">Verde: enviando ahora · Gris: sin señal (más de 2 min)</div>
+<div class="toast" id="toast"></div>
+<div class="leyenda">🟢 Punto verde: enviando ahora<br>⚪ Punto gris: sin señal (más de 2 min)<br>🔴 Rojo: PDV más cercano al seleccionar un merchan</div>
 <div class="config-overlay" id="config-overlay">
   <div class="config">
     <h2>Configuración</h2>
@@ -223,6 +249,39 @@ var routeLayer = null;
 var currentGroup = 'rutas';
 var markerLayer = L.layerGroup().addTo(map);
 var renderedCodes = null;
+var currentList = [];
+
+var RUTAS_DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+var RUTAS_DIA_NAMES = { LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado' };
+var RUTAS_TODAY = { 1: 'LUNES', 2: 'MARTES', 3: 'MIERCOLES', 4: 'JUEVES', 5: 'VIERNES', 6: 'SABADO' }[new Date().getDay()] || '';
+var rutasByMerchan = {};
+
+function toast(msg) {
+  var t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._t);
+  t._t = setTimeout(function () { t.style.display = 'none'; }, 3500);
+}
+
+function loadRutasCache() {
+  fetch('/api/rutas').then(function (r) { return r.json(); }).then(function (arr) {
+    rutasByMerchan = {};
+    arr.forEach(function (v) {
+      (rutasByMerchan[v.merchan] = rutasByMerchan[v.merchan] || {})[v.dia] =
+        (rutasByMerchan[v.merchan][v.dia] || []).concat(v);
+    });
+    if (currentList.length) renderSidebar(currentList);
+  }).catch(function () {});
+}
+
+function rutaHoyCount(code) {
+  var d = rutasByMerchan[code];
+  if (!d || !RUTAS_TODAY) return 0;
+  var lst = d[RUTAS_TODAY];
+  return lst ? lst.length : 0;
+}
 
 function markerIcon(color) {
   return L.circleMarker([0, 0], {
@@ -234,14 +293,20 @@ function markerIcon(color) {
 function makePopup(v, pos) {
   var ago = Math.round(pos.last / 1000);
   var when = ago < 60 ? ago + ' seg' : Math.round(ago / 60) + ' min';
+  var hoy = '';
+  if (v.grupo === 'merchan') {
+    var n = rutaHoyCount(v.code);
+    hoy = '<div class="ruta">Ruta hoy (' + RUTAS_DIA_NAMES[RUTAS_TODAY] + '): ' + n + ' PDV</div>';
+  }
   return '<div class="popup-info">' +
     '<div class="name">' + esc(v.name) + ' <span style="color:#9ca3af;font-size:10px">' + esc(v.prov) + '</span></div>' +
     '<div>Código: ' + esc(v.code) + '</div>' +
     '<div class="ruta">Última señal: hace ' + when + '</div>' +
-    '<div style="margin-top:6px">' +
-    '<button class="btn-route" onclick="showRoute(\'' + esc(v.code) + '\')" style="border:0;border-radius:6px;padding:5px 10px;background:#eef2ff;color:#4338ca;font-weight:600;cursor:pointer">Ver recorrido</button> ' +
-    '<a href="https://www.google.com/maps/search/?api=1&query=' + pos.lat + ',' + pos.lon +
-    '" target="_blank" rel="noopener" style="border:0;border-radius:6px;padding:5px 10px;background:#eff6ff;color:#1d4ed8;font-weight:600;text-decoration:none">Google Maps</a>' +
+    hoy +
+    '<div style="margin-top:4px">' +
+    '<button class="btn btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Ver recorrido</button> ' +
+    '<a class="btn btn-gmaps" href="https://www.google.com/maps/search/?api=1&query=' + pos.lat + ',' + pos.lon +
+    '" target="_blank" rel="noopener">Google Maps</a>' +
     '</div></div>';
 }
 
@@ -256,14 +321,25 @@ function renderSidebar(list) {
     var lastTxt = pos ? ('Última señal: hace ' + (Math.round(pos.last / 1000) < 60
       ? Math.round(pos.last / 1000) + ' seg'
       : Math.round(pos.last / 60000) + ' min')) : 'Sin señal';
+    var meta = '';
+    if (v.grupo === 'merchan') {
+      var nHoy = rutaHoyCount(v.code);
+      meta = '<div class="card-meta" id="meta-' + esc(v.code) + '">' +
+        'Visitas hoy: — · PDV: —' +
+        (nHoy ? ' · Ruta hoy: <b>' + nHoy + '</b><span class="hoy-badge">HOY</span>' : '') +
+        '</div>';
+    }
     el.innerHTML = '<div class="row1"><span class="dot ' + (on ? 'on' : 'off') + '"></span>' +
       '<span class="name">' + esc(v.name) + '</span><span class="prov">' + esc(v.prov) + '</span></div>' +
       '<div class="code">' + esc(v.code) + '</div>' +
       '<div class="last">' + lastTxt + '</div>' +
-      '<div class="actions">' +
+      meta +
+      '<div class="card-actions" data-code="' + esc(v.code) + '">' +
+      '<button class="dots" onclick="toggleCardActions(this)">⋯</button>' +
+      '<div class="acts">' +
       '<button class="btn-copy" onclick="copyLink(\'' + esc(v.code) + '\')">Copiar link</button>' +
       '<button class="btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Recorrido</button>' +
-      '</div>';
+      '</div></div>';
     el.querySelector('.row1').addEventListener('click', function () {
       if (v.grupo === 'merchan') { showMerchanPDV(v.code); } else { flyTo(v.code); }
     });
@@ -272,6 +348,67 @@ function renderSidebar(list) {
   var act = list.filter(function (v) { var p = markers[v.code] && markers[v.code]._pos; return p && p.active; }).length;
   document.getElementById('activos').textContent = act;
   renderedCodes = list.map(function (v) { return v.code; }).join('\u0001');
+  renderMerchanMeta();
+}
+
+function toggleCardActions(btn) {
+  var wrap = btn.parentNode;
+  var open = wrap.classList.contains('open');
+  document.querySelectorAll('.card-actions.open').forEach(function (w) { w.classList.remove('open'); });
+  if (!open) wrap.classList.add('open');
+}
+
+var merchanNear = {};
+var visitasToday = {};
+
+function renderMerchanMeta() {
+  document.querySelectorAll('.vendor .card-meta').forEach(function (el) {
+    var code = el.id.replace('meta-', '');
+    var parts = ['Visitas hoy: ' + (visitasToday[code] || 0)];
+    var n = merchanNear[code];
+    if (n && n.razon) {
+      var d = n.dist_m < 1000 ? n.dist_m + ' m' : (n.dist_m / 1000).toFixed(1) + ' km';
+      parts.push('PDV: ' + n.razon + ' (' + d + ')');
+    } else {
+      parts.push('PDV: —');
+    }
+    var nHoy = rutaHoyCount(code);
+    if (nHoy) {
+      el.innerHTML = 'Visitas hoy: ' + (visitasToday[code] || 0) +
+        ' · PDV: ' + (n && n.razon ? esc(n.razon) + ' (' + d + ')' : '—') +
+        ' · Ruta hoy: <b>' + nHoy + '</b><span class="hoy-badge">HOY</span>';
+    } else {
+      el.textContent = parts.join(' · ');
+    }
+  });
+}
+
+function updateCardData() {
+  fetch('/api/merchan-pdv').then(function (r) { return r.json(); })
+    .then(function (d) { merchanNear = d || {}; renderMerchanMeta(); })
+    .catch(function () {});
+  fetch('/api/visitas/resumen').then(function (r) { return r.json(); })
+    .then(function (d) { visitasToday = d || {}; renderMerchanMeta(); })
+    .catch(function () {});
+}
+
+function zoomProvincia() {
+  var p = document.getElementById('prov').value;
+  var pds = pdvPoints.filter(function (m) { return true; });
+  var pts = [];
+  vendorsData.forEach(function (v) {
+    if (v.grupo !== currentGroup) return;
+    if (p && v.prov !== p) return;
+    var m = markers[v.code];
+    if (m) pts.push(m.getLatLng());
+  });
+  if (pts.length) {
+    map.flyToBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 12 });
+  } else if (p) {
+    toast('No hay vendedores con posición en ' + p);
+  } else {
+    map.flyTo([-27.8, -65.6], 9);
+  }
 }
 
 function updateSidebarStatus(list) {
@@ -317,7 +454,7 @@ function refresh() {
 function showRoute(code) {
   if (routeLayer) map.removeLayer(routeLayer);
   fetch('/api/history?code=' + encodeURIComponent(code) + '&days=1').then(function (r) { return r.json(); }).then(function (pts) {
-    if (!pts.length) { alert('Sin recorrido registrado en las últimas 24 hs'); return; }
+    if (!pts.length) { toast('Sin recorrido registrado en las últimas 24 hs'); return; }
     routeLayer = L.polyline(pts.map(function (p) { return [p.lat, p.lon]; }), {
       color: '#6366f1', weight: 3, opacity: 0.8
     }).addTo(map);
@@ -337,11 +474,11 @@ function clearPDVFocus() {
 
 function showMerchanPDV(code) {
   var m = markers[code];
-  if (!m) { alert('Sin posición registrada para ' + code); return; }
+  if (!m) { toast('Sin posición registrada para ' + code); return; }
   fetch('/api/nearest-pdv?code=' + encodeURIComponent(code))
     .then(function (r) { return r.json(); })
     .then(function (d) {
-      if (!d.ok) { alert(d.error || 'Sin PDV cercano'); flyTo(code); return; }
+      if (!d.ok) { toast(d.error || 'Sin PDV cercano'); flyTo(code); return; }
       clearPDVFocus();
       var v = vendorsData.find(function (x) { return x.code === code; });
       var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
@@ -362,7 +499,7 @@ function showMerchanPDV(code) {
       var sb = document.getElementById('statusbar');
       if (sb) sb.textContent = quien + ' → PDV ' + d.cliente + ' · ' + d.razon + ' (' + mDist + ')';
     })
-    .catch(function () { alert('Error al consultar el PDV más cercano.'); });
+    .catch(function () { toast('Error al consultar el PDV más cercano.'); });
 }
 
 function copyLink(code) {
@@ -551,9 +688,6 @@ function addVisitaPanel(c) {
 }
 
 // ---------------- Ruteo semanal (PDV asignados por día) ----------------
-var RUTAS_DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
-var RUTAS_DIA_NAMES = { LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado' };
-
 function fillRutasVendors() {
   var sel = document.getElementById('rutas-vendor');
   sel.innerHTML = '';
@@ -572,30 +706,42 @@ function loadRutas() {
   var grid = document.getElementById('rutas-grid');
   if (!code) { grid.innerHTML = ''; return; }
   grid.innerHTML = '<div class="rutas-empty">Cargando...</div>';
-  fetch('/api/rutas?merchan=' + encodeURIComponent(code))
-    .then(function (r) { return r.json(); })
-    .then(function (arr) {
-      var days = {};
-      arr.forEach(function (v) {
-        (days[v.dia] = days[v.dia] || []).push(v);
-      });
-      var html = RUTAS_DIAS.map(function (d) {
-        var lst = days[d] || [];
-        var items = lst.map(function (v) {
-          var dir = (v.calle || '') + (v.altura ? ' ' + v.altura : '');
-          var det = 'Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '');
-          return '<li>' +
-            '<div class="rd-name">' + esc(v.razon) + '</div>' +
-            '<div class="rd-det">' + det + '</div>' +
-            (v.vta ? '<div class="rd-vta">' + esc(v.vta) + '</div>' : '') +
-          '</li>';
-        }).join('');
-        return '<div class="rutas-dia"><h4><span class="rd-n">' + RUTAS_DIA_NAMES[d] + '</span>' +
-          '<span class="rd-c">' + lst.length + ' PDV</span></h4>' +
-          (items ? '<ul>' + items + '</ul>' : '<div class="rutas-empty">Sin ruta este día.</div>') + '</div>';
+  var render = function (arr) {
+    var days = {};
+    arr.forEach(function (v) {
+      (days[v.dia] = days[v.dia] || []).push(v);
+    });
+    var html = RUTAS_DIAS.map(function (d) {
+      var lst = days[d] || [];
+      var items = lst.map(function (v) {
+        var dir = (v.calle || '') + (v.altura ? ' ' + v.altura : '');
+        var det = 'Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '');
+        return '<li>' +
+          '<div class="rd-name">' + esc(v.razon) + '</div>' +
+          '<div class="rd-det">' + det + '</div>' +
+          (v.vta ? '<div class="rd-vta">' + esc(v.vta) + '</div>' : '') +
+        '</li>';
       }).join('');
-      grid.innerHTML = html;
-    }).catch(function () { grid.innerHTML = '<div class="rutas-empty">Error al cargar.</div>'; });
+      var hoy = d === RUTAS_TODAY ? ' <span class="rd-hoy">HOY</span>' : '';
+      return '<div class="rutas-dia' + (d === RUTAS_TODAY ? ' hoy' : '') + '"><h4><span class="rd-n">' + RUTAS_DIA_NAMES[d] + hoy + '</span>' +
+        '<span class="rd-c">' + lst.length + ' PDV</span></h4>' +
+        (items ? '<ul>' + items + '</ul>' : '<div class="rutas-empty">Sin ruta este día.</div>') + '</div>';
+    }).join('');
+    grid.innerHTML = html;
+  };
+  if (rutasByMerchan[code]) {
+    render(Object.keys(rutasByMerchan[code]).reduce(function (acc, d) {
+      return acc.concat(rutasByMerchan[code][d]);
+    }, []));
+  } else {
+    fetch('/api/rutas?merchan=' + encodeURIComponent(code))
+      .then(function (r) { return r.json(); })
+      .then(function (arr) {
+        rutasByMerchan[code] = {};
+        arr.forEach(function (v) { (rutasByMerchan[code][v.dia] = rutasByMerchan[code][v.dia] || []).push(v); });
+        render(arr);
+      }).catch(function () { grid.innerHTML = '<div class="rutas-empty">Error al cargar.</div>'; });
+  }
 }
 
 function openConfig() {
@@ -678,6 +824,7 @@ function applyFilters() {
   });
   markerLayer.clearLayers();
   list.forEach(function (v) { if (markers[v.code]) markerLayer.addLayer(markers[v.code]); });
+  currentList = list;
   var key = list.map(function (v) { return v.code; }).join('\u0001');
   if (key !== renderedCodes) {
     renderSidebar(list);
@@ -699,8 +846,11 @@ document.getElementById('tab-rutas').textContent = 'Rutas (' + vendorsData.filte
 document.getElementById('tab-merchan').textContent = 'Merchan (' + vendorsData.filter(function (v) { return v.grupo === 'merchan'; }).length + ')';
 
 map.setView([-27.8, -65.6], 9);
+loadRutasCache();
+updateCardData();
 refresh();
 setInterval(refresh, 5000);
+setInterval(updateCardData, 30000);
 togglePDV();
 {% endif %}
 </script>

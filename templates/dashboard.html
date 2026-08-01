@@ -283,6 +283,15 @@ function rutaHoyCount(code) {
   return lst ? lst.length : 0;
 }
 
+function rutaHoyPendientes(code) {
+  var d = rutasByMerchan[code];
+  if (!d || !RUTAS_TODAY || !d[RUTAS_TODAY]) return 0;
+  var vis = (visitasToday[code] || {}).clientes || [];
+  var set = {};
+  vis.forEach(function (c) { set[String(c)] = 1; });
+  return d[RUTAS_TODAY].filter(function (v) { return !set[String(v.cliente)]; }).length;
+}
+
 function markerIcon(color) {
   return L.circleMarker([0, 0], {
     radius: 9, color: '#fff', weight: 2,
@@ -295,8 +304,13 @@ function makePopup(v, pos) {
   var when = ago < 60 ? ago + ' seg' : Math.round(ago / 60) + ' min';
   var hoy = '';
   if (v.grupo === 'merchan') {
-    var n = rutaHoyCount(v.code);
-    hoy = '<div class="ruta">Ruta hoy (' + RUTAS_DIA_NAMES[RUTAS_TODAY] + '): ' + n + ' PDV</div>';
+    var total = rutaHoyCount(v.code);
+    if (total) {
+      var pend = rutaHoyPendientes(v.code);
+      var done = total - pend;
+      hoy = '<div class="ruta">Ruta hoy (' + RUTAS_DIA_NAMES[RUTAS_TODAY] + '): ' + pend +
+        ' pendientes de ' + total + (done ? ' · ' + done + ' visitados' : '') + '</div>';
+    }
   }
   return '<div class="popup-info">' +
     '<div class="name">' + esc(v.name) + ' <span style="color:#9ca3af;font-size:10px">' + esc(v.prov) + '</span></div>' +
@@ -323,10 +337,11 @@ function renderSidebar(list) {
       : Math.round(pos.last / 60000) + ' min')) : 'Sin señal';
     var meta = '';
     if (v.grupo === 'merchan') {
-      var nHoy = rutaHoyCount(v.code);
+      var totalHoy = rutaHoyCount(v.code);
+      var pendHoy = rutaHoyPendientes(v.code);
       meta = '<div class="card-meta" id="meta-' + esc(v.code) + '">' +
         'Visitas hoy: — · PDV: —' +
-        (nHoy ? ' · Ruta hoy: <b>' + nHoy + '</b><span class="hoy-badge">HOY</span>' : '') +
+        (totalHoy ? ' · Ruta hoy: <b>' + pendHoy + '</b><span class="hoy-badge">HOY</span>' : '') +
         '</div>';
     }
     el.innerHTML = '<div class="row1"><span class="dot ' + (on ? 'on' : 'off') + '"></span>' +
@@ -364,22 +379,16 @@ var visitasToday = {};
 function renderMerchanMeta() {
   document.querySelectorAll('.vendor .card-meta').forEach(function (el) {
     var code = el.id.replace('meta-', '');
-    var parts = ['Visitas hoy: ' + (visitasToday[code] || 0)];
+    var vi = visitasToday[code] || { n: 0, clientes: [] };
     var n = merchanNear[code];
-    if (n && n.razon) {
-      var d = n.dist_m < 1000 ? n.dist_m + ' m' : (n.dist_m / 1000).toFixed(1) + ' km';
-      parts.push('PDV: ' + n.razon + ' (' + d + ')');
-    } else {
-      parts.push('PDV: —');
-    }
-    var nHoy = rutaHoyCount(code);
-    if (nHoy) {
-      el.innerHTML = 'Visitas hoy: ' + (visitasToday[code] || 0) +
-        ' · PDV: ' + (n && n.razon ? esc(n.razon) + ' (' + d + ')' : '—') +
-        ' · Ruta hoy: <b>' + nHoy + '</b><span class="hoy-badge">HOY</span>';
-    } else {
-      el.textContent = parts.join(' · ');
-    }
+    var totalHoy = rutaHoyCount(code);
+    var pendHoy = rutaHoyPendientes(code);
+    var html = 'Visitas hoy: ' + vi.n +
+      ' · PDV: ' + (n && n.razon
+        ? esc(n.razon) + ' (' + (n.dist_m < 1000 ? n.dist_m + ' m' : (n.dist_m / 1000).toFixed(1) + ' km') + ')'
+        : '—');
+    if (totalHoy) html += ' · Ruta hoy: <b>' + pendHoy + '</b><span class="hoy-badge">HOY</span>';
+    el.innerHTML = html;
   });
 }
 
@@ -387,7 +396,7 @@ function updateCardData() {
   fetch('/api/merchan-pdv').then(function (r) { return r.json(); })
     .then(function (d) { merchanNear = d || {}; renderMerchanMeta(); })
     .catch(function () {});
-  fetch('/api/visitas/resumen').then(function (r) { return r.json(); })
+  fetch('/api/visitas/resumen?fecha=' + todayStr()).then(function (r) { return r.json(); })
     .then(function (d) { visitasToday = d || {}; renderMerchanMeta(); })
     .catch(function () {});
 }

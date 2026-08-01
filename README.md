@@ -107,6 +107,14 @@ python app.py
 - API: `POST /api/visitas`, `GET /api/visitas?code=X&fecha=YYYY-MM-DD`, `DELETE /api/visitas`.
 - `pdv.json` incluye por cada cliente: `c` (número de cliente), `r` (razón social), `calle`, `altura`, `lat`, `lon`, `prov` y `vta` (ruta de venta / vendedor).
 
+## Ruteo semanal por merchan
+
+- El panel muestra en **Configuración ⚙ → "PDV asignados por día (ruteo semanal)"** qué PDV le toca visitar a cada merchan y qué día (Lunes a Sábado).
+- La asignación se genera desde los Excel de ruta semanal de la carpeta `C:\Users\gborrasar\Desktop\ruteos` (cada archivo se identifica por el nombre del merchan; se leen solo las hojas de día, se ignora la de Faltantes).
+- Para regenerar después de actualizar los Excel: `python gen_rutas.py` (escribe `rutas.json` con la estructura `merchan → día → [[código cliente, razón social]]`).
+- La razón social se completa desde `pdv.json` por número de cliente; si el cliente no está en el maestro, se usa la razón social que trae el Excel.
+- API: `GET /api/rutas?merchan=LAZO-33&dia=MIERCOLES` (filtros opcionales).
+
 ## Cómo funciona
 
 1. El vendedor abre `/tracker/<codigo>` en el celular (HTTPS) y pulsa **Iniciar envío**.

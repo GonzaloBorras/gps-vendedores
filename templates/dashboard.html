@@ -263,7 +263,9 @@ function renderSidebar(list) {
       '<button class="btn-copy" onclick="copyLink(\'' + esc(v.code) + '\')">Copiar link</button>' +
       '<button class="btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Recorrido</button>' +
       '</div>';
-    el.querySelector('.row1').addEventListener('click', function () { flyTo(v.code); });
+    el.querySelector('.row1').addEventListener('click', function () {
+      if (v.grupo === 'merchan') { showMerchanPDV(v.code); } else { flyTo(v.code); }
+    });
     box.appendChild(el);
   });
   var act = list.filter(function (v) { var p = markers[v.code] && markers[v.code]._pos; return p && p.active; }).length;
@@ -303,6 +305,41 @@ function showRoute(code) {
 function flyTo(code) {
   var m = markers[code];
   if (m) map.flyTo(m.getLatLng(), 16);
+}
+
+var pdvFocus = null;
+function clearPDVFocus() {
+  if (pdvFocus) { map.removeLayer(pdvFocus); pdvFocus = null; }
+}
+
+function showMerchanPDV(code) {
+  var m = markers[code];
+  if (!m) { alert('Sin posición registrada para ' + code); return; }
+  fetch('/api/nearest-pdv?code=' + encodeURIComponent(code))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.ok) { alert(d.error || 'Sin PDV cercano'); flyTo(code); return; }
+      clearPDVFocus();
+      var v = vendorsData.find(function (x) { return x.code === code; });
+      var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
+      var mDist = d.dist_m < 1000 ? d.dist_m + ' m' : (d.dist_m / 1000).toFixed(1) + ' km';
+      var quien = (v && v.name) || code;
+      pdvFocus = L.circleMarker([d.lat, d.lon], {
+        radius: 11, color: '#fff', weight: 2, fillColor: '#dc2626', fillOpacity: 0.95
+      }).addTo(map);
+      pdvFocus.bindPopup(
+        '<div class="popup-info"><div class="name">PDV más cercano</div>' +
+        '<div style="font-weight:600;margin:4px 0">' + esc(d.razon) + '</div>' +
+        '<div>Cliente: ' + esc(d.cliente) + (dir ? ' · ' + esc(dir) : '') + '</div>' +
+        (d.vta ? '<div class="ruta">Ruta: ' + esc(d.vta) + '</div>' : '') +
+        '<div class="ruta">Distancia desde ' + esc(quien) + ': ' + mDist + '</div>' +
+        '</div>', { maxWidth: 260 });
+      pdvFocus.openPopup();
+      map.flyTo([d.lat, d.lon], 17);
+      var sb = document.getElementById('statusbar');
+      if (sb) sb.textContent = quien + ' → PDV ' + d.cliente + ' · ' + d.razon + ' (' + mDist + ')';
+    })
+    .catch(function () { alert('Error al consultar el PDV más cercano.'); });
 }
 
 function copyLink(code) {

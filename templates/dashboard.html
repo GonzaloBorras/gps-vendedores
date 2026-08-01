@@ -148,6 +148,8 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .rutas-dia li .rd-det { font-size: 10px; color: #6b7280; }
 .rutas-dia li .rd-vta { font-size: 10px; color: #4338ca; }
 .rutas-empty { font-size: 12px; color: #9ca3af; padding: 8px; }
+.alertbar { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 3000; background: #fef2f2; color: #b91c1c; border-bottom: 2px solid #f87171; padding: 8px 12px; font-size: 13px; text-align: center; box-shadow: 0 2px 8px rgba(185,28,28,.2); }
+.gps-alert { margin-top: 6px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -187,6 +189,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
   <div class="list" id="list"></div>
 </div>
 <div class="statusbar" id="statusbar"></div>
+<div class="alertbar" id="alertbar"></div>
 <div class="toast" id="toast"></div>
 <div class="leyenda">🟢 Punto verde: enviando ahora<br>⚪ Punto gris: sin señal (más de 2 min)<br>🔴 Rojo: PDV más cercano al seleccionar un merchan</div>
 <div class="config-overlay" id="config-overlay">
@@ -444,6 +447,7 @@ function updateSidebarStatus(list) {
 function refresh() {
   fetch('/api/positions').then(function (r) { return r.json(); }).then(function (arr) {
     arr.forEach(function (p) {
+      if (p.lat == null) return;
       if (!markers[p.code]) {
         var m = markerIcon(p.color);
         m.bindPopup('', { maxWidth: 260 });
@@ -456,8 +460,44 @@ function refresh() {
       m._pos = p;
       m.setPopupContent(makePopup(p, p));
     });
+    renderAlerts(arr);
     applyFilters();
   }).catch(function () {});
+}
+
+var currentAlerts = {};
+function renderAlerts(arr) {
+  if (arr) {
+    currentAlerts = {};
+    arr.forEach(function (p) { if (p.gpsAlert) currentAlerts[p.code] = p.gpsAlertTs; });
+  }
+  document.querySelectorAll('.vendor').forEach(function (el) {
+    var cEl = el.querySelector('.code');
+    if (!cEl) return;
+    var code = cEl.textContent.trim();
+    var badge = el.querySelector('.gps-alert');
+    if (currentAlerts[code]) {
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'gps-alert';
+        badge.textContent = '🚫 GPS apagado o sin señal';
+        el.appendChild(badge);
+      }
+    } else if (badge) {
+      badge.remove();
+    }
+  });
+  var bar = document.getElementById('alertbar');
+  var codes = Object.keys(currentAlerts);
+  if (codes.length) {
+    bar.innerHTML = '🚫 <b>Alerta GPS</b> (ubicación apagada o sin señal): ' + codes.map(function (c) {
+      var v = vendorsData.find(function (x) { return x.code === c; });
+      return esc(v ? v.name : c);
+    }).join(', ');
+    bar.style.display = 'block';
+  } else {
+    bar.style.display = 'none';
+  }
 }
 
 function showRoute(code) {
@@ -840,6 +880,7 @@ function applyFilters() {
   } else {
     updateSidebarStatus(list);
   }
+  renderAlerts();
 }
 
 function setGroup(g) {

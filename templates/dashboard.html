@@ -172,6 +172,9 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
       <select id="vis-vendor" onchange="loadVisitasPanel()"></select>
       <label>Fecha</label>
       <input type="date" id="vis-fecha" onchange="loadVisitasPanel()">
+      <label>Buscar PDV para marcar visitado</label>
+      <input type="search" id="vis-search" placeholder="Razón social, cliente, calle o ruta..." oninput="searchVisitasPanel()">
+      <div class="vres" id="vis-res"></div>
       <div id="vis-lista"></div>
       <div class="visitas-count" id="vis-count"></div>
     </div>
@@ -428,6 +431,43 @@ function quitarVisitaPanel(c) {
     body: JSON.stringify({ code: code, cliente: c, fecha: fecha })
   }).then(function (r) { return r.json(); }).then(function (d) {
     if (d.ok) loadVisitasPanel();
+  }).catch(function () {});
+}
+
+function searchVisitasPanel() {
+  var q = document.getElementById('vis-search').value.trim();
+  var box = document.getElementById('vis-res');
+  if (!q) { box.innerHTML = ''; return; }
+  fetch('/api/pdv?q=' + encodeURIComponent(q))
+    .then(function (r) { return r.json(); })
+    .then(function (arr) {
+      if (!arr.length) { box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Sin resultados.</div>'; return; }
+      box.innerHTML = '<div class="vlist">' + arr.map(function (d) {
+        var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
+        return '<div class="vitem">' +
+          '<div style="flex:1">' +
+            '<div class="vi-name">' + esc(d.r) + '</div>' +
+            '<div class="vi-det">Cliente: ' + esc(d.c) + (dir ? ' · ' + esc(dir) : '') + '</div>' +
+            (d.vta ? '<div class="vi-vta">' + esc(d.vta) + '</div>' : '') +
+          '</div>' +
+          '<button onclick="addVisitaPanel(\'' + esc(d.c) + '\')">Marcar</button>' +
+        '</div>';
+      }).join('') + '</div>';
+    }).catch(function () { box.innerHTML = '<div class="empty">Error al buscar.</div>'; });
+}
+
+function addVisitaPanel(c) {
+  var code = document.getElementById('vis-vendor').value;
+  var fecha = document.getElementById('vis-fecha').value;
+  fetch('/api/visitas', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, cliente: c, fecha: fecha })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.ok) {
+      document.getElementById('vis-search').value = '';
+      document.getElementById('vis-res').innerHTML = '';
+      loadVisitasPanel();
+    }
   }).catch(function () {});
 }
 

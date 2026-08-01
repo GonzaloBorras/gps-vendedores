@@ -71,6 +71,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .jornada { display: none; background: #eef4ff; border: 1px solid #c9dcff; color: #2b4a8f; border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.5; margin-top: 14px; text-align: center; }
 .jornada b { font-weight: 600; }
 .jornada.done { background: #f1f6ef; border-color: #cfe0c9; color: #3d6b33; }
+.gps-warn { display: none; margin-top: 12px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 600; text-align: center; line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -86,6 +87,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
     <div class="metric"><div class="label">Último envío</div><div class="value" id="last">--</div></div>
   </div>
   <div class="error" id="err"></div>
+  <div class="gps-warn" id="gpsWarn">🚫 Ubicación apagada o sin señal GPS. El administrador va a recibir una alerta. Activá la ubicación del celular.</div>
   <button class="btn start" id="btn">Iniciar envío</button>
   <button id="visitasBtn">Registrar PDV visitado</button>
   <span class="visita-count" id="visitaCount"></span>
@@ -135,6 +137,10 @@ var shiftCount = null;
 var primerPDV = null;
 var visitaSeq = [];
 
+var gpsOk = null;
+var lastGpsReport = null;
+var lastGpsSentTs = 0;
+
 function setState(txt, on) {
   document.getElementById('stateText').textContent = txt;
   var d = document.getElementById('dot');
@@ -145,6 +151,27 @@ function showErr(msg) {
   e.textContent = msg; e.style.display = 'block';
 }
 function hideErr() { document.getElementById('err').style.display = 'none'; }
+
+function reportGps() {
+  if (!running || gpsOk === null) return;
+  var now = Date.now();
+  var key = gpsOk ? 't' : 'f';
+  var changed = lastGpsReport !== key;
+  var stale = gpsOk === false && now - lastGpsSentTs > 30000;
+  if (!changed && !stale) return;
+  lastGpsReport = key;
+  lastGpsSentTs = now;
+  fetch(base + '/api/gps-status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, gps: gpsOk })
+  }).catch(function () {});
+  updateGpsWarn();
+}
+function updateGpsWarn() {
+  var w = document.getElementById('gpsWarn');
+  w.style.display = (running && gpsOk === false) ? 'block' : 'none';
+}
 
 function send() {
   if (lastLat === null) return;
@@ -175,6 +202,8 @@ function onPos(p) {
   document.getElementById('lon').textContent = lastLon.toFixed(6);
   document.getElementById('acc').textContent = lastAcc + ' m';
   hideErr();
+  gpsOk = true;
+  reportGps();
 }
 function onErr(e) {
   var msgs = {
@@ -183,6 +212,8 @@ function onErr(e) {
     3: 'Se agotó el tiempo esperando el GPS. Salí a un lugar abierto.'
   };
   showErr(msgs[e.code] || ('Error de GPS: ' + e.code));
+  gpsOk = false;
+  reportGps();
 }
 
 // Web Worker: sigue enviando aunque la pantalla esté apagada.
@@ -198,6 +229,8 @@ function startWorker() {
         document.getElementById('lon').textContent = lastLon.toFixed(6);
         document.getElementById('acc').textContent = lastAcc + ' m';
         hideErr();
+        gpsOk = true;
+        reportGps();
       } else if (d.type === 'sent') {
         if (d.ok) {
           lastSent = d.ts;
@@ -208,6 +241,8 @@ function startWorker() {
           showErr('Error del servidor: ' + (d.error || 'desconocido'));
         }
       } else if (d.type === 'err') {
+        gpsOk = false;
+        reportGps();
         onErr({ code: d.code });
       } else if (d.type === 'unsupported') {
         stopWorker();
@@ -284,6 +319,7 @@ function start() {
   document.getElementById('btn').onclick = stop;
   if (!startWorker()) startMainThread();
   requestWakeLock();
+  window._gpsInt = setInterval(reportGps, 30000);
   loadRutaHoy(function () {
     primerPDV = rutaHoy[0] || null;
     if (primerPDV) localStorage.setItem('gps_primer_pdv', primerPDV.razon);
@@ -295,6 +331,7 @@ function stopTracking() {
   if (watchId !== null) navigator.geolocation.clearWatch(watchId);
   watchId = null;
   clearInterval(window._int);
+  clearInterval(window._gpsInt);
   clearTimeout(shiftTimer);
   clearInterval(shiftCount);
   if (window._wake) window._wake.release().catch(function () {});

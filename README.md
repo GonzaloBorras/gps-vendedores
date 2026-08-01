@@ -7,7 +7,19 @@ Sistema de seguimiento GPS en vivo para vendedores de Tucumán y Catamarca.
 - **Vendedor**: abre su link en el celular, pulsa "Iniciar envío" y el GPS se envía automáticamente cada 10 segundos. Puede registrar los PDV que visita con el botón "Registrar PDV visitado", que además muestra **"Mi ruta de hoy"** con los PDV que le tocan ese día para ir marcándolos. La pantalla no se apaga mientras envía (Wake Lock) y se puede hacer zoom/pinch en el mapa y en la página.
 - **Panel**: mapa en vivo con la posición de todos los vendedores, estado (activo/sin señal), historial del recorrido del día, botón para copiar los links de cada vendedor y, en Configuración, la lista de PDV visitados por cada colaborador y día, más el ruteo semanal por merchan.
 - **Panel – merchan**: al tocar el nombre de un merchan, el mapa salta al **PDV más cercano** a su última posición (marcador rojo, con distancia, razón social y ruta de venta). Cada tarjeta muestra además las **visitas del día**, el **PDV más cercano** y cuántos PDV le tocan **hoy** (destacado con HOY).
+- **Modo seguir (🧭 Seguir)**: al tocar "Seguir" en la tarjeta de cualquier colaborador, el mapa se centra y **acompaña al merchan** como un GPS de auto: muestra distancia y tiempo estimado hasta el **próximo PDV de su ruta del día**, dibuja el camino (Directions), rota el pin hacia el destino y avisa al llegar.
+- **Navegación GPS en el celular del merchan**: la página `/tracker/CODIGO` tiene el botón **"🗺 Navegación GPS"** que abre un mapa a pantalla completa, centrado en la posición del merchan, con distancia/ETA hasta el próximo PDV de la ruta de hoy y el botón **"✅ Registré este PDV"** al llegar (marca la visita y avanza al siguiente).
 - Los PDV (clientes) se muestran en el mapa con el toggle "Mostrar PDV (clientes)" (apagado por defecto) y el botón "📍 Zoom a la provincia seleccionada" acerca la vista a los vendedores del filtro.
+
+## Google Maps (API key)
+
+El mapa ahora usa **Google Maps JavaScript API** en lugar de OpenStreetMap.
+
+1. Activá en Google Cloud Console las APIs **Maps JavaScript API** y **Directions API** para tu key.
+2. Configurá la key de una de estas dos formas:
+   - Variable de entorno `GOOGLE_MAPS_KEY`, o
+   - Archivo `gps-vendedores/gmaps_key.txt` con la key (no se versiona; está en `.gitignore`).
+3. El mapa standalone `PDV_Tucuman_mapa.html` pide la key una sola vez y la guarda en el navegador (localStorage).
 
 ## Links
 
@@ -101,6 +113,7 @@ python app.py
 | `DASH_PIN` | `1234` | PIN para entrar al panel |
 | `DB_PATH` | `gps.db` | Ruta del archivo SQLite |
 | `PORT` | `5000` | Puerto del servidor |
+| `GOOGLE_MAPS_KEY` | (vacía) | Key de Google Maps JS API; si no está, se lee de `gmaps_key.txt` |
 
 ## Registro de PDV visitados
 

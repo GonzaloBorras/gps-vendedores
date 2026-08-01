@@ -158,6 +158,7 @@ def init_db():
             'CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, code TEXT NOT NULL, msj TEXT NOT NULL, ts BIGINT NOT NULL, visto INTEGER NOT NULL DEFAULT 0)',
             'CREATE INDEX IF NOT EXISTS idx_messages_code ON messages(code)',
             'CREATE TABLE IF NOT EXISTS pdv_radius (cliente TEXT PRIMARY KEY, radius_m INTEGER NOT NULL)',
+            'CREATE TABLE IF NOT EXISTS pdvs_extra (cliente TEXT PRIMARY KEY, razon TEXT NOT NULL, calle TEXT NOT NULL DEFAULT \'\', altura TEXT NOT NULL DEFAULT \'\', vta TEXT NOT NULL DEFAULT \'\', prov TEXT NOT NULL DEFAULT \'\', lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, creado_por TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL)',
             'CREATE TABLE IF NOT EXISTS geoevents (id SERIAL PRIMARY KEY, code TEXT NOT NULL, cliente TEXT NOT NULL DEFAULT \'\', razon TEXT NOT NULL DEFAULT \'\', tipo TEXT NOT NULL DEFAULT \'\', dist_m INTEGER, ts BIGINT NOT NULL)',
             'CREATE INDEX IF NOT EXISTS idx_geoevents_code_ts ON geoevents(code, ts)',
             'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)',
@@ -227,6 +228,18 @@ def init_db():
                 cliente TEXT PRIMARY KEY,
                 radius_m INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS pdvs_extra (
+                cliente    TEXT PRIMARY KEY,
+                razon      TEXT NOT NULL,
+                calle      TEXT NOT NULL DEFAULT '',
+                altura     TEXT NOT NULL DEFAULT '',
+                vta        TEXT NOT NULL DEFAULT '',
+                prov       TEXT NOT NULL DEFAULT '',
+                lat        REAL NOT NULL,
+                lon        REAL NOT NULL,
+                creado_por TEXT NOT NULL DEFAULT '',
+                ts         INTEGER NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS geoevents (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 code TEXT NOT NULL,
@@ -286,6 +299,27 @@ def _radius_for(cliente):
 
 
 init_db()
+
+
+# ---------------- PDV adicionales (creados por los merchans desde el mapa) ----------------
+
+def _load_pdv_extra():
+    extra = []
+    try:
+        con = _raw_conn()
+        rows = _exec(con, 'SELECT cliente, razon, calle, altura, vta, prov, lat, lon FROM pdvs_extra').fetchall()
+        con.close()
+        for r in rows:
+            extra.append({'c': r['cliente'], 'r': r['razon'], 'calle': r['calle'], 'altura': r['altura'],
+                          'vta': r['vta'], 'prov': r['prov'], 'lat': r['lat'], 'lon': r['lon']})
+    except Exception:
+        pass
+    return extra
+
+
+PDV_EXTRA = _load_pdv_extra()
+PDV.extend(PDV_EXTRA)
+PDV_BY_CODE.update({p['c']: p for p in PDV_EXTRA})
 
 
 # ---------------- Geocercas ----------------
@@ -607,6 +641,39 @@ def pdv_api():
     for p in items:
         out.append(dict(p, radius=_radius_for(p.get('c', ''))))
     return jsonify(out)
+
+
+@app.route('/api/pdv', methods=['POST'])
+def pdv_post():
+    body = request.get_json(force=True, silent=True) or {}
+    code = str(body.get('code', '')).strip().upper()
+    v = VENDOR_BY_CODE.get(code)
+    if not v:
+        return jsonify({'ok': False, 'error': 'codigo de merchan invalido'}), 403
+    try:
+        lat = float(body.get('lat'))
+        lon = float(body.get('lon'))
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'ubicacion invalida'}), 400
+    if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+        return jsonify({'ok': False, 'error': 'ubicacion fuera de rango'}), 400
+    razon = str(body.get('razon', '')).strip()
+    if not razon:
+        return jsonify({'ok': False, 'error': 'falta la razon social'}), 400
+    calle = str(body.get('calle', '')).strip()
+    altura = str(body.get('altura', '')).strip()
+    vta = str(body.get('vta', '')).strip()
+    cliente = 'M' + str(int(time.time() * 1000))
+    db = get_db()
+    _exec(db, 'INSERT INTO pdvs_extra(cliente, razon, calle, altura, vta, prov, lat, lon, creado_por, ts) VALUES (?,?,?,?,?,?,?,?,?,?)',
+          (cliente, razon, calle, altura, vta, v.get('prov', ''), lat, lon, code, int(time.time() * 1000)))
+    db.commit()
+    nuevo = {'c': cliente, 'r': razon, 'calle': calle, 'altura': altura, 'vta': vta,
+             'prov': v.get('prov', ''), 'lat': lat, 'lon': lon}
+    PDV.append(nuevo)
+    PDV_BY_CODE[cliente] = nuevo
+    PDV_EXTRA.append(nuevo)
+    return jsonify({'ok': True, 'cliente': cliente, 'razon': razon, 'lat': lat, 'lon': lon})
 
 
 @app.route('/api/pdv/radius', methods=['POST'])

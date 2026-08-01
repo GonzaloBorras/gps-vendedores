@@ -196,15 +196,14 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
     <button class="gear" onclick="openConfig()" title="Configuración">⚙</button>
   </div>
   <div class="tabs">
-    <button class="tab active" id="tab-rutas" onclick="setGroup('rutas')">Rutas</button>
-    <button class="tab" id="tab-merchan" onclick="setGroup('merchan')">Merchan</button>
+    <button class="tab active" id="tab-merchan">Merchan</button>
   </div>
   <div class="filtros">
-    <input type="text" id="search" placeholder="Buscar vendedor...">
+    <input type="text" id="search" placeholder="Buscar merchan...">
     <select id="prov"><option value="">Todas las provincias</option>
       <option>TUCUMAN</option><option>CATAMARCA</option></select>
     <label class="toggle-row">
-      <input type="checkbox" id="pdv-toggle" onchange="togglePDV()">
+      <input type="checkbox" id="pdv-toggle" onchange="togglePDV()" checked>
       <span>Mostrar PDV (clientes)</span>
     </label>
     <button class="zoom-prov" onclick="zoomProvincia()">📍 Zoom a la provincia seleccionada</button>
@@ -341,7 +340,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 var markers = {};
 var routeLayer = null;
-var currentGroup = 'rutas';
+var currentGroup = 'merchan';
 var markerLayer = L.layerGroup().addTo(map);
 var renderedCodes = null;
 var currentList = [];
@@ -1209,16 +1208,8 @@ function applyFilters() {
   renderAlerts();
 }
 
-function setGroup(g) {
-  currentGroup = g;
-  document.getElementById('tab-rutas').className = 'tab' + (g === 'rutas' ? ' active' : '');
-  document.getElementById('tab-merchan').className = 'tab' + (g === 'merchan' ? ' active' : '');
-  applyFilters();
-}
-
 document.getElementById('search').addEventListener('input', applyFilters);
 document.getElementById('prov').addEventListener('change', applyFilters);
-document.getElementById('tab-rutas').textContent = 'Rutas (' + vendorsData.filter(function (v) { return v.grupo === 'rutas'; }).length + ')';
 document.getElementById('tab-merchan').textContent = 'Merchan (' + vendorsData.filter(function (v) { return v.grupo === 'merchan'; }).length + ')';
 
 map.setView([-27.8, -65.6], 9);

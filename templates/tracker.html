@@ -439,8 +439,17 @@ function resetBtn() {
   document.getElementById('btn').onclick = start;
   setState('Envío detenido', false);
 }
+function nativeLive(on) {
+  try {
+    if (window.AndroidBridge) {
+      if (on) window.AndroidBridge.startService(code, sessionId);
+      else window.AndroidBridge.stopService();
+    }
+  } catch (e) {}
+}
 function beginLive() {
   running = true;
+  nativeLive(true);
   var storedStart = Number(localStorage.getItem('gps_shift_start') || 0);
   shiftStart = (storedStart && Date.now() - storedStart < SHIFT_MS) ? storedStart : Date.now();
   localStorage.setItem('gps_shift_start', String(shiftStart));
@@ -495,6 +504,7 @@ function start() {
   }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
 }
 function stopTracking() {
+  nativeLive(false);
   stopWorker();
   if (watchId !== null) navigator.geolocation.clearWatch(watchId);
   watchId = null;

@@ -178,15 +178,15 @@ public class MainActivity extends Activity {
             i.setAction("START");
             i.putExtra("code", code);
             i.putExtra("session", session == null ? "" : session);
-            if (Build.VERSION.SDK_INT >= 26) startForegroundService(i);
-            else startService(i);
+            if (Build.VERSION.SDK_INT >= 26) MainActivity.this.startForegroundService(i);
+            else MainActivity.this.startService(i);
             maybeAskBattery();
         }
 
         @android.webkit.JavascriptInterface
         public void stopService() {
             try {
-                stopService(new Intent(MainActivity.this, LocationService.class));
+                MainActivity.this.stopService(new Intent(MainActivity.this, LocationService.class));
             } catch (Exception ignored) {
             }
         }

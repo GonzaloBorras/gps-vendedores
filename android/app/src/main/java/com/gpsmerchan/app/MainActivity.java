@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -33,6 +34,7 @@ public class MainActivity extends Activity {
     public static final String KEY_SESSION = "session";
 
     private static final int FILE_CHOOSER_REQ = 1001;
+    private static final int PERM_REQ_LOCATION = 2002;
 
     private WebView web;
     private ValueCallback<Uri[]> filePathCallback;
@@ -43,6 +45,8 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         sInstance = new WeakReference<>(this);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        requestLocationPermissions();
 
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 2001);
@@ -152,6 +156,31 @@ public class MainActivity extends Activity {
         else super.onBackPressed();
     }
 
+    private boolean hasLocationPermission() {
+        if (Build.VERSION.SDK_INT < 23) return true;
+        return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestLocationPermissions() {
+        if (Build.VERSION.SDK_INT >= 23 && !hasLocationPermission()) {
+            requestPermissions(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            }, PERM_REQ_LOCATION);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERM_REQ_LOCATION) {
+            if (!hasLocationPermission()) {
+                Toast.makeText(this, "Sin permiso de ubicación no se puede enviar la posición. Aceptá el permiso y probá de nuevo.", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
     private void maybeAskBattery() {
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         if (prefs.getBoolean("batt_asked", false)) return;
@@ -172,6 +201,10 @@ public class MainActivity extends Activity {
     class Bridge {
         @android.webkit.JavascriptInterface
         public void startService(String code, String session) {
+            if (!hasLocationPermission()) {
+                requestLocationPermissions();
+                return;
+            }
             getSharedPreferences(PREFS, MODE_PRIVATE)
                     .edit().putString(KEY_CODE, code).putString(KEY_SESSION, session).apply();
             Intent i = new Intent(MainActivity.this, LocationService.class);

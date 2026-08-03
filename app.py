@@ -427,8 +427,9 @@ def start_check():
         return jsonify({'ok': False, 'error': 'sin PDV'}), 404
     d, p = best
     return jsonify({
-        'ok': d <= max(START_RADIUS_M, _radius_for(p['c'])),
+        'ok': True,
         'dist_m': int(d),
+        'dentro': d <= max(START_RADIUS_M, _radius_for(p['c'])),
         'pdv': {'cliente': p['c'], 'razon': p['r']}
     })
 
@@ -1138,6 +1139,160 @@ def _report_code(db, code, desde, hasta):
             'fin': tot_fin,
         },
     }
+
+
+def _estadias_dia(db, code, fecha):
+    dia_key = WEEKDAY_KEYS[datetime.strptime(fecha, '%Y-%m-%d').date().weekday()]
+    s, e = _day_range(fecha)
+    pos = _exec(db, 'SELECT lat, lon, ts FROM positions WHERE code=? AND ts>=? AND ts<? ORDER BY ts',
+                (code, s, e)).fetchall()
+    if not pos:
+        return []
+    candidatos = {}
+    for c, _ in RUTAS.get(code, {}).get(dia_key, []):
+        p = PDV_BY_CODE.get(c)
+        if p and p.get('lat') and p.get('lon'):
+            candidatos[c] = p
+    for r in _exec(db, 'SELECT DISTINCT cliente FROM visitas WHERE code=? AND fecha=?', (code, fecha)).fetchall():
+        p = PDV_BY_CODE.get(r['cliente'])
+        if p and p.get('lat') and p.get('lon'):
+            candidatos[r['cliente']] = p
+    if not candidatos:
+        return []
+    MERGE_GAP_MS = 3 * 60 * 1000
+    MIN_SEG_MS = 60 * 1000
+    out = []
+    for c, p in candidatos.items():
+        rad = _radius_for(c)
+        seg_inicio = None
+        seg_fin = None
+        segs = []
+        for r in pos:
+            d = _haversine(r['lat'], r['lon'], p['lat'], p['lon'])
+            if d <= rad:
+                if seg_inicio is None:
+                    seg_inicio = r['ts']
+                seg_fin = r['ts']
+            elif seg_inicio is not None and r['ts'] - seg_fin > MERGE_GAP_MS:
+                if seg_fin - seg_inicio >= MIN_SEG_MS:
+                    segs.append((seg_inicio, seg_fin))
+                seg_inicio = None
+                seg_fin = None
+        if seg_inicio is not None and seg_fin - seg_inicio >= MIN_SEG_MS:
+            segs.append((seg_inicio, seg_fin))
+        if not segs:
+            continue
+        vis = _exec(db, 'SELECT COUNT(*) AS n FROM visitas WHERE code=? AND fecha=? AND cliente=?',
+                    (code, fecha, c)).fetchone()
+        out.append({
+            'cliente': c,
+            'razon': p.get('r', ''),
+            'calle': p.get('calle', ''),
+            'vta': p.get('vta', ''),
+            'fecha': fecha,
+            'dia': RUTAS_DIA_NAMES[dia_key],
+            'minutos': round(sum(b - a for a, b in segs) / 60000.0, 1),
+            'entradas': len(segs),
+            'inicio': segs[0][0],
+            'fin': segs[-1][1],
+            'visitas': int(vis['n']) if vis else 0,
+        })
+    out.sort(key=lambda x: x['inicio'])
+    return out
+
+
+def _estadias_dias(db, code, desde, hasta):
+    d0 = datetime.strptime(desde, '%Y-%m-%d').date()
+    d1 = datetime.strptime(hasta, '%Y-%m-%d').date()
+    fechas = set()
+    for r in _exec(db, 'SELECT DISTINCT fecha FROM visitas WHERE code=? AND fecha>=? AND fecha<=?',
+                   (code, desde, hasta)):
+        fechas.add(r['fecha'])
+    dia = d0
+    while dia <= d1:
+        s, e = _day_range(dia.isoformat())
+        has = _exec(db, 'SELECT 1 AS x FROM positions WHERE code=? AND ts>=? AND ts<? LIMIT 1',
+                    (code, s, e)).fetchone()
+        if has:
+            fechas.add(dia.isoformat())
+        dia += timedelta(days=1)
+    for f in sorted(fechas):
+        filas = _estadias_dia(db, code, f)
+        if filas:
+            yield f, filas
+
+
+@app.route('/api/estadias')
+def estadias():
+    code = request.args.get('code', '').strip().upper()
+    desde = request.args.get('desde', '').strip()
+    hasta = request.args.get('hasta', '').strip()
+    if code not in VENDOR_BY_CODE:
+        return jsonify({'ok': False, 'error': 'codigo invalido'}), 404
+    if not (re.fullmatch(r'\d{4}-\d{2}-\d{2}', desde or '') and re.fullmatch(r'\d{4}-\d{2}-\d{2}', hasta or '')):
+        return jsonify({'ok': False, 'error': 'rango de fechas invalido'}), 400
+    db = get_db()
+    dias = []
+    total = 0.0
+    for f, filas in _estadias_dias(db, code, desde, hasta):
+        total += sum(x['minutos'] for x in filas)
+        dias.append({'fecha': f, 'filas': filas})
+    return jsonify({'ok': True, 'code': code, 'nombre': VENDOR_BY_CODE[code].get('name', code),
+                    'desde': desde, 'hasta': hasta, 'dias': dias,
+                    'totales': {'minutos': round(total, 1), 'horas': round(total / 60.0, 2)}})
+
+
+@app.route('/api/export/estadias.xlsx')
+def export_estadias_xlsx():
+    code = request.args.get('code', '').strip().upper()
+    desde = request.args.get('desde', '').strip()
+    hasta = request.args.get('hasta', '').strip()
+    if code not in VENDOR_BY_CODE:
+        return jsonify({'ok': False, 'error': 'codigo invalido'}), 404
+    if not (re.fullmatch(r'\d{4}-\d{2}-\d{2}', desde or '') and re.fullmatch(r'\d{4}-\d{2}-\d{2}', hasta or '')):
+        return jsonify({'ok': False, 'error': 'rango de fechas invalido'}), 400
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from io import BytesIO
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'el generador de Excel no está instalado'}), 500
+    db = get_db()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Tiempo por PDV'
+    headers = ['Merchan', 'Codigo', 'Fecha', 'Dia', 'Cliente', 'Razon social', 'Calle', 'Ruta',
+               'Entrada', 'Salida', 'Minutos', 'Veces', 'Visitas registradas']
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill('solid', fgColor='E5E7EB')
+        cell.alignment = Alignment(horizontal='center')
+    ws.freeze_panes = 'A2'
+    total_min = 0.0
+    for f, filas in _estadias_dias(db, code, desde, hasta):
+        for x in filas:
+            total_min += x['minutos']
+            ws.append([
+                VENDOR_BY_CODE[code].get('name', code), code, f, x['dia'], x['cliente'],
+                x['razon'], x['calle'], x['vta'] or '',
+                (datetime.fromtimestamp(x['inicio'] / 1000, timezone.utc) - timedelta(hours=3)).strftime('%H:%M:%S'),
+                (datetime.fromtimestamp(x['fin'] / 1000, timezone.utc) - timedelta(hours=3)).strftime('%H:%M:%S'),
+                x['minutos'], x['entradas'], x['visitas'],
+            ])
+    if total_min > 0:
+        ws.append(['TOTAL', '', '', '', '', '', '', '', '', '', round(total_min, 1), '', ''])
+        for cell in ws[ws.max_row]:
+            cell.font = Font(bold=True)
+    widths = [18, 8, 11, 10, 10, 34, 24, 12, 10, 10, 9, 8, 16]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    safe = re.sub(r'[^A-Za-z0-9_-]', '_', code)
+    return Response(buf.read(), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    headers={'Content-Disposition': 'attachment; filename=estadias_%s_%s_%s.xlsx' % (safe, desde, hasta)})
 
 
 @app.route('/api/reporte')

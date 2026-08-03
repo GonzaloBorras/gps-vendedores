@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp"
+    android:background="#0f1420">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textColor="#ffffff"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:layout_gravity="center_horizontal" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ingresá tu código de merchan (el que figura en tu link, por ejemplo GONZALO-41)."
+        android:textColor="#cbd5e1"
+        android:textSize="14sp"
+        android:layout_marginTop="20dp"
+        android:gravity="center" />
+
+    <EditText
+        android:id="@+id/setup_code"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Código, ej: GONZALO-41"
+        android:inputType="textCapCharacters"
+        android:textColor="#111827"
+        android:background="#ffffff"
+        android:padding="12dp"
+        android:layout_marginTop="16dp"
+        android:textSize="16sp" />
+
+    <Button
+        android:id="@+id/setup_go"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Continuar"
+        android:textSize="16sp"
+        android:layout_marginTop="16dp" />
+</LinearLayout>

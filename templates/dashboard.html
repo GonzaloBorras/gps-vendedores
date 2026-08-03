@@ -316,6 +316,12 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
       <div id="rep-lista"></div>
       <a class="exp-link" id="exp-visitas" target="_blank" rel="noopener">Exportar visitas (CSV)</a>
       <a class="exp-link" id="exp-recorrido" target="_blank" rel="noopener">Exportar recorrido (CSV)</a>
+      <div style="margin-top:16px">
+        <h3>Tiempo en cada PDV</h3>
+        <button class="btn-block refresh" onclick="loadEstadias()">Calcular tiempos</button>
+        <div id="est-lista"></div>
+        <a class="exp-link" id="exp-estadias" target="_blank" rel="noopener">Descargar Excel</a>
+      </div>
     </div>
     <button class="btn-block close" onclick="closeConfig()">Cerrar</button>
     <div class="note" id="cfg-msg"></div>
@@ -1128,6 +1134,38 @@ function loadReporte() {
     }).catch(function () { box.innerHTML = '<div class="empty">Error al generar.</div>'; });
 }
 
+function hhmm(ts) {
+  if (!ts) return '—';
+  var d = new Date(ts);
+  var p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function loadEstadias() {
+  var code = document.getElementById('rep-vendor').value;
+  var desde = document.getElementById('rep-desde').value;
+  var hasta = document.getElementById('rep-hasta').value;
+  var box = document.getElementById('est-lista');
+  var ex = document.getElementById('exp-estadias');
+  ex.href = '/api/export/estadias.xlsx?desde=' + (desde || '2020-01-01') + '&hasta=' + (hasta || '2099-12-31') + '&code=' + code;
+  if (!code || !desde || !hasta) { box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Elegí colaborador y rango de fechas.</div>'; return; }
+  box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Cargando...</div>';
+  fetch('/api/estadias?code=' + encodeURIComponent(code) + '&desde=' + desde + '&hasta=' + hasta)
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) { box.innerHTML = '<div class="empty">' + esc(d.error || 'Error') + '</div>'; return; }
+      var rows = '';
+      var tot = 0;
+      d.dias.forEach(function (dia) {
+        rows += '<tr class="tot"><td colspan="9" style="text-align:left">' + esc(dia.fecha) + '</td></tr>';
+        dia.filas.forEach(function (f) {
+          tot += f.minutos;
+          rows += '<tr><td style="text-align:left">' + esc(f.razon) + '</td><td>' + esc(f.cliente) + '</td><td style="text-align:left">' + esc(f.calle || '—') + '</td><td>' + esc(f.vta || '—') + '</td><td>' + hhmm(f.inicio) + '</td><td>' + hhmm(f.fin) + '</td><td>' + f.minutos + '</td><td>' + f.entradas + '</td><td>' + f.visitas + '</td></tr>';
+        });
+      });
+      if (!rows) { box.innerHTML = '<div class="empty">Sin datos de permanencia en ese rango.</div>'; return; }
+      var t = '<div style="font-weight:700;padding:6px 0;color:#059669">Total: ' + (tot / 60).toFixed(2) + ' hs (' + tot + ' min)</div>';
+      box.innerHTML = '<table class="rep-tab"><tr><th>Razón social</th><th>Cliente</th><th>Calle</th><th>Ruta</th><th>Entrada</th><th>Salida</th><th>Min</th><th>Veces</th><th>Visitas</th></tr>' + rows + '</table>' + t;
+    }).catch(function () { box.innerHTML = '<div class="empty">Error al generar.</div>'; });
+}
 var pdvCluster = null;
 var pdvPlain = null;
 var pdvPoints = [];

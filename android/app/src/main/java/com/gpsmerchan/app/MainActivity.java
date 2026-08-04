@@ -330,8 +330,18 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (web != null && web.canGoBack()) web.goBack();
-        else super.onBackPressed();
+        if (web == null) {
+            super.onBackPressed();
+            return;
+        }
+        web.evaluateJavascript("window.closeAnyOverlay && window.closeAnyOverlay()", new ValueCallback<String>() {
+            @Override
+            public void onReceiveValue(String value) {
+                if (value != null && "true".equals(value)) return;
+                if (web.canGoBack()) web.goBack();
+                else moveTaskToBack(true);
+            }
+        });
     }
 
     private boolean hasLocationPermission() {

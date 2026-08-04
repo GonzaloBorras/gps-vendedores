@@ -92,6 +92,16 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .leyenda { position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: #fff;
   border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.2); padding: 8px 10px; font-size: 12px; color: #555;
   line-height: 1.5; }
+.map-tools { position: absolute; top: 10px; right: 10px; z-index: 1300; display: flex; gap: 8px; }
+.map-tools button { width: 42px; height: 42px; border: 0; border-radius: 10px; background: #fff;
+  color: #1a1a2e; font-size: 19px; line-height: 1; box-shadow: 0 2px 8px rgba(0,0,0,.25); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; }
+.map-tools button:active { transform: scale(.94); }
+.map-tools button.active { background: #1a1a2e; color: #fff; }
+body.sidebar-hidden .sidebar { display: none; }
+@media (max-width: 720px) {
+  .map-tools button { width: 38px; height: 38px; font-size: 17px; }
+}
 .config-overlay { position: absolute; inset: 0; z-index: 2100; background: rgba(15,20,32,.85);
   display: none; align-items: center; justify-content: center; }
 .config-overlay.open { display: flex; }
@@ -216,6 +226,10 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 <div class="alertbar" id="alertbar"></div>
 <div class="toast" id="toast"></div>
 <div class="leyenda">🟢 Punto verde: enviando ahora<br>⚪ Punto gris: sin señal (más de 2 min)<br>🔴 Rojo: PDV más cercano al seleccionar un merchan</div>
+<div class="map-tools">
+  <button id="refreshBtn" title="Refrescar panel" onclick="location.reload()">⟳</button>
+  <button id="sidebarBtn" title="Mostrar / ocultar lista" onclick="toggleSidebar()">◧</button>
+</div>
 <div class="config-overlay" id="config-overlay">
   <div class="config">
     <h2>Configuración</h2>
@@ -1197,6 +1211,12 @@ function loadEstadias() {
 var pdvCluster = null;
 var pdvPlain = null;
 var pdvPoints = [];
+
+function toggleSidebar() {
+  var hidden = document.body.classList.toggle('sidebar-hidden');
+  var btn = document.getElementById('sidebarBtn');
+  if (btn) btn.classList.toggle('active', hidden);
+}
 
 function togglePDV() {
   var on = document.getElementById('pdv-toggle').checked;

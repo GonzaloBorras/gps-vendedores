@@ -13,7 +13,9 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.util.Log;
 
 import java.io.OutputStream;
@@ -33,6 +35,11 @@ public class LocationService extends Service implements LocationListener {
     private long lastSent = 0;
     private Location lastLoc = null;
 
+    private boolean lastGpsState = true;
+    private long lastGpsSent = 0;
+    private Handler handler;
+    private Runnable gpsCheck;
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -41,6 +48,14 @@ public class LocationService extends Service implements LocationListener {
         SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE);
         code = prefs.getString(MainActivity.KEY_CODE, "");
         session = prefs.getString(MainActivity.KEY_SESSION, "");
+        handler = new Handler(Looper.getMainLooper());
+        gpsCheck = new Runnable() {
+            @Override
+            public void run() {
+                reportGps(anyProviderEnabled());
+                handler.postDelayed(this, 60000);
+            }
+        };
     }
 
     @Override
@@ -92,6 +107,11 @@ public class LocationService extends Service implements LocationListener {
             if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
                 lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 15000L, 10f, this);
             }
+            reportGps(anyProviderEnabled());
+            if (handler != null && gpsCheck != null) {
+                handler.removeCallbacks(gpsCheck);
+                handler.postDelayed(gpsCheck, 60000);
+            }
         } catch (SecurityException e) {
             Log.e(TAG, "permiso de ubicacion no concedido", e);
         }
@@ -102,6 +122,7 @@ public class LocationService extends Service implements LocationListener {
             if (lm != null) lm.removeUpdates(this);
         } catch (Exception ignored) {
         }
+        if (handler != null && gpsCheck != null) handler.removeCallbacks(gpsCheck);
     }
 
     @Override
@@ -122,10 +143,53 @@ public class LocationService extends Service implements LocationListener {
 
     @Override
     public void onProviderEnabled(String provider) {
+        if (anyProviderEnabled()) reportGps(true);
     }
 
     @Override
     public void onProviderDisabled(String provider) {
+        if (!anyProviderEnabled()) reportGps(false);
+    }
+
+    private boolean anyProviderEnabled() {
+        try {
+            return lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                    || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private void reportGps(final boolean gps) {
+        if (code.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        if (gps == lastGpsState && now - lastGpsSent < 15000) return;
+        lastGpsState = gps;
+        lastGpsSent = now;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                HttpURLConnection conn = null;
+                try {
+                    URL url = new URL(MainActivity.BASE_URL + "/api/gps-status");
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+                    conn.setConnectTimeout(10000);
+                    conn.setReadTimeout(10000);
+                    conn.setRequestProperty("Content-Type", "application/json");
+                    String body = "{\"code\":\"" + code + "\",\"gps\":" + gps + "}";
+                    OutputStream os = conn.getOutputStream();
+                    os.write(body.getBytes(StandardCharsets.UTF_8));
+                    os.close();
+                    conn.getResponseCode();
+                } catch (Exception e) {
+                    Log.e(TAG, "gps status envio fallido", e);
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+            }
+        }).start();
     }
 
     private void sendPosition(final Location loc) {

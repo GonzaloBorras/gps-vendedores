@@ -234,11 +234,6 @@ public class LocationService extends Service implements LocationListener {
                 .setOngoing(true)
                 .setContentIntent(pi);
 
-        Intent stopIntent = new Intent(this, LocationService.class);
-        stopIntent.setAction("STOP");
-        PendingIntent stopPi = PendingIntent.getService(this, 1, stopIntent, PendingIntent.FLAG_IMMUTABLE);
-        b.addAction(new Notification.Action.Builder(
-                android.R.drawable.ic_menu_close_clear_cancel, "Detener", stopPi).build());
         return b.build();
     }
 

@@ -14,6 +14,7 @@ import android.provider.Settings;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.GeolocationPermissions;
+import android.webkit.DownloadListener;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -64,19 +65,25 @@ public class MainActivity extends Activity {
         sInstance = new WeakReference<>(this);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        requestLocationPermissions();
-        requestCameraPermission();
+        if (!BuildConfig.IS_ADMIN) {
+            requestLocationPermissions();
+            requestCameraPermission();
+        }
 
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 2001);
         }
 
-        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        String code = prefs.getString(KEY_CODE, "");
-        if (code.isEmpty()) {
-            showSetup();
+        if (BuildConfig.IS_ADMIN) {
+            loadAdmin();
         } else {
-            loadTracker(code);
+            SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+            String code = prefs.getString(KEY_CODE, "");
+            if (code.isEmpty()) {
+                showSetup();
+            } else {
+                loadTracker(code);
+            }
         }
 
         checkForUpdate();
@@ -87,7 +94,7 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 try {
-                    URL u = new URL(BASE_URL + "/api/app-version");
+                    URL u = new URL(BASE_URL + "/api/app-version?app=" + (BuildConfig.IS_ADMIN ? "admin" : "merchan"));
                     HttpURLConnection c = (HttpURLConnection) u.openConnection();
                     c.setConnectTimeout(8000);
                     c.setReadTimeout(8000);
@@ -155,7 +162,7 @@ public class MainActivity extends Activity {
                 return;
             }
             prefs.edit().putInt("notified_version", remoteVersion).apply();
-            Uri uri = FileProvider.getUriForFile(this, "com.gpsmerchan.app.fileprovider", apk);
+            Uri uri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".fileprovider", apk);
             Intent i = new Intent(Intent.ACTION_VIEW);
             i.setDataAndType(uri, "application/vnd.android.package-archive");
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -182,6 +189,38 @@ public class MainActivity extends Activity {
                 loadTracker(code);
             }
         });
+    }
+
+    private void loadAdmin() {
+        setContentView(R.layout.activity_main);
+        web = findViewById(R.id.web);
+        ImageButton change = findViewById(R.id.change_btn);
+        change.setVisibility(View.GONE);
+
+        WebSettings s = web.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false);
+        s.setAllowFileAccess(true);
+        s.setSupportZoom(true);
+        s.setBuiltInZoomControls(true);
+        s.setDisplayZoomControls(false);
+
+        web.setWebViewClient(new WebViewClient());
+        web.setWebChromeClient(new WebChromeClient());
+        web.setDownloadListener(new DownloadListener() {
+            @Override
+            public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimetype, long contentLength) {
+                try {
+                    Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);
+                } catch (Exception ignored) {
+                    Toast.makeText(MainActivity.this, "No se pudo abrir la descarga.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        web.loadUrl(BASE_URL);
     }
 
     private void loadTracker(final String code) {
@@ -233,7 +272,7 @@ public class MainActivity extends Activity {
                 } catch (IOException ignored) {}
                 if (photoFile != null) {
                     cameraImageUri = FileProvider.getUriForFile(MainActivity.this,
-                            "com.gpsmerchan.app.fileprovider", photoFile);
+                            BuildConfig.APPLICATION_ID + ".fileprovider", photoFile);
                     takePicture.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, cameraImageUri);
                     takePicture.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                 }

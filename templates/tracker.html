@@ -140,26 +140,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .visitas-box, .foto-box, .mapa-box, .addpdv-box { transform: translateY(12px); transition: transform .25s ease; }
 .visitas-overlay.open .visitas-box, .foto-overlay.open .foto-box, .mapa-overlay.open .mapa-box, .addpdv-overlay.open .addpdv-box { transform: translateY(0); }
 
-.fab-wrap { position: fixed; bottom: 24px; right: 20px; z-index: 1900; }
-.fab { width: 56px; height: 56px; border-radius: 50%; border: 0; background: #22c55e; color: #fff;
-  font-size: 28px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(34,197,94,.45);
-  display: flex; align-items: center; justify-content: center; transition: transform .2s ease, background .2s ease; }
-.fab:active { transform: scale(.92); }
-.fab.open { background: #ef4444; transform: rotate(45deg); }
-.fab-menu { position: absolute; bottom: 68px; right: 0; display: none; flex-direction: column; gap: 10px; align-items: flex-end; }
-.fab-menu.open { display: flex; }
-.fab-item { display: flex; align-items: center; gap: 10px; opacity: 0; transform: translateY(10px); animation: fabIn .2s forwards; }
-.fab-item:nth-child(2) { animation-delay: .05s; }
-.fab-item:nth-child(3) { animation-delay: .1s; }
-.fab-item:nth-child(4) { animation-delay: .15s; }
-@keyframes fabIn { to { opacity: 1; transform: translateY(0); } }
-.fab-label { background: #1a2234; color: #fff; font-size: 13px; font-weight: 600; padding: 7px 14px;
-  border-radius: 8px; white-space: nowrap; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
-.fab-opt { width: 44px; height: 44px; border-radius: 50%; border: 0; color: #fff; font-size: 20px;
-  cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,.3); }
-.fab-opt.green { background: #22c55e; }
-.fab-opt.blue { background: #1d4ed8; }
-.fab-opt.purple { background: #7c3aed; }
+.btn-opt.green { background: #22c55e; }
 </style>
 </head>
 <body>
@@ -212,7 +193,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   <div class="foto-box">
     <h2>Registrar visita</h2>
     <div class="pdv-name" id="fotoPdvName"></div>
-    <input type="file" id="fotoInput" accept="image/*" onchange="fotoPreview()">
+    <input type="file" id="fotoInput" accept="image/*" capture="environment" onchange="fotoPreview()">
     <img id="fotoPreview" alt="Vista previa">
     <div class="row">
       <button class="btn-foto" onclick="confirmarFoto(true)">Registrar con foto</button>
@@ -259,15 +240,6 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
     <button class="btn-addpdv-save" id="addPdvSave" onclick="guardarPdv()">Guardar PDV</button>
     <button class="addpdv-cancel" onclick="closeAddPdv()">Cancelar</button>
   </div>
-</div>
-
-<div class="fab-wrap" id="fabWrap">
-  <div class="fab-menu" id="fabMenu">
-    <div class="fab-item"><span class="fab-label">Registrar PDV</span><button class="fab-opt blue" onclick="closeFab();openVisitas()">📋</button></div>
-    <div class="fab-item"><span class="fab-label">Mapa de PDV</span><button class="fab-opt purple" onclick="closeFab();openMapa()">🗺️</button></div>
-    <div class="fab-item"><span class="fab-label">Activar avisos</span><button class="fab-opt green" onclick="closeFab();enablePush()">🔔</button></div>
-  </div>
-  <button class="fab" id="fabBtn" onclick="toggleFab()">+</button>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -788,9 +760,13 @@ function confirmarFoto(conFoto) {
   var f = document.getElementById('fotoInput').files[0];
   var onDone = function (d) {
     if (d.ok) {
-      visitaSeq.push(c);
+      visitasCache[c] = { cliente: c, razon: pdvNameCache[c] || c };
+      if (visitaSeq.indexOf(c) === -1) visitaSeq.push(c);
+      document.getElementById('visitaCount').textContent =
+        'PDV visitados hoy: ' + Object.keys(visitasCache).length;
+      renderRutaHoy();
+      updatePdvMarkers();
       visitasMsg('');
-      loadVisitas();
     } else {
       visitasMsg(d.error || 'No se pudo registrar la visita.');
     }
@@ -862,8 +838,8 @@ function closeMapa() { document.getElementById('mapaOverlay').classList.remove('
 function makePdvMarker(d) {
   var vis = !!visitasCache[d.c];
   var m = L.circleMarker([d.lat, d.lon], {
-    radius: 6, color: vis ? '#22c55e' : '#9ca3af', weight: 1,
-    fillColor: vis ? '#22c55e' : '#9ca3af', fillOpacity: 0.85
+    radius: 6, color: vis ? '#1d4ed8' : '#9ca3af', weight: 1,
+    fillColor: vis ? '#1d4ed8' : '#9ca3af', fillOpacity: 0.85
   });
   var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
   var dm = pdvDistM(d);
@@ -908,7 +884,7 @@ function updatePdvMarkers() {
   Object.keys(pdvMarkers).forEach(function (c) {
     var m = pdvMarkers[c];
     var vis = !!visitasCache[c];
-    m.setStyle({ color: vis ? '#22c55e' : '#9ca3af', fillColor: vis ? '#22c55e' : '#9ca3af' });
+    m.setStyle({ color: vis ? '#1d4ed8' : '#9ca3af', fillColor: vis ? '#1d4ed8' : '#9ca3af' });
   });
 }
 
@@ -1065,17 +1041,6 @@ function closeVisitas() {
 document.getElementById('visitasBtn').onclick = openVisitas;
 document.getElementById('visitasSearch').addEventListener('input', buscarPDV);
 
-function toggleFab() {
-  var m = document.getElementById('fabMenu');
-  var b = document.getElementById('fabBtn');
-  var open = m.classList.toggle('open');
-  b.classList.toggle('open', open);
-}
-function closeFab() {
-  document.getElementById('fabMenu').classList.remove('open');
-  document.getElementById('fabBtn').classList.remove('open');
-}
-
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -1086,6 +1051,43 @@ loadRutaHoy();
 checkAbsence();
 loadMessages();
 setInterval(loadMessages, 60000);
+
+// ---------- AUTO SCHEDULE ----------
+(function () {
+  function getNowAR() {
+    return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+  }
+  function getSchedule() {
+    var now = getNowAR();
+    var day = now.getDay();
+    var h = now.getHours(), m = now.getMinutes(), sec = now.getSeconds();
+    var mins = h * 60 + m;
+    if (day === 0) return null;
+    if (day === 6) return mins >= 480 && mins < 780 ? { start: 480, end: 780 } : null;
+    return mins >= 480 && mins < 960 ? { start: 480, end: 960 } : null;
+  }
+  function msUntil(targetMin) {
+    var now = getNowAR();
+    var cur = now.getHours() * 60 + now.getMinutes();
+    var diff = targetMin - cur;
+    if (diff < 0) diff += 1440;
+    return diff * 60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
+  }
+  function autoTick() {
+    var sch = getSchedule();
+    if (sch && !running) {
+      start();
+      document.getElementById('note').textContent = '🟢 Jornada auto-iniciada (' + Math.floor(sch.start / 60) + ':' + String(sch.start % 60).padStart(2, '0') + '–' + Math.floor(sch.end / 60) + ':' + String(sch.end % 60).padStart(2, '0') + ')';
+      document.getElementById('note').style.display = 'block';
+    } else if (!sch && running) {
+      stop();
+      document.getElementById('note').textContent = '🔴 Jornada auto-finalizada. Fuera de horario.';
+      document.getElementById('note').style.display = 'block';
+    }
+  }
+  autoTick();
+  setInterval(autoTick, 60000);
+})();
 </script>
 </body>
 </html>

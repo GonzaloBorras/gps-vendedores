@@ -27,9 +27,17 @@ import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
 
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -69,6 +77,92 @@ public class MainActivity extends Activity {
             showSetup();
         } else {
             loadTracker(code);
+        }
+
+        checkForUpdate();
+    }
+
+    private void checkForUpdate() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    URL u = new URL(BASE_URL + "/api/app-version");
+                    HttpURLConnection c = (HttpURLConnection) u.openConnection();
+                    c.setConnectTimeout(8000);
+                    c.setReadTimeout(8000);
+                    c.setRequestProperty("User-Agent", "GPSMerchan/" + BuildConfig.VERSION_CODE);
+                    int st = c.getResponseCode();
+                    if (st != 200) return;
+                    BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = r.readLine()) != null) sb.append(line);
+                    r.close();
+                    JSONObject o = new JSONObject(sb.toString());
+                    int remote = o.optInt("versionCode", 0);
+                    if (remote <= BuildConfig.VERSION_CODE) return;
+                    final SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+                    if (prefs.getInt("notified_version", 0) >= remote) return;
+                    final String apkUrl = o.optString("apkUrl", "");
+                    if (apkUrl.isEmpty()) return;
+                    downloadAndInstall(apkUrl, remote, prefs);
+                } catch (Exception ignored) {
+                }
+            }
+        }).start();
+    }
+
+    private void downloadAndInstall(final String url, final int remoteVersion, final SharedPreferences prefs) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    File dir = getExternalFilesDir(null);
+                    if (dir == null) return;
+                    final File apk = new File(dir, "GPS-Merchan.apk");
+                    HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                    c.setInstanceFollowRedirects(true);
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(60000);
+                    c.setRequestProperty("User-Agent", "GPSMerchan");
+                    InputStream is = c.getInputStream();
+                    FileOutputStream fos = new FileOutputStream(apk);
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = is.read(buf)) != -1) fos.write(buf, 0, n);
+                    fos.close();
+                    is.close();
+                    if (apk.length() > 100000) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() { installApk(apk, remoteVersion, prefs); }
+                        });
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }).start();
+    }
+
+    private void installApk(File apk, int remoteVersion, SharedPreferences prefs) {
+        try {
+            if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+                Toast.makeText(this, "Activá «Permitir instalar apps desconocidas» para GPS Merchan.", Toast.LENGTH_LONG).show();
+                Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+                return;
+            }
+            prefs.edit().putInt("notified_version", remoteVersion).apply();
+            Uri uri = FileProvider.getUriForFile(this, "com.gpsmerchan.app.fileprovider", apk);
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setDataAndType(uri, "application/vnd.android.package-archive");
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+        } catch (Exception e) {
+            Toast.makeText(this, "Nueva versión disponible. Descargala del link del administrador.", Toast.LENGTH_LONG).show();
         }
     }
 

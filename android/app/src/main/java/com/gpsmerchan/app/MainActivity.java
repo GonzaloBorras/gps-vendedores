@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.view.View;
@@ -24,7 +25,14 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
+import androidx.core.content.FileProvider;
+
+import java.io.File;
+import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
 
@@ -39,6 +47,7 @@ public class MainActivity extends Activity {
 
     private WebView web;
     private ValueCallback<Uri[]> filePathCallback;
+    private Uri cameraImageUri;
     private static WeakReference<MainActivity> sInstance;
 
     @Override
@@ -118,8 +127,38 @@ public class MainActivity extends Activity {
                     filePathCallback = null;
                 }
                 filePathCallback = cb;
+                cameraImageUri = null;
+
+                Intent takePicture = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+                File photoFile = null;
                 try {
-                    startActivityForResult(params.createIntent(), FILE_CHOOSER_REQ);
+                    File storageDir = new File(getCacheDir(), "photos");
+                    storageDir.mkdirs();
+                    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+                    photoFile = File.createTempFile("PHOTO_" + timeStamp + "_", ".jpg", storageDir);
+                } catch (IOException ignored) {}
+                if (photoFile != null) {
+                    cameraImageUri = FileProvider.getUriForFile(MainActivity.this,
+                            "com.gpsmerchan.app.fileprovider", photoFile);
+                    takePicture.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, cameraImageUri);
+                    takePicture.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                }
+
+                Intent contentSelection = params.createIntent();
+
+                Intent[] intentArray;
+                if (takePicture.resolveActivity(getPackageManager()) != null) {
+                    intentArray = new Intent[]{takePicture};
+                } else {
+                    intentArray = new Intent[0];
+                }
+
+                Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
+                chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelection);
+                chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
+
+                try {
+                    startActivityForResult(chooserIntent, FILE_CHOOSER_REQ);
                 } catch (Exception e) {
                     filePathCallback.onReceiveValue(null);
                     filePathCallback = null;
@@ -141,12 +180,16 @@ public class MainActivity extends Activity {
                 return;
             }
             Uri[] result = null;
-            if (resultCode == RESULT_OK && data != null) {
-                Uri uri = data.getData();
-                if (uri != null) result = new Uri[]{uri};
+            if (resultCode == RESULT_OK) {
+                if (data != null && data.getData() != null) {
+                    result = new Uri[]{data.getData()};
+                } else if (cameraImageUri != null) {
+                    result = new Uri[]{cameraImageUri};
+                }
             }
             filePathCallback.onReceiveValue(result);
             filePathCallback = null;
+            cameraImageUri = null;
             return;
         }
         super.onActivityResult(requestCode, resultCode, data);

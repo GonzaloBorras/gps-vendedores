@@ -160,15 +160,12 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   <div class="gps-warn" id="gpsWarn">🚫 Ubicación apagada o sin señal GPS. El administrador va a recibir una alerta. Activá la ubicación del celular.</div>
   <div class="aviso" id="absenceBanner"></div>
   <div class="msg-banner" id="msgBanner"></div>
-  <button class="btn start" id="btn">Iniciar envío</button>
-  <button id="visitasBtn">Registrar PDV visitado</button>
+  <button id="visitasBtn">Registro de PDV</button>
   <button class="btn mapa" id="mapaBtn">🗺️ Mapa de PDV</button>
   <span class="visita-count" id="visitaCount"></span>
-  <button class="push-btn" id="pushBtn" onclick="enablePush()">🔔 Activar avisos en este celular</button>
   <div class="jornada" id="jornada"></div>
-  <hint>Para iniciar el envío tenés que estar en el PDV.<br>
-  El GPS se envía automáticamente cada 10 segundos y la jornada
-  se corta sola a las 8 horas.<br><br>
+  <hint>Tu ubicación se envía automáticamente en el horario de trabajo
+  (8 a 16 h; los sábados hasta las 13) y la jornada se corta sola a las 8 horas.<br><br>
   💡 Para usarla como app: en el navegador tocá el menú (⋮) y elegí
   <b>"Agregar a pantalla de inicio"</b>.</hint>
 </div>
@@ -448,10 +445,6 @@ function requestWakeLock() {
 }
 function resetBtn() {
   running = false;
-  document.getElementById('btn').disabled = false;
-  document.getElementById('btn').textContent = 'Iniciar envío';
-  document.getElementById('btn').className = 'btn start';
-  document.getElementById('btn').onclick = start;
   setState('Envío detenido', false);
 }
 function nativeLive(on) {
@@ -471,10 +464,6 @@ function beginLive() {
   localStorage.removeItem('gps_shift_done');
   scheduleShiftEnd();
   setState('Buscando GPS...', true);
-  document.getElementById('btn').textContent = 'Envío activo';
-  document.getElementById('btn').className = 'btn start';
-  document.getElementById('btn').disabled = true;
-  document.getElementById('btn').onclick = null;
   if (!startWorker()) startMainThread();
   requestWakeLock();
   window._gpsInt = setInterval(reportGps, 30000);
@@ -487,9 +476,6 @@ function beginLive() {
 function start() {
   if (!('geolocation' in navigator)) { showErr('Tu navegador no soporta geolocalización.'); return; }
   hideErr();
-  var btn = document.getElementById('btn');
-  btn.textContent = 'Iniciando envío...';
-  btn.disabled = true;
   setState('Iniciando envío...', true);
   navigator.geolocation.getCurrentPosition(function (pos) {
     lastAcc = Math.round(pos.coords.accuracy) || 0;
@@ -498,7 +484,6 @@ function start() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: code, lat: pos.coords.latitude, lon: pos.coords.longitude })
     }).then(function (r) { return r.json(); }).then(function (d) {
-      btn.disabled = false;
       if (!d.ok) {
         resetBtn();
         showErr(d.error || 'No se pudo iniciar el envío.');
@@ -509,12 +494,10 @@ function start() {
       }
       beginLive();
     }).catch(function () {
-      btn.disabled = false;
       resetBtn();
       showErr('Error al validar la ubicación. Revisá tu conexión.');
     });
   }, function (err) {
-    btn.disabled = false;
     resetBtn();
     onErr(err);
   }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
@@ -530,10 +513,6 @@ function stopTracking() {
   clearInterval(shiftCount);
   if (window._wake) window._wake.release().catch(function () {});
   window._wake = null;
-  document.getElementById('btn').disabled = false;
-  document.getElementById('btn').textContent = 'Iniciar envío';
-  document.getElementById('btn').className = 'btn start';
-  document.getElementById('btn').onclick = start;
 }
 function stop() {
   running = false;
@@ -557,7 +536,6 @@ function finishShift() {
   localStorage.setItem('gps_shift_done', visitaSeq.length ? visitaSeq[visitaSeq.length - 1] : '');
 }
 
-document.getElementById('btn').onclick = start;
 document.getElementById('last').textContent = '--';
 
 // Reanudar automáticamente si la pestaña vuelve al frente
@@ -622,7 +600,7 @@ function renderRutaHoy() {
     return;
   }
   if (!rutaHoy.length) {
-    box.innerHTML = '<div class="empty">Sin PDV asignados para el ' + RUTA_DIA_NAME + '.</div>';
+    box.innerHTML = '<div class="empty">Sin PDV asignados para el ' + RUTA_DIA_NAME + '. Buscá y registrá cualquier PDV.</div>';
     return;
   }
   var pend = rutaHoy.filter(function (v) { return !visitasCache[v.cliente]; }).length;
@@ -956,9 +934,6 @@ function checkAbsence() {
         var b = document.getElementById('absenceBanner');
         b.textContent = '📅 Hoy no es tu día de trabajo (' + arr[0].motivo + ').';
         b.style.display = 'block';
-        var btn = document.getElementById('btn');
-        btn.disabled = true;
-        btn.textContent = 'Hoy no es tu día de trabajo';
       }
     }).catch(function () {});
 }
@@ -995,6 +970,7 @@ function urlBase64ToUint8Array(s) {
 }
 function pushBtnOn() {
   var b = document.getElementById('pushBtn');
+  if (!b) return;
   b.textContent = '🔔 Avisos activados';
   b.className = 'push-btn on';
 }

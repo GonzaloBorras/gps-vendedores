@@ -35,6 +35,7 @@ public class MainActivity extends Activity {
 
     private static final int FILE_CHOOSER_REQ = 1001;
     private static final int PERM_REQ_LOCATION = 2002;
+    private static final int PERM_REQ_CAMERA = 2003;
 
     private WebView web;
     private ValueCallback<Uri[]> filePathCallback;
@@ -47,6 +48,7 @@ public class MainActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         requestLocationPermissions();
+        requestCameraPermission();
 
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 2001);
@@ -168,6 +170,12 @@ public class MainActivity extends Activity {
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION
             }, PERM_REQ_LOCATION);
+        }
+    }
+
+    private void requestCameraPermission() {
+        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.CAMERA}, PERM_REQ_CAMERA);
         }
     }
 

@@ -5,6 +5,7 @@ import math
 import os
 import re
 import sqlite3
+import threading
 import time
 from datetime import date, datetime, timezone, timedelta
 
@@ -304,6 +305,66 @@ def _radius_for(cliente):
 
 
 init_db()
+
+
+# ---------------- Limpieza automática de datos (fotos y recorrido) ----------------
+
+CLEANUP_DAYS = 30  # retención máxima del recorrido en días (rotación de seguridad)
+CLEANUP_INTERVAL_S = 3600  # revisar cada hora
+
+
+def _ar_now():
+    return datetime.now(timezone.utc) - timedelta(hours=3)
+
+
+def _cleanup_rolling():
+    con = _raw_conn()
+    try:
+        now_ar = _ar_now()
+        cutoff_ms = int((now_ar - timedelta(days=CLEANUP_DAYS)).timestamp() * 1000)
+        cutoff_fecha = (now_ar.date() - timedelta(days=CLEANUP_DAYS)).isoformat()
+        _exec(con, _q('DELETE FROM positions WHERE ts < ?'), (cutoff_ms,))
+        _exec(con, _q('DELETE FROM geoevents WHERE ts < ?'), (cutoff_ms,))
+        _exec(con, _q('UPDATE visitas SET foto = NULL, foto_ts = NULL WHERE fecha < ?'), (cutoff_fecha,))
+        con.commit()
+    finally:
+        con.close()
+
+
+def _cleanup_monthly():
+    now_ar = _ar_now()
+    if now_ar.day > 3:
+        return
+    month_key = now_ar.strftime('%Y-%m')
+    con = _raw_conn()
+    try:
+        row = _exec(con, "SELECT value FROM settings WHERE key='last_monthly_cleanup'").fetchone()
+        if row and row['value'] == month_key:
+            return
+        first = now_ar.date().replace(day=1)
+        start_ms, _ = _day_range(first.isoformat())
+        _exec(con, _q('DELETE FROM positions WHERE ts < ?'), (start_ms,))
+        _exec(con, _q('DELETE FROM geoevents WHERE ts < ?'), (start_ms,))
+        _exec(con, _q('UPDATE visitas SET foto = NULL, foto_ts = NULL WHERE fecha < ?'), (first.isoformat(),))
+        _exec(con, '''INSERT INTO settings(key, value) VALUES ('last_monthly_cleanup', ?)
+                     ON CONFLICT(key) DO UPDATE SET value = excluded.value''', (month_key,))
+        con.commit()
+    finally:
+        con.close()
+
+
+def _cleanup_loop():
+    while True:
+        try:
+            _cleanup_rolling()
+            _cleanup_monthly()
+        except Exception:
+            pass
+        time.sleep(CLEANUP_INTERVAL_S)
+
+
+_cleanup_rolling()
+threading.Thread(target=_cleanup_loop, daemon=True).start()
 
 
 # ---------------- PDV adicionales (creados por los merchans desde el mapa) ----------------

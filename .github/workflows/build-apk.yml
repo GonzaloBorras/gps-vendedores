@@ -22,12 +22,18 @@ jobs:
         run: chmod +x gradlew
         working-directory: android
 
-      - name: Build release APK
+      - name: Build release APKs
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Upload APK
+      - name: Upload Merchan APK
         uses: actions/upload-artifact@v4
         with:
           name: gps-merchan-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/apk/merchan/release/app-merchan-release.apk
+
+      - name: Upload Admin APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: gps-admin-apk
+          path: android/app/build/outputs/apk/admin/release/app-admin-release.apk

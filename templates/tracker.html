@@ -191,14 +191,11 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 
 <div class="foto-overlay" id="fotoOverlay">
   <div class="foto-box">
-    <h2>Registrar visita</h2>
+    <h2>Sacar foto de la fachada</h2>
     <div class="pdv-name" id="fotoPdvName"></div>
-    <input type="file" id="fotoInput" accept="image/*" capture="environment" onchange="fotoPreview()">
+    <input type="file" id="fotoInput" accept="image/*" capture="environment" style="display:none" onchange="fotoPreview()">
     <img id="fotoPreview" alt="Vista previa">
-    <div class="row">
-      <button class="btn-foto" onclick="confirmarFoto(true)">Registrar con foto</button>
-    </div>
-    <button class="btn-no-foto" onclick="confirmarFoto(false)">Registrar sin foto</button>
+    <button class="btn-foto" id="fotoConfirmBtn" onclick="confirmarFoto()" disabled>Registrar visita</button>
     <button class="btn-foto-cancel" onclick="closeFoto()">Cancelar</button>
   </div>
 </div>
@@ -451,6 +448,7 @@ function requestWakeLock() {
 }
 function resetBtn() {
   running = false;
+  document.getElementById('btn').disabled = false;
   document.getElementById('btn').textContent = 'Iniciar envío';
   document.getElementById('btn').className = 'btn start';
   document.getElementById('btn').onclick = start;
@@ -473,9 +471,10 @@ function beginLive() {
   localStorage.removeItem('gps_shift_done');
   scheduleShiftEnd();
   setState('Buscando GPS...', true);
-  document.getElementById('btn').textContent = 'Detener envío';
-  document.getElementById('btn').className = 'btn stop';
-  document.getElementById('btn').onclick = stop;
+  document.getElementById('btn').textContent = 'Envío activo';
+  document.getElementById('btn').className = 'btn start';
+  document.getElementById('btn').disabled = true;
+  document.getElementById('btn').onclick = null;
   if (!startWorker()) startMainThread();
   requestWakeLock();
   window._gpsInt = setInterval(reportGps, 30000);
@@ -531,6 +530,7 @@ function stopTracking() {
   clearInterval(shiftCount);
   if (window._wake) window._wake.release().catch(function () {});
   window._wake = null;
+  document.getElementById('btn').disabled = false;
   document.getElementById('btn').textContent = 'Iniciar envío';
   document.getElementById('btn').className = 'btn start';
   document.getElementById('btn').onclick = start;
@@ -737,7 +737,9 @@ function marcarVisita(c, nombre) {
   document.getElementById('fotoPdvName').textContent = pdvNameCache[c] || c;
   document.getElementById('fotoInput').value = '';
   document.getElementById('fotoPreview').style.display = 'none';
+  document.getElementById('fotoConfirmBtn').disabled = true;
   document.getElementById('fotoOverlay').classList.add('open');
+  try { document.getElementById('fotoInput').click(); } catch (e) {}
 }
 function closeFoto() {
   pendingFotoCliente = null;
@@ -749,15 +751,25 @@ function fotoPreview() {
   if (f) {
     img.src = URL.createObjectURL(f);
     img.style.display = 'block';
+    document.getElementById('fotoConfirmBtn').disabled = false;
   } else {
     img.style.display = 'none';
+    document.getElementById('fotoConfirmBtn').disabled = true;
   }
 }
-function confirmarFoto(conFoto) {
+function confirmarFoto() {
   var c = pendingFotoCliente;
-  if (!c) return;
-  closeFoto();
   var f = document.getElementById('fotoInput').files[0];
+  if (!c) return;
+  if (!f) { visitasMsg('Primero sacá la foto de la fachada.'); return; }
+  closeFoto();
+  var fd = new FormData();
+  fd.append('code', code);
+  fd.append('cliente', c);
+  fd.append('fecha', todayStr());
+  fd.append('validate', 'true');
+  fd.append('accuracy', lastAcc || '0');
+  fd.append('foto', f);
   var onDone = function (d) {
     if (d.ok) {
       visitasCache[c] = { cliente: c, razon: pdvNameCache[c] || c };
@@ -771,24 +783,9 @@ function confirmarFoto(conFoto) {
       visitasMsg(d.error || 'No se pudo registrar la visita.');
     }
   };
-  if (conFoto && f) {
-    var fd = new FormData();
-    fd.append('code', code);
-    fd.append('cliente', c);
-    fd.append('fecha', todayStr());
-    fd.append('validate', 'true');
-    fd.append('accuracy', lastAcc || '0');
-    fd.append('foto', f);
-    fetch(base + '/api/visitas', { method: 'POST', body: fd })
-      .then(function (r) { return r.json(); }).then(onDone)
-      .catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
-  } else {
-    fetch(base + '/api/visitas', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code, cliente: c, fecha: todayStr(), validate: true, accuracy: lastAcc || null })
-    }).then(function (r) { return r.json(); }).then(onDone)
-      .catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
-  }
+  fetch(base + '/api/visitas', { method: 'POST', body: fd })
+    .then(function (r) { return r.json(); }).then(onDone)
+    .catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
 }
 
 // ---------------- Mapa de PDV ----------------
@@ -1051,6 +1048,7 @@ loadRutaHoy();
 checkAbsence();
 loadMessages();
 setInterval(loadMessages, 60000);
+setInterval(loadVisitas, 300000);
 
 // ---------- AUTO SCHEDULE ----------
 (function () {

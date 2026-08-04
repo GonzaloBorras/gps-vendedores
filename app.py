@@ -22,6 +22,7 @@ OVERRIDES_FILE = os.path.join(BASE_DIR, 'overrides.json')
 APP_VERSION = '2.0'
 APP_VERSION_CODE = 2
 APK_URL = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-v1.0/GPS-Merchan.apk'
+APK_URL_ADMIN = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-admin/GPS-Admin.apk'
 
 with open(VENDORS_FILE, encoding='utf-8') as f:
     VENDORS = json.load(f)
@@ -360,10 +361,11 @@ def check_geofence(db, code, lat, lon, now):
 
 @app.route('/api/app-version')
 def app_version():
+    kind = request.args.get('app', 'merchan')
     return jsonify({
         'version': APP_VERSION,
         'versionCode': APP_VERSION_CODE,
-        'apkUrl': APK_URL,
+        'apkUrl': APK_URL_ADMIN if kind == 'admin' else APK_URL,
         'notes': ''
     })
 

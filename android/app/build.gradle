@@ -12,6 +12,19 @@ android {
         targetSdk 34
         versionCode 2
         versionName '2.0'
+        buildConfigField 'boolean', 'IS_ADMIN', 'false'
+    }
+
+    flavorDimensions 'role'
+    productFlavors {
+        merchan {
+            dimension 'role'
+        }
+        admin {
+            dimension 'role'
+            applicationId 'com.gpsmerchan.admin'
+            buildConfigField 'boolean', 'IS_ADMIN', 'true'
+        }
     }
 
     buildFeatures {

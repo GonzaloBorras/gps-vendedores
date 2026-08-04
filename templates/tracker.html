@@ -48,8 +48,10 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   background: #1d4ed8; color: #fff; }
 .visita-count { font-size: 12px; color: #93c5fd; margin-top: 8px; display: block; }
 .visitas-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(15,20,32,.92);
-  display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
-.visitas-overlay.open { display: flex; }
+  display: flex; visibility: hidden; opacity: 0; pointer-events: none;
+  flex-direction: column; align-items: center; justify-content: center; padding: 16px;
+  transition: opacity .25s ease, visibility .25s ease; }
+.visitas-overlay.open { visibility: visible; opacity: 1; pointer-events: auto; }
 .visitas-box { background: #1a2234; border-radius: 14px; padding: 20px; width: 100%;
   max-width: 440px; max-height: 90vh; overflow: auto; text-align: left; }
 .visitas-box h2 { font-size: 17px; margin-bottom: 12px; color: #fff; }
@@ -83,8 +85,11 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .msg-banner button { margin-top: 6px; background: #1d4ed8; color: #fff; border: 0; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .push-btn { display: block; width: 100%; margin-top: 10px; padding: 10px; border: 1px solid #334155; border-radius: 10px; background: #1a2234; color: #93c5fd; font-size: 13px; font-weight: 600; cursor: pointer; }
 .push-btn.on { border-color: #22c55e; color: #22c55e; }
-.foto-overlay { position: fixed; inset: 0; z-index: 2300; background: rgba(15,20,32,.92); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
-.foto-overlay.open { display: flex; }
+.foto-overlay { position: fixed; inset: 0; z-index: 2300; background: rgba(15,20,32,.92);
+  display: flex; visibility: hidden; opacity: 0; pointer-events: none;
+  flex-direction: column; align-items: center; justify-content: center; padding: 16px;
+  transition: opacity .25s ease, visibility .25s ease; }
+.foto-overlay.open { visibility: visible; opacity: 1; pointer-events: auto; }
 .foto-box { background: #1a2234; border-radius: 14px; padding: 20px; width: 100%; max-width: 380px; text-align: center; }
 .foto-box h2 { font-size: 16px; margin-bottom: 4px; }
 .foto-box .pdv-name { color: #93c5fd; font-size: 13px; margin-bottom: 12px; }
@@ -96,8 +101,11 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .btn-no-foto { width: 100%; margin-top: 8px; padding: 10px; border: 0; border-radius: 8px; background: #334155; color: #fff; font-weight: 600; cursor: pointer; font-size: 13px; }
 .btn-foto-cancel { width: 100%; margin-top: 6px; padding: 9px; border: 0; border-radius: 8px; background: transparent; color: #8b93a7; font-weight: 600; cursor: pointer; font-size: 12px; }
 .btn.mapa { background: #7c3aed; color: #fff; margin-top: 10px; }
-.mapa-overlay { position: fixed; inset: 0; z-index: 2050; background: rgba(15,20,32,.92); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 10px; }
-.mapa-overlay.open { display: flex; }
+.mapa-overlay { position: fixed; inset: 0; z-index: 2050; background: rgba(15,20,32,.92);
+  display: flex; visibility: hidden; opacity: 0; pointer-events: none;
+  flex-direction: column; align-items: center; justify-content: center; padding: 10px;
+  transition: opacity .25s ease, visibility .25s ease; }
+.mapa-overlay.open { visibility: visible; opacity: 1; pointer-events: auto; }
 .mapa-box { background: #1a2234; border-radius: 14px; width: 100%; max-width: 620px; max-height: 94vh; display: flex; flex-direction: column; overflow: hidden; }
 .mapa-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; }
 .mapa-head h2 { font-size: 16px; }
@@ -111,8 +119,11 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .mapa-pop .mp-vta { font-size: 11px; color: #1d4ed8; }
 .mapa-pop .mp-dist { font-size: 11px; color: #059669; }
 .mapa-pop button { margin-top: 6px; width: 100%; padding: 7px; border: 0; border-radius: 6px; background: #1d4ed8; color: #fff; font-weight: 700; font-size: 12px; cursor: pointer; }
-.addpdv-overlay { position: fixed; inset: 0; z-index: 2150; background: rgba(15,20,32,.92); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
-.addpdv-overlay.open { display: flex; }
+.addpdv-overlay { position: fixed; inset: 0; z-index: 2150; background: rgba(15,20,32,.92);
+  display: flex; visibility: hidden; opacity: 0; pointer-events: none;
+  flex-direction: column; align-items: center; justify-content: center; padding: 16px;
+  transition: opacity .25s ease, visibility .25s ease; }
+.addpdv-overlay.open { visibility: visible; opacity: 1; pointer-events: auto; }
 .addpdv-box { background: #1a2234; border-radius: 14px; padding: 20px; width: 100%; max-width: 400px; text-align: left; }
 .addpdv-box h2 { font-size: 16px; margin-bottom: 2px; }
 .addpdv-sub { font-size: 12px; color: #8b93a7; margin-bottom: 8px; }
@@ -125,6 +136,30 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .btn-addpdv-save { width: 100%; margin-top: 12px; padding: 12px; border: 0; border-radius: 10px; background: #22c55e; color: #07120a; font-weight: 700; font-size: 14px; cursor: pointer; }
 .btn-addpdv-save:disabled { opacity: .5; }
 .addpdv-cancel { width: 100%; margin-top: 6px; padding: 9px; border: 0; border-radius: 8px; background: transparent; color: #8b93a7; font-weight: 600; cursor: pointer; }
+
+.visitas-box, .foto-box, .mapa-box, .addpdv-box { transform: translateY(12px); transition: transform .25s ease; }
+.visitas-overlay.open .visitas-box, .foto-overlay.open .foto-box, .mapa-overlay.open .mapa-box, .addpdv-overlay.open .addpdv-box { transform: translateY(0); }
+
+.fab-wrap { position: fixed; bottom: 24px; right: 20px; z-index: 1900; }
+.fab { width: 56px; height: 56px; border-radius: 50%; border: 0; background: #22c55e; color: #fff;
+  font-size: 28px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(34,197,94,.45);
+  display: flex; align-items: center; justify-content: center; transition: transform .2s ease, background .2s ease; }
+.fab:active { transform: scale(.92); }
+.fab.open { background: #ef4444; transform: rotate(45deg); }
+.fab-menu { position: absolute; bottom: 68px; right: 0; display: none; flex-direction: column; gap: 10px; align-items: flex-end; }
+.fab-menu.open { display: flex; }
+.fab-item { display: flex; align-items: center; gap: 10px; opacity: 0; transform: translateY(10px); animation: fabIn .2s forwards; }
+.fab-item:nth-child(2) { animation-delay: .05s; }
+.fab-item:nth-child(3) { animation-delay: .1s; }
+.fab-item:nth-child(4) { animation-delay: .15s; }
+@keyframes fabIn { to { opacity: 1; transform: translateY(0); } }
+.fab-label { background: #1a2234; color: #fff; font-size: 13px; font-weight: 600; padding: 7px 14px;
+  border-radius: 8px; white-space: nowrap; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+.fab-opt { width: 44px; height: 44px; border-radius: 50%; border: 0; color: #fff; font-size: 20px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+.fab-opt.green { background: #22c55e; }
+.fab-opt.blue { background: #1d4ed8; }
+.fab-opt.purple { background: #7c3aed; }
 </style>
 </head>
 <body>
@@ -177,7 +212,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   <div class="foto-box">
     <h2>Registrar visita</h2>
     <div class="pdv-name" id="fotoPdvName"></div>
-    <input type="file" id="fotoInput" accept="image/*" capture="environment" onchange="fotoPreview()">
+    <input type="file" id="fotoInput" accept="image/*" onchange="fotoPreview()">
     <img id="fotoPreview" alt="Vista previa">
     <div class="row">
       <button class="btn-foto" onclick="confirmarFoto(true)">Registrar con foto</button>
@@ -225,6 +260,16 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
     <button class="addpdv-cancel" onclick="closeAddPdv()">Cancelar</button>
   </div>
 </div>
+
+<div class="fab-wrap" id="fabWrap">
+  <div class="fab-menu" id="fabMenu">
+    <div class="fab-item"><span class="fab-label">Registrar PDV</span><button class="fab-opt blue" onclick="closeFab();openVisitas()">📋</button></div>
+    <div class="fab-item"><span class="fab-label">Mapa de PDV</span><button class="fab-opt purple" onclick="closeFab();openMapa()">🗺️</button></div>
+    <div class="fab-item"><span class="fab-label">Activar avisos</span><button class="fab-opt green" onclick="closeFab();enablePush()">🔔</button></div>
+  </div>
+  <button class="fab" id="fabBtn" onclick="toggleFab()">+</button>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
@@ -1019,6 +1064,17 @@ function closeVisitas() {
 
 document.getElementById('visitasBtn').onclick = openVisitas;
 document.getElementById('visitasSearch').addEventListener('input', buscarPDV);
+
+function toggleFab() {
+  var m = document.getElementById('fabMenu');
+  var b = document.getElementById('fabBtn');
+  var open = m.classList.toggle('open');
+  b.classList.toggle('open', open);
+}
+function closeFab() {
+  document.getElementById('fabMenu').classList.remove('open');
+  document.getElementById('fabBtn').classList.remove('open');
+}
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

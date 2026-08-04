@@ -29,9 +29,11 @@ FILE_MAP = {
     'Matias Abib.xlsx': 'ABIB-34',
     'Matias Emeterio.xlsx': 'EMETERIO-35',
     'Santiago Vera .xlsx': 'VERA-36',
+    'Saul David .xlsx': 'DAVID-40',
 }
 
-DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
+# SABADO queda vacío a propósito: los merchans seleccionan el PDV ese día.
+DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES']
 
 
 def norm(s):

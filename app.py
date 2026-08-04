@@ -19,6 +19,10 @@ PDV_FILE = os.path.join(BASE_DIR, 'pdv.json')
 RUTAS_FILE = os.path.join(BASE_DIR, 'rutas.json')
 OVERRIDES_FILE = os.path.join(BASE_DIR, 'overrides.json')
 
+APP_VERSION = '2.0'
+APP_VERSION_CODE = 2
+APK_URL = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-v1.0/GPS-Merchan.apk'
+
 with open(VENDORS_FILE, encoding='utf-8') as f:
     VENDORS = json.load(f)
 
@@ -353,6 +357,16 @@ def check_geofence(db, code, lat, lon, now):
 
 
 # ---------------- API ----------------
+
+@app.route('/api/app-version')
+def app_version():
+    return jsonify({
+        'version': APP_VERSION,
+        'versionCode': APP_VERSION_CODE,
+        'apkUrl': APK_URL,
+        'notes': ''
+    })
+
 
 @app.route('/api/track', methods=['POST'])
 def track():

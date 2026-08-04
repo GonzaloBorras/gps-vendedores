@@ -2,54 +2,6 @@
  "MADRID-38": {
   "LUNES": [
    [
-    "164407",
-    "PIU ALTO S.R.L"
-   ],
-   [
-    "162922",
-    "LUNA JUAN ANTONIO"
-   ],
-   [
-    "167441",
-    "ISA JORGE"
-   ],
-   [
-    "172184",
-    "WU YUYING"
-   ],
-   [
-    "163115",
-    "WU LIQING"
-   ],
-   [
-    "161647",
-    "NOGUERA GASTON HUGO"
-   ]
-  ],
-  "MARTES": [
-   [
-    "164127",
-    "DESANTIS JUANA"
-   ],
-   [
-    "160591",
-    "SIRIANI SALLAN Y OTROS"
-   ],
-   [
-    "164405",
-    "PIU ALTOS.R.L"
-   ],
-   [
-    "160637",
-    "SUPER SERAMIL S.R.L"
-   ],
-   [
-    "161885",
-    "CORVALAN MARIA LIA"
-   ]
-  ],
-  "MIERCOLES": [
-   [
     "163278",
     "MEDINA RAUL ANTONIO"
    ],
@@ -66,15 +18,37 @@
     "ELIAS JUAN CARLOS"
    ],
    [
-    "164360",
-    "MADAL PABLO"
+    "164371",
+    "SORIA IVANA MARIELA"
    ],
    [
     "162804",
     "CISTERNA ERIKA"
    ]
   ],
-  "JUEVES": [
+  "MARTES": [
+   [
+    "164127",
+    "DESANTIS JUANA"
+   ],
+   [
+    "160591",
+    "SIRIANI SALLAN Y OTROS"
+   ],
+   [
+    "164405",
+    "PIU ALTOS.R.L"
+   ],
+   [
+    "164011",
+    "AVANSARDO S.A.S"
+   ],
+   [
+    "167601",
+    "CD BUSSINES"
+   ]
+  ],
+  "MIERCOLES": [
    [
     "168631",
     "ASSIS HERMANOS S.R.L"
@@ -100,48 +74,56 @@
     "EL PRIMER CIRCULO S.R.L"
    ]
   ],
-  "VIERNES": [
+  "JUEVES": [
    [
-    "164371",
-    "SORIA IVANA MARIELA"
+    "160591",
+    "EMAJU S.R.L"
    ],
    [
-    "161118",
-    "TOBOADA SANDRA BEATRIZ"
+    "164127",
+    "DESANTIS JUANA"
    ],
    [
-    "162548",
-    "DIP JAQUELINA"
+    "164405",
+    "PIU ALTOS.R.L"
    ],
    [
-    "167601",
-    "CD BUSSINES"
+    "160637",
+    "SUPER SERAMIL S.R.L"
    ],
    [
-    "164011",
-    "AVANSARDO S.A.S"
+    "161885",
+    "CORVALAN MARIA LIA"
    ],
    [
     "160593",
     "ESPOSITO TERESA"
    ]
   ],
-  "SABADO": [
+  "VIERNES": [
    [
-    "164405",
+    "164407",
     "PIU ALTO S.R.L"
    ],
    [
-    "164149",
-    "EMAJU S.R.L"
+    "162922",
+    "LUNA JUAN ANTONIO"
    ],
    [
-    "160591",
-    "SIRIANI SALLAN Y OTROS"
+    "167441",
+    "ISA JORGE"
    ],
    [
-    "160637",
-    "SUPER SERAMIL S.R.L"
+    "172184",
+    "WU YUYING"
+   ],
+   [
+    "163115",
+    "WU LIQING"
+   ],
+   [
+    "161647",
+    "NOGUERA GASTON HUGO"
    ]
   ]
  },
@@ -275,24 +257,6 @@
     "166720",
     "CAMPO ALVARO GONZALO"
    ]
-  ],
-  "SABADO": [
-   [
-    "160287",
-    "AGRO MG SRL"
-   ],
-   [
-    "169427",
-    "EL MARQUES SAS"
-   ],
-   [
-    "166021",
-    "QUESADA DANIEL NICOLAS"
-   ],
-   [
-    "161604",
-    "COMESTIBLES ALEM SRL"
-   ]
   ]
  },
  "CORBALAN-31": {
@@ -420,24 +384,6 @@
    [
     "169238",
     "TERÁN ELOISA MARÍA"
-   ]
-  ],
-  "SABADO": [
-   [
-    "169220",
-    "AGRO MG SRL"
-   ],
-   [
-    "162609",
-    "MISSORICHI FERNANDA HAYDEE"
-   ],
-   [
-    "164217",
-    "GRAU MARTÍN"
-   ],
-   [
-    "161149",
-    "PORTILLO CARLOS ARIEL"
    ]
   ]
  },
@@ -571,8 +517,7 @@
     "167406",
     "YAN MEI"
    ]
-  ],
-  "SABADO": []
+  ]
  },
  "ALBONOZ-39": {
   "LUNES": [
@@ -704,24 +649,6 @@
     "160949",
     "CORBALÁN ROBERTO ANTONIO"
    ]
-  ],
-  "SABADO": [
-   [
-    "167783",
-    "SAN RAMÓN S.R.L"
-   ],
-   [
-    "163092",
-    "COMERCIALIZADORA RIVADAVIA"
-   ],
-   [
-    "162402",
-    "MILHEN HNOS DE HECHO DE ALI"
-   ],
-   [
-    "160108",
-    "AGRO MG .S.R.L"
-   ]
   ]
  },
  "SILVA-37": {
@@ -850,24 +777,6 @@
     "168973",
     "COOPERATIVA DE TRABAJO POSER LIMITADA"
    ]
-  ],
-  "SABADO": [
-   [
-    "166332",
-    "AUTOSERVICIO SAN RAMON S.R.L"
-   ],
-   [
-    "169567",
-    "EL MARQUES"
-   ],
-   [
-    "161113",
-    "CANAL MONICA ROXANA"
-   ],
-   [
-    "160817",
-    "ANDRADA ROSA NOEMI DEL VALLE"
-   ]
   ]
  },
  "ABIB-34": {
@@ -991,24 +900,6 @@
    [
     "164631",
     "ALDERE RODRIGO ARIEL"
-   ]
-  ],
-  "SABADO": [
-   [
-    "169070",
-    "MABEL ISABEL ROJAS"
-   ],
-   [
-    "172050",
-    "KHRATA OSSAMEN"
-   ],
-   [
-    "164692",
-    "ROMERO ADRIAN MARCELO"
-   ],
-   [
-    "169185",
-    "GRAMAJO MARIA EMILIA"
    ]
   ]
  },
@@ -1142,24 +1033,6 @@
     "162886",
     "ONDRY LOURDES INES ELENA"
    ]
-  ],
-  "SABADO": [
-   [
-    "167774",
-    "GAMARRO DAVID IGNACIO"
-   ],
-   [
-    "162171",
-    "SHI JIANFENG"
-   ],
-   [
-    "162753",
-    "ZHUANG QIANQIAN"
-   ],
-   [
-    "168189",
-    "SERRUDO CARLOS RAFAEL"
-   ]
   ]
  },
  "VERA-36": {
@@ -1292,23 +1165,121 @@
     "162374",
     "ZAPPING S.R.L"
    ]
+  ]
+ },
+ "DAVID-40": {
+  "LUNES": [
+   [
+    "761658",
+    "FAMILIA TAUIL SA"
+   ],
+   [
+    "760299",
+    "ARCE PATRICIA DEL VALLE"
+   ],
+   [
+    "760812",
+    "YANG TIAN TIAN"
+   ],
+   [
+    "763041",
+    "CHEN XIUZHU"
+   ],
+   [
+    "763441",
+    "LACTEOS CATAMARCA SRL"
+   ]
   ],
-  "SABADO": [
+  "MARTES": [
    [
-    "165251",
-    "DEPAL S.R.L"
+    "761934",
+    "LIN DAOJUAN"
    ],
    [
-    "164387",
-    "PASCUAL GUSTAVO SAMIR"
+    "761386",
+    "HUANG WANLING"
    ],
    [
-    "161397",
-    "GONZALEZ ENRIQUE LUIS"
+    "761694",
+    "CHEN WEI"
    ],
    [
-    "168982",
-    "ALBORNOZ FRANCO GUSTAVO"
+    "761395",
+    "LACTEOS CATAMARCA SRL"
+   ],
+   [
+    "763869",
+    "LIN JIANGLING"
+   ]
+  ],
+  "MIERCOLES": [
+   [
+    "761412",
+    "TRANSABRIL S.A"
+   ],
+   [
+    "761093",
+    "TRANSABRIL S.A"
+   ],
+   [
+    "761257",
+    "417 S. R. L."
+   ],
+   [
+    "761396",
+    "LACTEOS CATAMARCA SRL"
+   ],
+   [
+    "761462",
+    "GUO MINGYING"
+   ],
+   [
+    "761668",
+    "CASTRO LAURA FABIANA"
+   ]
+  ],
+  "JUEVES": [
+   [
+    "760240",
+    "LA CASA DEL VINO SRL"
+   ],
+   [
+    "761706",
+    "LUJAIKO SRL"
+   ],
+   [
+    "762340",
+    "ZHUANG YUNXIA"
+   ],
+   [
+    "762900",
+    "DISTRIBUIDORA MAYOR"
+   ],
+   [
+    "761850",
+    "ZHUANG YUNXIA"
+   ]
+  ],
+  "VIERNES": [
+   [
+    "762567",
+    "TRANSABRIL SA"
+   ],
+   [
+    "761665",
+    "CHEN GUI"
+   ],
+   [
+    "761886",
+    "CHEN JIANCHAO"
+   ],
+   [
+    "761651",
+    "LOPEZ GUADALUPE CRISTINA"
+   ],
+   [
+    "762230",
+    "LI XINMEI"
    ]
   ]
  }

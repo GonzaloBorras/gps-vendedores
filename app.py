@@ -980,15 +980,32 @@ def visitas_post():
         row = _exec(db, 'SELECT lat, lon, ts FROM positions WHERE code = ? ORDER BY ts DESC LIMIT 1',
                     (code,)).fetchone()
         now = int(time.time() * 1000)
-        if not row or now - row['ts'] > VISIT_MAX_MS:
-            return jsonify({'ok': False, 'error': 'No hay una posición reciente para validar. Iniciá el envío en vivo y acercate al PDV.'}), 400
+        c_lat = c_lon = None
+        try:
+            if body.get('lat') not in (None, ''):
+                c_lat = float(body.get('lat'))
+            if body.get('lon') not in (None, ''):
+                c_lon = float(body.get('lon'))
+        except (TypeError, ValueError):
+            c_lat = c_lon = None
+        if c_lat is not None and c_lon is not None and row and now - row['ts'] <= VISIT_MAX_MS:
+            if _haversine(c_lat, c_lon, row['lat'], row['lon']) > 1000:
+                return jsonify({'ok': False, 'error': 'La posición del celular no coincide con la enviada en vivo. Reintentá en unos segundos.'}), 400
+        if c_lat is not None and c_lon is not None:
+            use_lat, use_lon = c_lat, c_lon
+        elif row and now - row['ts'] <= VISIT_MAX_MS:
+            use_lat, use_lon = row['lat'], row['lon']
+        else:
+            use_lat = use_lon = None
+        if use_lat is None:
+            return jsonify({'ok': False, 'error': 'No hay una posición para validar. Activá el GPS y acercate al PDV.'}), 400
         if pdv and pdv.get('lat') and pdv.get('lon') and (pdv['lat'] != 0 or pdv['lon'] != 0):
             try:
                 acc = float(body.get('accuracy') or 0)
             except (TypeError, ValueError):
                 acc = 0
             limit = _radius_for(cliente) + max(0, acc - 50)  # tolerancia al ruido del GPS
-            d = _haversine(row['lat'], row['lon'], pdv['lat'], pdv['lon'])
+            d = _haversine(use_lat, use_lon, pdv['lat'], pdv['lon'])
             if d > limit:
                 return jsonify({'ok': False, 'error': 'No estás en el PDV (%s). Estás a %d m de ese PDV.' % (pdv.get('r', ''), int(d))}), 400
     ts = int(time.time() * 1000)

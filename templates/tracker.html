@@ -175,6 +175,8 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
     <h2>Registrar PDV visitado</h2>
     <div class="ruta-hoy-title">Mi ruta de hoy</div>
     <div id="rutaHoy"></div>
+    <div class="ruta-hoy-title" style="cursor:pointer" onclick="toggleMiRuteo()">Mi ruteo completo <span id="miRuteoToggle">▸</span></div>
+    <div id="miRuteo" style="display:none"></div>
     <input type="search" id="visitasSearch" placeholder="Buscar por cliente, razón social, calle o ruta...">
     <div id="visitasResults"></div>
     <div class="visitas-today">
@@ -500,7 +502,7 @@ function start() {
   }, function (err) {
     resetBtn();
     onErr(err);
-  }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 15000 });
 }
 function stopTracking() {
   nativeLive(false);
@@ -621,6 +623,52 @@ function renderRutaHoy() {
 
 function marcarRuta(c) { marcarVisita(c, (rutaHoy.find(function (x) { return x.cliente === c; }) || {}).razon); }
 
+// ---------------- Mi ruteo completo (todos los días) ----------------
+var miRuteo = [];
+function loadMiRuteo() {
+  fetch(base + '/api/rutas?merchan=' + encodeURIComponent(code))
+    .then(function (r) { return r.json(); })
+    .then(function (arr) {
+      var seen = {};
+      miRuteo = [];
+      arr.forEach(function (v) {
+        if (!seen[v.cliente]) { seen[v.cliente] = 1; miRuteo.push(v); }
+      });
+      renderMiRuteo();
+    }).catch(function () {});
+}
+function renderMiRuteo() {
+  var box = document.getElementById('miRuteo');
+  if (!box) return;
+  if (!miRuteo.length) {
+    box.innerHTML = '<div class="empty">No tenés PDV asignados en tu ruteo.</div>';
+    return;
+  }
+  box.innerHTML = miRuteo.map(function (v) {
+    var dir = (v.calle || '') + (v.altura ? ' ' + v.altura : '');
+    var vis = visitasCache[v.cliente];
+    var d = pdvDistM(v);
+    return '<div class="pdv-item ' + (vis ? 'visited' : '') + (d !== null && d > (v.radius || 150) ? ' pdv-far' : '') + '" onclick="marcarVisita(\'' + v.cliente + '\',\'' + esc(v.razon) + '\')">' +
+      '<div class="r">' + esc(v.razon) + '</div>' +
+      '<div class="d">Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(v) + (v.dia ? ' · ' + esc(v.dia) : '') + '</div>' +
+      (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
+      (vis ? '<small>registrado · tocá para quitar</small>' : '<small>tocá para marcar como visitado</small>') +
+      '</div>';
+  }).join('');
+}
+function toggleMiRuteo() {
+  var box = document.getElementById('miRuteo');
+  var t = document.getElementById('miRuteoToggle');
+  if (box.style.display === 'none') {
+    box.style.display = 'block';
+    t.textContent = '▾';
+    if (!miRuteo.length) loadMiRuteo();
+  } else {
+    box.style.display = 'none';
+    t.textContent = '▸';
+  }
+}
+
 function loadVisitas() {
   fetch(base + '/api/visitas?code=' + encodeURIComponent(code) + '&fecha=' + todayStr())
     .then(function (r) { return r.json(); })
@@ -633,6 +681,7 @@ function loadVisitas() {
         'PDV visitados hoy: ' + Object.keys(visitasCache).length;
       renderVisitas();
       renderRutaHoy();
+      renderMiRuteo();
       updatePdvMarkers();
       restoreJornadaBanner();
     }).catch(function () {});
@@ -741,13 +790,7 @@ function confirmarFoto() {
   if (!c) return;
   if (!f) { visitasMsg('Primero sacá la foto de la fachada.'); return; }
   closeFoto();
-  var fd = new FormData();
-  fd.append('code', code);
-  fd.append('cliente', c);
-  fd.append('fecha', todayStr());
-  fd.append('validate', 'true');
-  fd.append('accuracy', lastAcc || '0');
-  fd.append('foto', f);
+  visitasMsg('Validando ubicación...');
   var onDone = function (d) {
     if (d.ok) {
       visitasCache[c] = { cliente: c, razon: pdvNameCache[c] || c };
@@ -755,15 +798,40 @@ function confirmarFoto() {
       document.getElementById('visitaCount').textContent =
         'PDV visitados hoy: ' + Object.keys(visitasCache).length;
       renderRutaHoy();
+      renderMiRuteo();
       updatePdvMarkers();
       visitasMsg('');
     } else {
       visitasMsg(d.error || 'No se pudo registrar la visita.');
     }
   };
-  fetch(base + '/api/visitas', { method: 'POST', body: fd })
-    .then(function (r) { return r.json(); }).then(onDone)
-    .catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
+  var enviar = function (lat, lon, acc) {
+    var fd = new FormData();
+    fd.append('code', code);
+    fd.append('cliente', c);
+    fd.append('fecha', todayStr());
+    fd.append('validate', 'true');
+    fd.append('accuracy', acc || lastAcc || '0');
+    if (lat != null && lon != null) {
+      fd.append('lat', lat);
+      fd.append('lon', lon);
+    }
+    fd.append('foto', f);
+    fetch(base + '/api/visitas', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); }).then(onDone)
+      .catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
+  };
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      var acc = Math.round(pos.coords.accuracy);
+      lastLat = pos.coords.latitude; lastLon = pos.coords.longitude; lastAcc = acc;
+      document.getElementById('acc').textContent = acc + ' m';
+      enviar(pos.coords.latitude, pos.coords.longitude, acc);
+    }, function () { enviar(lastLat, lastLon, lastAcc); },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 3000 });
+  } else {
+    enviar(lastLat, lastLon, lastAcc);
+  }
 }
 
 // ---------------- Mapa de PDV ----------------
@@ -1004,7 +1072,16 @@ function openVisitas() {
   document.getElementById('visitasResults').innerHTML = '';
   visitasMsg('');
   if (!rutaHoy.length) loadRutaHoy();
+  if (!miRuteo.length) loadMiRuteo();
   loadVisitas();
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      lastLat = pos.coords.latitude; lastLon = pos.coords.longitude;
+      lastAcc = Math.round(pos.coords.accuracy) || lastAcc;
+      renderRutaHoy();
+      renderMiRuteo();
+    }, function () {}, { enableHighAccuracy: true, timeout: 12000, maximumAge: 8000 });
+  }
 }
 function closeVisitas() {
   document.getElementById('visitasOverlay').classList.remove('open');

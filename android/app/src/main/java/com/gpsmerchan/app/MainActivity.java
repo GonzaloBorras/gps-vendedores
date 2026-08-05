@@ -9,6 +9,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.view.View;
@@ -53,11 +55,16 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQ = 1001;
     private static final int PERM_REQ_LOCATION = 2002;
     private static final int PERM_REQ_CAMERA = 2003;
+    private static final long UPDATE_COOLDOWN_MS = 10 * 60 * 1000;
+    private static final long UPDATE_GUIDE_COOLDOWN_MS = 30 * 60 * 1000;
+    private static final long UPDATE_CHECK_PERIOD_MS = 5 * 60 * 1000;
 
     private WebView web;
     private ValueCallback<Uri[]> filePathCallback;
     private Uri cameraImageUri;
     private static WeakReference<MainActivity> sInstance;
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
+    private volatile boolean mChecking = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,9 +94,30 @@ public class MainActivity extends Activity {
         }
 
         checkForUpdate();
+        scheduleUpdateChecks();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkForUpdate();
+    }
+
+    private void scheduleUpdateChecks() {
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                checkForUpdate();
+                mHandler.postDelayed(this, UPDATE_CHECK_PERIOD_MS);
+            }
+        }, UPDATE_CHECK_PERIOD_MS);
     }
 
     private void checkForUpdate() {
+        synchronized (MainActivity.this) {
+            if (mChecking) return;
+            mChecking = true;
+        }
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -100,21 +128,42 @@ public class MainActivity extends Activity {
                     c.setReadTimeout(8000);
                     c.setRequestProperty("User-Agent", "GPSMerchan/" + BuildConfig.VERSION_CODE);
                     int st = c.getResponseCode();
-                    if (st != 200) return;
-                    BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream()));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = r.readLine()) != null) sb.append(line);
-                    r.close();
-                    JSONObject o = new JSONObject(sb.toString());
-                    int remote = o.optInt("versionCode", 0);
-                    if (remote <= BuildConfig.VERSION_CODE) return;
-                    final SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-                    if (prefs.getInt("notified_version", 0) >= remote) return;
-                    final String apkUrl = o.optString("apkUrl", "");
-                    if (apkUrl.isEmpty()) return;
-                    downloadAndInstall(apkUrl, remote, prefs);
+                    if (st == 200) {
+                        BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream()));
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = r.readLine()) != null) sb.append(line);
+                        r.close();
+                        JSONObject o = new JSONObject(sb.toString());
+                        int remote = o.optInt("versionCode", 0);
+                        if (remote > BuildConfig.VERSION_CODE) {
+                            final SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+                            long lastAttempt = prefs.getLong("last_attempt_ms", 0);
+                            if (System.currentTimeMillis() - lastAttempt >= UPDATE_COOLDOWN_MS) {
+                                final String apkUrl = o.optString("apkUrl", "");
+                                if (!apkUrl.isEmpty()) {
+                                    File dir = getExternalFilesDir(null);
+                                    if (dir != null) {
+                                        final File existing = new File(dir, "GPS-Merchan.apk");
+                                        if (prefs.getInt("downloaded_version", 0) == remote
+                                                && existing.exists() && existing.length() > 100000) {
+                                            runOnUiThread(new Runnable() {
+                                                @Override
+                                                public void run() { installApk(existing, remote, prefs); }
+                                            });
+                                        } else {
+                                            downloadAndInstall(apkUrl, remote, prefs);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 } catch (Exception ignored) {
+                } finally {
+                    synchronized (MainActivity.this) {
+                        mChecking = false;
+                    }
                 }
             }
         }).start();
@@ -141,6 +190,7 @@ public class MainActivity extends Activity {
                     fos.close();
                     is.close();
                     if (apk.length() > 100000) {
+                        prefs.edit().putInt("downloaded_version", remoteVersion).apply();
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() { installApk(apk, remoteVersion, prefs); }
@@ -155,13 +205,19 @@ public class MainActivity extends Activity {
     private void installApk(File apk, int remoteVersion, SharedPreferences prefs) {
         try {
             if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
-                Toast.makeText(this, "Activá «Permitir instalar apps desconocidas» para GPS Merchan.", Toast.LENGTH_LONG).show();
-                Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                        Uri.parse("package:" + getPackageName()));
-                startActivity(i);
+                long lastGuide = prefs.getLong("last_guide_ms", 0);
+                if (System.currentTimeMillis() - lastGuide >= UPDATE_GUIDE_COOLDOWN_MS) {
+                    prefs.edit().putLong("last_guide_ms", System.currentTimeMillis()).apply();
+                    Toast.makeText(this, "Para actualizarte solo, activá «Permitir instalar apps desconocidas» para GPS Merchan.", Toast.LENGTH_LONG).show();
+                    Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                            Uri.parse("package:" + getPackageName()));
+                    startActivity(i);
+                } else {
+                    Toast.makeText(this, "Falta activar «Permitir instalar apps desconocidas» para actualizar.", Toast.LENGTH_LONG).show();
+                }
                 return;
             }
-            prefs.edit().putInt("notified_version", remoteVersion).apply();
+            prefs.edit().putLong("last_attempt_ms", System.currentTimeMillis()).apply();
             Uri uri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".fileprovider", apk);
             Intent i = new Intent(Intent.ACTION_VIEW);
             i.setDataAndType(uri, "application/vnd.android.package-archive");

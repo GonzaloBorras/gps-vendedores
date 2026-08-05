@@ -65,6 +65,7 @@ public class MainActivity extends Activity {
     private static WeakReference<MainActivity> sInstance;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private volatile boolean mChecking = false;
+    private boolean lockNavigation = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -252,6 +253,7 @@ public class MainActivity extends Activity {
         web = findViewById(R.id.web);
         ImageButton change = findViewById(R.id.change_btn);
         change.setVisibility(View.GONE);
+        lockNavigation = false;
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -283,13 +285,14 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         web = findViewById(R.id.web);
         ImageButton change = findViewById(R.id.change_btn);
+        change.setContentDescription("Cerrar aplicación");
         change.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(KEY_CODE).apply();
-                showSetup();
+                finish();
             }
         });
+        lockNavigation = true;
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -395,7 +398,11 @@ public class MainActivity extends Activity {
             public void onReceiveValue(String value) {
                 if (value != null && "true".equals(value)) return;
                 if (web.canGoBack()) web.goBack();
-                else moveTaskToBack(true);
+                else if (lockNavigation) {
+                    Toast.makeText(MainActivity.this, "Para cerrar la app usá el botón X de arriba. Tu sesión sigue activa.", Toast.LENGTH_LONG).show();
+                } else {
+                    moveTaskToBack(true);
+                }
             }
         });
     }

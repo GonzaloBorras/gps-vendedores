@@ -141,6 +141,21 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .visitas-overlay.open .visitas-box, .foto-overlay.open .foto-box, .mapa-overlay.open .mapa-box, .addpdv-overlay.open .addpdv-box { transform: translateY(0); }
 
 .btn-opt.green { background: #22c55e; }
+.prox { margin-top: 12px; background: #10182b; border: 1px solid #1e3a8a; border-radius: 10px;
+  padding: 10px 12px; font-size: 13px; line-height: 1.5; color: #cbd5e1; text-align: center; }
+.prox b { color: #fff; }
+.prox-btn { margin-top: 6px; background: #1d4ed8; color: #fff; border: 0; border-radius: 6px;
+  padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.pdv-item.next-flash { animation: nextFlash 1.6s ease; }
+@keyframes nextFlash { 0%,100% { background: #0f1420; } 40% { background: rgba(29,78,216,.35); border-color: #3b82f6; } }
+.fuera-badge { display: inline-block; margin-left: 6px; background: #7c3aed; color: #fff;
+  border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+.busca-hint { font-size: 11px; color: #8b93a7; margin: -4px 0 8px; line-height: 1.4; }
+.ruta-banner { display: none; margin-top: 12px; background: #fefce8; border: 1px solid #fde047;
+  color: #854d0e; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 600;
+  text-align: center; line-height: 1.4; }
+.ruta-banner button { margin-top: 6px; background: #1d4ed8; color: #fff; border: 0; border-radius: 6px;
+  padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -160,6 +175,8 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   <div class="gps-warn" id="gpsWarn">🚫 Ubicación apagada o sin señal GPS. El administrador va a recibir una alerta. Activá la ubicación del celular.</div>
   <div class="aviso" id="absenceBanner"></div>
   <div class="msg-banner" id="msgBanner"></div>
+  <div class="ruta-banner" id="rutaUpdateBanner">🔄 Tu ruteo de hoy se actualizó.<br><button onclick="location.reload()">Recargar para ver los cambios</button></div>
+  <div class="prox" id="proxPdv"></div>
   <button id="visitasBtn">Registro de PDV</button>
   <button class="btn mapa" id="mapaBtn">🗺️ Mapa de PDV</button>
   <span class="visita-count" id="visitaCount"></span>
@@ -178,6 +195,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
     <div class="ruta-hoy-title" style="cursor:pointer" onclick="toggleMiRuteo()">Mi ruteo completo <span id="miRuteoToggle">▸</span></div>
     <div id="miRuteo" style="display:none"></div>
     <input type="search" id="visitasSearch" placeholder="Buscar por cliente, razón social, calle o ruta...">
+    <div class="busca-hint">Podés registrar <b>cualquier</b> PDV, aunque no esté en tu ruteo de hoy (por ejemplo, si te pidieron un cambio de día).</div>
     <div id="visitasResults"></div>
     <div class="visitas-today">
       <h3>Visitados hoy</h3>
@@ -310,6 +328,39 @@ function updateGpsWarn() {
   w.style.display = (running && gpsOk === false) ? 'block' : 'none';
 }
 
+function enqueueOffline(lat, lon) {
+  try {
+    var q = JSON.parse(localStorage.getItem('gps_queue') || '[]');
+    q.push({ lat: lat, lon: lon, ts: Date.now() });
+    if (q.length > 60) q = q.slice(q.length - 60);
+    localStorage.setItem('gps_queue', JSON.stringify(q));
+  } catch (e) {}
+}
+function flushOffline() {
+  var raw;
+  try { raw = JSON.parse(localStorage.getItem('gps_queue') || '[]'); } catch (e) { raw = []; }
+  if (!raw.length) return;
+  var pts = raw.slice();
+  var retry = [];
+  var next = function (i) {
+    if (i >= pts.length) {
+      try {
+        if (retry.length) localStorage.setItem('gps_queue', JSON.stringify(retry));
+        else localStorage.removeItem('gps_queue');
+      } catch (e) {}
+      return;
+    }
+    fetch(base + '/api/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, lat: pts[i].lat, lon: pts[i].lon, session: sessionId })
+    }).then(function (r) { return r.json(); })
+      .then(function (d) { if (!d.ok) retry.push(pts[i]); next(i + 1); })
+      .catch(function () { retry.push(pts[i]); next(i + 1); });
+  };
+  next(0);
+}
+
 function send() {
   if (lastLat === null) return;
   fetch(base + '/api/track', {
@@ -319,6 +370,7 @@ function send() {
   }).then(function (r) { return r.json(); })
     .then(function (d) {
       if (d.ok) {
+        flushOffline();
         var t = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         lastSent = t;
         document.getElementById('last').textContent = t;
@@ -328,7 +380,10 @@ function send() {
         showErr('Error del servidor: ' + (d.error || 'desconocido'));
       }
     })
-    .catch(function () { showErr('No se pudo contactar el servidor. Revisá tu conexión.'); });
+    .catch(function () {
+      enqueueOffline(lastLat, lastLon);
+      showErr('Sin conexión. Se guardaron las posiciones y se enviarán cuando vuelva la señal.');
+    });
 }
 
 function onPos(p) {
@@ -376,8 +431,10 @@ function startWorker() {
           document.getElementById('last').textContent = d.ts;
           setState('Enviando ubicación', true);
           hideErr();
+          flushOffline();
         } else {
-          showErr('Error del servidor: ' + (d.error || 'desconocido'));
+          if (lastLat !== null) enqueueOffline(lastLat, lastLon);
+          showErr('Sin conexión. Se guardaron las posiciones y se enviarán cuando vuelva la señal.');
         }
       } else if (d.type === 'err') {
         gpsOk = false;
@@ -544,9 +601,14 @@ document.getElementById('last').textContent = '--';
 document.addEventListener('visibilitychange', function () {
   if (document.hidden) return;
   if (running) {
+    flushOffline();
     send();
     requestWakeLock();
   }
+});
+window.addEventListener('online', function () {
+  flushOffline();
+  if (running) send();
 });
 
 // ---------------- Visitas PDV ----------------
@@ -584,15 +646,46 @@ function pdvDistTxt(p) {
   return ' · <span class="dist">' + fmtDist(d) + '</span>';
 }
 
+function rutaCacheKey() { return 'gps_rutas_' + code + '_' + todayStr(); }
+function cacheRutas(arr) { try { localStorage.setItem(rutaCacheKey(), JSON.stringify(arr)); } catch (e) {} }
+function cachedRutas() {
+  try { return JSON.parse(localStorage.getItem(rutaCacheKey()) || 'null'); } catch (e) { return null; }
+}
+function rutaHash(arr) {
+  return arr.filter(function (v) { return v.dia === RUTA_TODAY; })
+    .map(function (v) { return v.orden + ':' + v.cliente + ':' + v.razon; }).join('|');
+}
+function checkRutaUpdate(arr) {
+  if (!RUTA_TODAY) return;
+  var k = 'ruta_hash_' + code + '_' + todayStr();
+  var h = rutaHash(arr);
+  var prev = null;
+  try { prev = localStorage.getItem(k); } catch (e) {}
+  if (prev !== null && prev !== h) {
+    var b = document.getElementById('rutaUpdateBanner');
+    if (b) b.style.display = 'block';
+  }
+  try { localStorage.setItem(k, h); } catch (e) {}
+}
+
 function loadRutaHoy(cb) {
   if (!RUTA_TODAY) { renderRutaHoy(); if (cb) cb(); return; }
   fetch(base + '/api/rutas?merchan=' + encodeURIComponent(code))
     .then(function (r) { return r.json(); })
     .then(function (arr) {
+      cacheRutas(arr);
+      checkRutaUpdate(arr);
       rutaHoy = arr.filter(function (v) { return v.dia === RUTA_TODAY; });
       renderRutaHoy();
       if (cb) cb();
-    }).catch(function () { renderRutaHoy(); if (cb) cb(); });
+    }).catch(function () {
+      var c = cachedRutas();
+      if (c) {
+        rutaHoy = c.filter(function (v) { return v.dia === RUTA_TODAY; });
+        renderRutaHoy();
+      }
+      if (cb) cb();
+    });
 }
 
 function renderRutaHoy() {
@@ -612,13 +705,58 @@ function renderRutaHoy() {
       var dir = (v.calle || '') + (v.altura ? ' ' + v.altura : '');
       var vis = visitasCache[v.cliente];
       var d = pdvDistM(v);
-      return '<div class="pdv-item ' + (vis ? 'visited' : '') + (d !== null && d > (v.radius || 150) ? ' pdv-far' : '') + '" onclick="marcarVisita(\'' + v.cliente + '\',\'' + esc(v.razon) + '\')">' +
+      return '<div class="pdv-item ' + (vis ? 'visited' : '') + (d !== null && d > (v.radius || 150) ? ' pdv-far' : '') + '" data-cliente="' + v.cliente + '" onclick="marcarVisita(\'' + v.cliente + '\',\'' + esc(v.razon) + '\')">' +
         '<div class="r">' + esc(v.razon) + '</div>' +
         '<div class="d">Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(v) + '</div>' +
         (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
         (vis ? '<small>registrado · tocá para quitar</small>' : '<small>tocá para marcar como visitado</small>') +
         '</div>';
     }).join('');
+  renderProximo();
+}
+
+function findProximo() {
+  if (!RUTA_TODAY || !rutaHoy.length) return null;
+  var best = null;
+  rutaHoy.forEach(function (v) {
+    if (visitasCache[v.cliente]) return;
+    var d = pdvDistM(v);
+    if (d === null) return;
+    if (!best || d < best.d) best = { d: d, v: v };
+  });
+  return best;
+}
+function renderProximo() {
+  var el = document.getElementById('proxPdv');
+  if (!el) return;
+  if (!RUTA_TODAY) { el.innerHTML = 'Hoy no hay ruta programada.'; return; }
+  var b = findProximo();
+  if (!b) {
+    var quedan = rutaHoy.some(function (v) { return !visitasCache[v.cliente]; });
+    el.innerHTML = quedan
+      ? '📍 Próximo PDV: <b>sin señal GPS</b> para calcular distancia.'
+      : '✔ Todos los PDV de hoy registrados. ¡Buen trabajo!';
+    return;
+  }
+  el.innerHTML = '📍 Próximo PDV: <b>' + esc(b.v.razon) + '</b> · ' + fmtDist(b.d) +
+    ' <button class="prox-btn" onclick="irProximo()">Ver en la lista</button>';
+}
+function irProximo() {
+  var b = findProximo();
+  if (!b) {
+    visitasMsg('No hay PDV pendientes con distancia calculada.');
+    document.getElementById('visitasOverlay').classList.add('open');
+    return;
+  }
+  var box = document.getElementById('rutaHoy');
+  var item = box.querySelector('.pdv-item[data-cliente="' + b.v.cliente + '"]');
+  if (item) {
+    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    item.classList.add('next-flash');
+    setTimeout(function (it) { it.classList.remove('next-flash'); }.bind(null, item), 2000);
+  } else {
+    marcarVisita(b.v.cliente, b.v.razon);
+  }
 }
 
 function marcarRuta(c) { marcarVisita(c, (rutaHoy.find(function (x) { return x.cliente === c; }) || {}).razon); }
@@ -635,7 +773,17 @@ function loadMiRuteo() {
         if (!seen[v.cliente]) { seen[v.cliente] = 1; miRuteo.push(v); }
       });
       renderMiRuteo();
-    }).catch(function () {});
+    }).catch(function () {
+      var c = cachedRutas();
+      if (c) {
+        var seen = {};
+        miRuteo = [];
+        c.forEach(function (v) {
+          if (!seen[v.cliente]) { seen[v.cliente] = 1; miRuteo.push(v); }
+        });
+        renderMiRuteo();
+      }
+    });
 }
 function renderMiRuteo() {
   var box = document.getElementById('miRuteo');
@@ -745,8 +893,10 @@ function buscarPDV() {
         var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
         var vis = visitasCache[d.c];
         var dm = pdvDistM(d);
+        var fuera = !!(RUTA_TODAY && !rutaHoy.some(function (v) { return v.cliente === d.c; }));
+        var fueraBadge = fuera ? '<span class="fuera-badge">otro día</span>' : '';
         return '<div class="pdv-item ' + (vis ? 'visited' : '') + (dm !== null && dm > (d.radius || 150) ? ' pdv-far' : '') + '" onclick="marcarVisita(\'' + d.c + '\',\'' + esc(d.r) + '\')">' +
-          '<div class="r">' + esc(d.r) + '</div>' +
+          '<div class="r">' + esc(d.r) + fueraBadge + '</div>' +
           '<div class="d">Cliente: ' + esc(d.c) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(d) + '</div>' +
           (d.vta ? '<div class="vta">' + esc(d.vta) + '</div>' : '') +
           (vis ? '<small>ya registrado · tocá para quitar</small>' : '<small>tocá para registrar</small>') +
@@ -1109,6 +1259,7 @@ checkAbsence();
 loadMessages();
 setInterval(loadMessages, 60000);
 setInterval(loadVisitas, 300000);
+setInterval(renderProximo, 15000);
 
 // ---------- AUTO SCHEDULE ----------
 (function () {

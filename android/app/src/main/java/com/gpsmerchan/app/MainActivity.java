@@ -495,4 +495,18 @@ public class MainActivity extends Activity {
             });
         }
     }
+
+    static void notifyJornadaEnd() {
+        MainActivity a = sInstance == null ? null : sInstance.get();
+        if (a != null) {
+            a.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (a.web != null) {
+                        a.web.evaluateJavascript("try{if(window.finishShift)window.finishShift();}catch(e){}", null);
+                    }
+                }
+            });
+        }
+    }
 }

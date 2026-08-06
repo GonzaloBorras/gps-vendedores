@@ -372,6 +372,7 @@ function send() {
     body: JSON.stringify({ code: code, lat: lastLat, lon: lastLon, session: sessionId })
   }).then(function (r) { return r.json(); })
     .then(function (d) {
+      if (d.jornada_fin) { finishShift(); return; }
       if (d.ok) {
         flushOffline();
         var t = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -429,6 +430,7 @@ function startWorker() {
         reportGps();
         updateMyPosition();
       } else if (d.type === 'sent') {
+        if (d.fin) { finishShift(); return; }
         if (d.ok) {
           lastSent = d.ts;
           document.getElementById('last').textContent = d.ts;

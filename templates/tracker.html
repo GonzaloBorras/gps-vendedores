@@ -159,6 +159,50 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   text-align: center; line-height: 1.4; }
 .ruta-banner button { margin-top: 6px; background: #1d4ed8; color: #fff; border: 0; border-radius: 6px;
   padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.btn, #visitasBtn, .push-btn { min-height: 46px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 10px; }
+.jornada-chip, .gps-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: #10182b; border: 1px solid #1e3a8a; color: #cbd5e1;
+}
+.jornada-chip b, .gps-chip b { color: #fff; }
+.jornada-chip.off { background: #3f1d1d; border-color: #ef4444; color: #fca5a5; }
+.jornada-chip.rest { background: #1d2a12; border-color: #65a30d; color: #bef264; }
+.jornada-chip.on { background: #102018; border-color: #22c55e; color: #86efac; }
+.gps-chip.on { border-color: #22c55e; color: #86efac; }
+.gps-chip.off { border-color: #ef4444; color: #fca5a5; }
+.gps-chip.denied { border-color: #f59e0b; color: #fcd34d; }
+.ruta-progress { display: none; margin-top: 12px; background: #10182b; border: 1px solid #1e3a8a;
+  border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #cbd5e1; text-align: center; line-height: 1.5; }
+.ruta-progress b { color: #fff; }
+.ruta-progress .bar { height: 8px; background: #0f1420; border-radius: 999px;
+  margin-top: 8px; overflow: hidden; }
+.ruta-progress .bar > span { display: block; height: 100%; background: #22c55e;
+  border-radius: 999px; transition: width .4s ease; }
+.toast-ok { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  z-index: 2600; background: rgba(5,150,105,.95); color: #fff; border-radius: 16px;
+  padding: 22px 30px; text-align: center; font-size: 16px; font-weight: 700;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5); opacity: 0; visibility: hidden;
+  transition: opacity .2s ease, transform .2s ease; }
+.toast-ok.show { opacity: 1; visibility: visible; transform: translate(-50%,-50%) scale(1.05); }
+.toast-ok .big { font-size: 34px; line-height: 1; margin-bottom: 8px; }
+.toast-ok .sub { display: block; font-weight: 600; font-size: 13px; opacity: .9; margin-top: 3px; }
+.onboard-overlay { position: fixed; inset: 0; z-index: 2500; background: rgba(15,20,32,.96);
+  display: flex; visibility: hidden; opacity: 0; pointer-events: none;
+  align-items: center; justify-content: center; padding: 16px;
+  transition: opacity .25s ease, visibility .25s ease; }
+.onboard-overlay.open { visibility: visible; opacity: 1; pointer-events: auto; }
+.onboard-box { background: #1a2234; border-radius: 14px; padding: 22px 20px; width: 100%;
+  max-width: 420px; max-height: 90vh; overflow: auto; text-align: left;
+  transform: translateY(12px); transition: transform .25s ease; }
+.onboard-overlay.open .onboard-box { transform: translateY(0); }
+.onboard-box h2 { font-size: 18px; margin-bottom: 12px; color: #fff; }
+.onboard-box ul { list-style: none; margin: 0 0 14px; padding: 0; }
+.onboard-box li { font-size: 13px; color: #cbd5e1; line-height: 1.6; padding: 7px 0;
+  border-bottom: 1px dashed #2a3450; }
+.onboard-box li b { color: #fff; }
+.onboard-box .btn { margin-top: 4px; background: #1d4ed8; color: #fff; }
 </style>
 </head>
 <body>
@@ -167,6 +211,10 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   <h1>{{ vendor.name }}</h1>
   <div class="prov">{{ vendor.prov }}</div>
   <div class="status"><span id="stateText">Iniciando...</span></div>
+  <div class="chips">
+    <div class="jornada-chip" id="jornadaChip">🕐 Cargando jornada…</div>
+    <div class="gps-chip" id="gpsChip">🛰 GPS: esperando…</div>
+  </div>
   <div class="grid">
     <div class="metric"><div class="label">Latitud</div><div class="value" id="lat">--</div></div>
     <div class="metric"><div class="label">Longitud</div><div class="value" id="lon">--</div></div>
@@ -180,6 +228,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   <div class="msg-banner" id="msgBanner"></div>
   <div class="ruta-banner" id="rutaUpdateBanner">🔄 Tu ruteo de hoy se actualizó.<br><button onclick="location.reload()">Recargar para ver los cambios</button></div>
   <div class="prox" id="proxPdv"></div>
+  <div class="ruta-progress" id="rutaProgress"></div>
   <button id="visitasBtn">Registro de PDV</button>
   <button class="btn mapa" id="mapaBtn">🗺️ Mapa de PDV</button>
   <span class="visita-count" id="visitaCount"></span>
@@ -188,6 +237,21 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   (8 a 16 h; los sábados hasta las 13) y la jornada se corta sola a las 8 horas.<br><br>
   💡 Para usarla como app: en el navegador tocá el menú (⋮) y elegí
   <b>"Agregar a pantalla de inicio"</b>.</hint>
+</div>
+
+<div class="toast-ok" id="toastOk"></div>
+
+<div class="onboard-overlay" id="onboardOverlay">
+  <div class="onboard-box">
+    <h2>📱 ¿Cómo funciona?</h2>
+    <ul>
+      <li><b>Dejá la app abierta</b> con el GPS del celular activado: tu ubicación se envía sola mientras estés en horario de trabajo.</li>
+      <li><b>Jornada automática:</b> de lunes a viernes 08:00 a 16:00 y los sábados hasta las 13:00. Los domingos es descanso.</li>
+      <li>Cuando llegás a un cliente, tocá <b>Registro de PDV</b>, elegí el comercio y <b>sacá la foto</b> de la fachada.</li>
+      <li>Si te quedás sin señal o sin internet, las posiciones se guardan y se envían cuando vuelva la conexión.</li>
+    </ul>
+    <button class="btn" onclick="closeOnboard()">¡Entendido, empezar!</button>
+  </div>
 </div>
 
 <div class="visitas-overlay" id="visitasOverlay">
@@ -289,7 +353,8 @@ fetch(base + '/api/shift?code=' + encodeURIComponent(code)).then(function (r) { 
     jornadaEndTs = d.end_ts;
     jornadaHoy = !!d.jornada_hoy;
   }
-}).catch(function () {});
+  updateJornadaChip();
+}).catch(function () { updateJornadaChip(); });
 var shiftStart = null;
 var shiftTimer = null;
 var shiftCount = null;
@@ -337,7 +402,34 @@ function reportGps() {
 function updateGpsWarn() {
   var w = document.getElementById('gpsWarn');
   w.style.display = (running && gpsOk === false) ? 'block' : 'none';
+  var chip = document.getElementById('gpsChip');
+  if (!chip) return;
+  if (gpsOk === false) {
+    chip.className = 'gps-chip off';
+    chip.innerHTML = '🛰 <b>GPS sin señal</b>';
+  } else if (gpsOk === true) {
+    chip.className = 'gps-chip on';
+    chip.innerHTML = '🛰 <b>GPS activo</b>';
+  } else {
+    chip.className = 'gps-chip';
+    chip.innerHTML = '🛰 GPS: esperando…';
+  }
 }
+function checkGpsPerm() {
+  if (!('permissions' in navigator) || !navigator.permissions.query) { updateGpsWarn(); return; }
+  navigator.permissions.query({ name: 'geolocation' }).then(function (st) {
+    try { st.onchange = checkGpsPerm; } catch (e) {}
+    var chip = document.getElementById('gpsChip');
+    if (st.state === 'denied' && chip) {
+      chip.className = 'gps-chip denied';
+      chip.innerHTML = '🛰 <b>Permiso de ubicación denegado</b>';
+      document.getElementById('gpsWarn').style.display = 'block';
+    } else {
+      updateGpsWarn();
+    }
+  }).catch(function () { updateGpsWarn(); });
+}
+if ('permissions' in navigator && navigator.permissions.query) checkGpsPerm();
 
 function enqueueOffline(lat, lon) {
   try {
@@ -482,6 +574,36 @@ function fmtRemaining(ms) {
   var total = Math.max(0, Math.floor(ms / 60000));
   return Math.floor(total / 60) + 'h ' + (total % 60 < 10 ? '0' : '') + (total % 60) + 'm';
 }
+function fmtClock(ts) {
+  if (!ts) return '—';
+  var d = new Date(ts - 3 * 3600 * 1000);
+  var p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function updateJornadaChip() {
+  var el = document.getElementById('jornadaChip');
+  if (!el) return;
+  var now = Date.now();
+  if (jornadaHoy === false) {
+    el.className = 'jornada-chip rest';
+    el.innerHTML = '🕐 <b>Descanso</b> · hoy no hay jornada programada';
+  } else if (jornadaStartTs && now < jornadaStartTs) {
+    el.className = 'jornada-chip off';
+    el.innerHTML = '🕐 Jornada <b>' + fmtClock(jornadaStartTs) + '–' + fmtClock(jornadaEndTs) +
+      '</b> · empieza en <b>' + fmtRemaining(jornadaStartTs - now) + '</b>';
+  } else if (jornadaEndTs && now >= jornadaEndTs) {
+    el.className = 'jornada-chip off';
+    el.innerHTML = '🕐 Jornada <b>finalizada</b> (' + fmtClock(jornadaStartTs) + '–' + fmtClock(jornadaEndTs) + ')';
+  } else if (jornadaStartTs && jornadaEndTs) {
+    el.className = 'jornada-chip' + (running ? ' on' : '');
+    el.innerHTML = '🕐 Jornada <b>' + fmtClock(jornadaStartTs) + '–' + fmtClock(jornadaEndTs) +
+      '</b> · quedan <b>' + fmtRemaining(jornadaEndTs - now) + '</b>';
+  } else {
+    el.className = 'jornada-chip';
+    el.innerHTML = '🕐 Cargando jornada…';
+  }
+}
+setInterval(updateJornadaChip, 1000);
 function lastVisitedRazon() {
   for (var i = visitaSeq.length - 1; i >= 0; i--) {
     var v = visitasCache[visitaSeq[i]];
@@ -733,6 +855,19 @@ function renderRutaHoy() {
         '</div>';
     }).join('');
   renderProximo();
+  updateRutaProgress();
+}
+
+function updateRutaProgress() {
+  var el = document.getElementById('rutaProgress');
+  if (!el) return;
+  if (!RUTA_TODAY || !rutaHoy.length) { el.style.display = 'none'; return; }
+  var vis = rutaHoy.filter(function (v) { return visitasCache[v.cliente]; }).length;
+  var total = rutaHoy.length;
+  var pct = Math.round(vis / total * 100);
+  el.style.display = 'block';
+  el.innerHTML = 'Ruteo de hoy: <b>' + vis + '/' + total + '</b> visitados · ' + pct +
+    '% <div class="bar"><span style="width:' + pct + '%"></span></div>';
 }
 
 function findProximo() {
@@ -971,6 +1106,7 @@ function confirmarFoto() {
       renderMiRuteo();
       updatePdvMarkers();
       visitasMsg('');
+      showVisitaOk(pdvNameCache[c] || c);
     } else {
       visitasMsg(d.error || 'No se pudo registrar la visita.');
     }
@@ -1267,6 +1403,23 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+function showVisitaOk(nombre) {
+  var t = document.getElementById('toastOk');
+  t.innerHTML = '<div class="big">✔</div>Visita registrada<span class="sub">' + esc(nombre) + '</span>';
+  t.classList.add('show');
+  clearTimeout(showVisitaOk._t);
+  showVisitaOk._t = setTimeout(function () { t.classList.remove('show'); }, 1600);
+}
+
+function maybeOnboard() {
+  try { if (localStorage.getItem('gps_onboard_done')) return; } catch (e) { return; }
+  document.getElementById('onboardOverlay').classList.add('open');
+}
+function closeOnboard() {
+  document.getElementById('onboardOverlay').classList.remove('open');
+  try { localStorage.setItem('gps_onboard_done', '1'); } catch (e) {}
+}
+
 // Botón "atrás" de Android: cierra pantallas abiertas antes de minimizar la app
 window.closeAnyOverlay = function () {
   var o = document.querySelector('.visitas-overlay.open,.foto-overlay.open,.mapa-overlay.open,.addpdv-overlay.open');
@@ -1278,6 +1431,7 @@ loadVisitas();
 loadRutaHoy();
 checkAbsence();
 loadMessages();
+maybeOnboard();
 setInterval(loadMessages, 60000);
 setInterval(loadVisitas, 300000);
 setInterval(renderProximo, 15000);

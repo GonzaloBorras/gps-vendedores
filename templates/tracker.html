@@ -279,8 +279,16 @@ var lastSent = '--';
 var worker = null;
 
 var SHIFT_MS = 8 * 60 * 60 * 1000;
+var jornadaStartTs = null;
+var jornadaEndTs = null;
+var jornadaHoy = null;
 fetch(base + '/api/shift?code=' + encodeURIComponent(code)).then(function (r) { return r.json(); }).then(function (d) {
-  if (d && d.ok && d.shift_ms) SHIFT_MS = d.shift_ms;
+  if (d && d.ok) {
+    if (d.shift_ms) SHIFT_MS = d.shift_ms;
+    jornadaStartTs = d.start_ts;
+    jornadaEndTs = d.end_ts;
+    jornadaHoy = !!d.jornada_hoy;
+  }
 }).catch(function () {});
 var shiftStart = null;
 var shiftTimer = null;
@@ -484,7 +492,7 @@ function lastVisitedRazon() {
 function updateJornadaBanner() {
   var b = document.getElementById('jornada');
   if (!shiftStart || !running) return;
-  var left = SHIFT_MS - (Date.now() - shiftStart);
+  var left = jornadaEndTs ? (jornadaEndTs - Date.now()) : (SHIFT_MS - (Date.now() - shiftStart));
   b.className = 'jornada';
   b.innerHTML = 'Jornada iniciada · Primer PDV de hoy: <b>' + (primerPDV ? esc(primerPDV.razon) : '—') + '</b><br>' +
     'Se corta en <b>' + fmtRemaining(left) + '</b>';
@@ -493,7 +501,7 @@ function updateJornadaBanner() {
 function scheduleShiftEnd() {
   clearTimeout(shiftTimer);
   clearInterval(shiftCount);
-  var left = SHIFT_MS - (Date.now() - shiftStart);
+  var left = jornadaEndTs ? (jornadaEndTs - Date.now()) : (SHIFT_MS - (Date.now() - shiftStart));
   shiftTimer = setTimeout(finishShift, Math.max(left, 1000));
   shiftCount = setInterval(updateJornadaBanner, 60000);
 }
@@ -592,9 +600,13 @@ function finishShift() {
   running = false;
   shiftStart = null;
   stopTracking();
-  setState('Jornada finalizada (8 hs)', false);
+  setState('Jornada finalizada', false);
+  var msg;
+  if (jornadaHoy === false) msg = 'Hoy no hay jornada programada (día de descanso).';
+  else if (jornadaStartTs && Date.now() < jornadaStartTs) msg = 'La jornada comienza a las 08:00.';
+  else msg = 'Jornada finalizada (8 a 16 h; sábados hasta las 13).';
   document.getElementById('jornada').className = 'jornada done';
-  document.getElementById('jornada').innerHTML = 'Jornada finalizada (8 hs) · Último PDV visitado: <b>' + esc(lastVisitedRazon()) + '</b>';
+  document.getElementById('jornada').innerHTML = msg + ' · Último PDV visitado: <b>' + esc(lastVisitedRazon()) + '</b>';
   document.getElementById('jornada').style.display = 'block';
   localStorage.removeItem('gps_shift_start');
   localStorage.setItem('gps_shift_done', visitaSeq.length ? visitaSeq[visitaSeq.length - 1] : '');

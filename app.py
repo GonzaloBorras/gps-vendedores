@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import base64
+import hashlib
 import json
 import math
 import os
@@ -801,6 +802,59 @@ def rutas_api():
                     'lon': p.get('lon'),
                     'radius': _radius_for(c),
                 })
+    return jsonify(out)
+
+
+@app.route('/api/rutas/version')
+def rutas_version():
+    merchan = request.args.get('merchan', '').strip().upper()
+    h = hashlib.md5()
+    for m, dias in RUTAS.items():
+        if merchan and m != merchan:
+            continue
+        h.update(m.encode('utf-8'))
+        for d in sorted(dias):
+            h.update(d.encode('utf-8'))
+            for c, razon_fb in dias[d]:
+                h.update(('|%s|%s' % (c, razon_fb)).encode('utf-8'))
+    return jsonify({'version': h.hexdigest(), 'fecha': _today_str()})
+
+
+@app.route('/api/resumen')
+def resumen():
+    db = get_db()
+    today = _today_str()
+    key = _today_key()
+    s, e = _day_range(today)
+    now = int(time.time() * 1000)
+    out = {}
+    for v in VENDORS:
+        if v.get('grupo') != 'merchan':
+            continue
+        code = v['code']
+        rows = _exec(db, _q(
+            'SELECT lat, lon, ts FROM positions WHERE code = ? AND ts >= ? AND ts < ? ORDER BY ts'),
+            (code, s, e)).fetchall()
+        km = 0.0
+        prev = None
+        for r in rows:
+            if prev is not None and (r['lat'] != prev[0] or r['lon'] != prev[1]):
+                km += _haversine(prev[0], prev[1], r['lat'], r['lon'])
+            prev = (r['lat'], r['lon'])
+        vis_rows = _exec(db, 'SELECT cliente FROM visitas WHERE code = ? AND fecha = ?',
+                         (code, today)).fetchall()
+        vis = [r['cliente'] for r in vis_rows]
+        ruta_codes = [c for c, _ in RUTAS.get(code, {}).get(key, [])]
+        vis_ruta = [c for c in vis if c in ruta_codes]
+        last_ts = rows[-1]['ts'] if rows else None
+        out[code] = {
+            'km': round(km / 1000, 2),
+            'visitas': len(vis),
+            'ruta_total': len(ruta_codes),
+            'ruta_vis': len(vis_ruta),
+            'last': (now - last_ts) if last_ts else None,
+            'active': bool(last_ts and (now - last_ts) < ACTIVE_MS),
+        }
     return jsonify(out)
 
 

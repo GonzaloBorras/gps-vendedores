@@ -862,9 +862,11 @@ def rutas_version():
 @app.route('/api/resumen')
 def resumen():
     db = get_db()
-    today = _today_str()
-    key = _today_key()
-    s, e = _day_range(today)
+    fecha = request.args.get('fecha', '').strip()
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', fecha):
+        fecha = _today_str()
+    key = WEEKDAY_KEYS[datetime.strptime(fecha, '%Y-%m-%d').weekday()]
+    s, e = _day_range(fecha)
     now = int(time.time() * 1000)
     out = {}
     for v in VENDORS:
@@ -881,7 +883,7 @@ def resumen():
                 km += _haversine(prev[0], prev[1], r['lat'], r['lon'])
             prev = (r['lat'], r['lon'])
         vis_rows = _exec(db, 'SELECT cliente FROM visitas WHERE code = ? AND fecha = ?',
-                         (code, today)).fetchall()
+                         (code, fecha)).fetchall()
         vis = [r['cliente'] for r in vis_rows]
         ruta_codes = [c for c, _ in RUTAS.get(code, {}).get(key, [])]
         vis_ruta = [c for c in vis if c in ruta_codes]
@@ -893,6 +895,24 @@ def resumen():
             'ruta_vis': len(vis_ruta),
             'last': (now - last_ts) if last_ts else None,
             'active': bool(last_ts and (now - last_ts) < ACTIVE_MS),
+        }
+    return jsonify(out)
+
+
+@app.route('/api/jornadas')
+def jornadas():
+    now = int(time.time() * 1000)
+    out = {}
+    for v in VENDORS:
+        if v.get('grupo') != 'merchan':
+            continue
+        code = v['code']
+        win = _jornada_window(code)
+        out[code] = {
+            'jornada_hoy': bool(win),
+            'start_ts': win[0] if win else None,
+            'end_ts': win[1] if win else None,
+            'dentro': bool(win and win[0] <= now < win[1]),
         }
     return jsonify(out)
 

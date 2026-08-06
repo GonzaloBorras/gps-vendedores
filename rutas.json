@@ -130,6 +130,10 @@
  "LAZO-33": {
   "LUNES": [
    [
+    "166974",
+    "ALEM 500 SA"
+   ],
+   [
     "161617",
     "MONETTI RODOLFO SERGIO"
    ],
@@ -146,12 +150,8 @@
     "CARRASCO JUAN JOSE"
    ],
    [
-    "162036",
-    "DISTRIBUIDORA AYACUCHO SRL"
-   ],
-   [
-    "166974",
-    "ALEM 500 SA"
+    "160287",
+    "AGRO M.G SRL"
    ]
   ],
   "MARTES": [
@@ -160,53 +160,69 @@
     "COMESTIBLES ALEM SRL"
    ],
    [
-    "162355",
-    "SALE RUTH NOEMI"
+    "161736",
+    "YOU SHOP SAS"
    ],
    [
     "161861",
     "SURTIDO SRL"
    ],
    [
-    "161736",
-    "YOU SHOP SAS"
-   ],
-   [
-    "168301",
-    "MORIN TRUJILLO MATIAS"
+    "162355",
+    "SALE RUTH NOEMI"
    ],
    [
     "164039",
     "BINCIGUERRA ALEXIS DAVID"
+   ],
+   [
+    "168301",
+    "MORIN TRUJILLO MATIAS"
    ]
   ],
   "MIERCOLES": [
    [
-    "168120",
-    "DIAZ RAMON DANTE EMANUEL"
-   ],
-   [
-    "164074",
-    "CASILLAS DIEGO SEBASTIAN"
+    "165134",
+    "QUESADA DANIEL NICOLAS"
    ],
    [
     "161268",
     "MARTINEZ ELIAS RAFAEL"
    ],
    [
-    "160287",
-    "AGRO M.G SRL"
-   ],
-   [
-    "165134",
-    "QUESADA DANIEL NICOLAS"
+    "168120",
+    "DIAZ RAMON DANTE EMANUEL"
    ],
    [
     "161252",
     "CASTILLO CAJCHAYA MIRIAM"
+   ],
+   [
+    "164074",
+    "CASILLAS DIEGO SEBASTIAN"
+   ],
+   [
+    "160287",
+    "AGRO M.G SRL"
    ]
   ],
   "JUEVES": [
+   [
+    "161604",
+    "COMESTIBLES ALEM SRL"
+   ],
+   [
+    "162232",
+    "MENDER MARCOS MARCELO"
+   ],
+   [
+    "191211",
+    "MONZON VILLALVA AMELIA"
+   ],
+   [
+    "162434",
+    "GEREZ MARIO ALBERTO"
+   ],
    [
     "167733",
     "LOPEZ MARGARITA"
@@ -214,22 +230,6 @@
    [
     "169337",
     "LAZARTE FACUNDO NICOLAS"
-   ],
-   [
-    "162434",
-    "GEREZ MARIO ALBERTO"
-   ],
-   [
-    "191211",
-    "MONZON VILLALVA AMELIA"
-   ],
-   [
-    "162232",
-    "MENDER MARCOS MARCELO"
-   ],
-   [
-    "169427",
-    "EL MARQUES SAS"
    ]
   ],
   "VIERNES": [
@@ -262,128 +262,124 @@
  "CORBALAN-31": {
   "LUNES": [
    [
-    "168170",
-    "LA VERDU SAS"
+    "168293",
+    "Touls Gonzalo"
    ],
    [
-    "160361",
-    "ANDRICH ALICIA BEATRIZ"
+    "169372",
+    "Linares Dangelo Daiana"
    ],
    [
-    "169229",
-    "JULIA MARKET SAS"
+    "169747",
+    "Rojas Lorena Elizabeth"
    ],
    [
-    "160122",
-    "AUTOSERVICIO M&K SAS"
-   ],
-   [
-    "162254",
-    "VARGAS ALMAZÁN EMILIO GERARDO"
-   ],
-   [
-    "164843",
-    "RODRIGUEZ FERNANDO FABIÁN"
+    "169238",
+    "Terán Eloisa María"
    ]
   ],
   "MARTES": [
    [
-    "161260",
-    "CHEN ZHANGCONG"
+    "162204",
+    "Alderete Fabio Martín"
    ],
    [
-    "162204",
-    "ALDERETE FABIO MARTÍN"
+    "161260",
+    "Chen Zhangcong"
    ],
    [
     "160973",
-    "PLAZA VIEJA SRL"
+    "Plaza Vieja SRL"
    ],
    [
     "164222",
-    "GUTIERREZ CARLOS EDUARDO"
+    "Gutierrez Carlos Eduardo"
    ],
    [
     "169747",
-    "ROJAS LORENA ELIZABETH"
+    "Rojas Lorena Elizabeth"
+   ],
+   [
+    "169220",
+    "Agro MG SRL"
    ]
   ],
   "MIERCOLES": [
    [
     "162609",
-    "MISSORICHI FERNANDA HAYDEE"
-   ],
-   [
-    "164217",
-    "GRAU MARTÍN"
+    "Missorichi Fernanda Haydee"
    ],
    [
     "161149",
-    "PORTILLO CARLOS ARIEL"
+    "Portillo Carlos Ariel"
    ],
    [
-    "169220",
-    "AGRO MG SRL"
+    "164217",
+    "Grau Martín"
+   ],
+   [
+    "169229",
+    "Julia Market SAS"
    ],
    [
     "160277",
-    "PEREZ CARLOS ALBERTO"
+    "Perez Carlos Alberto"
    ],
    [
     "167598",
-    "FUENSALIDA RAMOS CAROLINA"
+    "Fuensalida Ramos Carolina"
    ]
   ],
   "JUEVES": [
    [
     "169858",
-    "MATÍAS DANIEL ROMANO"
+    "Matías Daniel Romano"
    ],
    [
     "164255",
-    "JOSÉ JULIO PALOMARES SAS"
-   ],
-   [
-    "169655",
-    "CAZORLA SILVINA"
+    "José Julio Palomares SAS"
    ],
    [
     "167817",
-    "REYES DE COPAS SAS"
+    "Reyes de Copas SAS"
    ],
    [
     "168978",
-    "BOTTINI NICOLÁS"
+    "Bottini Nicolás"
    ],
    [
     "169131",
-    "MARÍA FLORENCIA BUDEGUER"
+    "María Florencia Budeguer"
+   ],
+   [
+    "164843",
+    "Rodriguez Fernando Fabián"
    ]
   ],
   "VIERNES": [
    [
-    "169413",
-    "AUTOKPERON SAS"
+    "169220",
+    "Agro MG SRL"
    ],
    [
     "164787",
-    "QUESADA DANIEL NICOLÁS"
+    "Quesada Daniel Nicolás"
    ],
    [
     "169250",
-    "RODRIGUEZ JUAN BAUTISTA JOSÉ"
+    "Rodriguez Juan Bautista José"
    ],
    [
     "168405",
-    "LIQUOR STORE SAS"
+    "Liquor Store SAS"
    ],
    [
     "169481",
-    "ARAOZ CORTE ROBERTO"
+    "Araoz Corte Roberto"
    ],
    [
-    "169238",
-    "TERÁN ELOISA MARÍA"
+    "169413",
+    "Autokperon SAS"
    ]
   ]
  },
@@ -522,38 +518,38 @@
  "ALBONOZ-39": {
   "LUNES": [
    [
-    "167782",
-    "AUTOSERVICIO SAN RAMÓN S.R.L"
-   ],
-   [
-    "164507",
-    "SUPERMERCADO QMAS S.A.S"
-   ],
-   [
-    "160643",
-    "LOZANO JUAN FERNANDO"
-   ],
-   [
-    "166039",
-    "LI CAIHONG"
+    "160108",
+    "AGRO M.G. S.R.L."
    ],
    [
     "167897",
-    "SILVA JORGELINA"
+    "SILVA JORGELINA."
    ],
    [
-    "161221",
-    "FLORES MARIA"
+    "167782",
+    "AUTOSERVICIO SAN RAMON S.R.L"
+   ],
+   [
+    "164507",
+    "SUPERMERCADO Q MAS S.A.S."
+   ],
+   [
+    "166039",
+    "LI CAIHONG."
+   ],
+   [
+    "160643",
+    "LOZANO JUAN FERNANDO."
    ]
   ],
   "MARTES": [
    [
     "167783",
-    "AUTOSERVICIO SAN RAMÓN S.R.L"
+    "AUTOSERVICIO SAN RAMON S.R.L"
    ],
    [
     "168908",
-    "MARTÍNEZ CECILIA"
+    "MARTINEZ CECILIA"
    ],
    [
     "167859",
@@ -561,7 +557,7 @@
    ],
    [
     "169217",
-    "PORTILLA MARIA ANGELA"
+    "PORTILLO MARIA ANGELA"
    ],
    [
     "171976",
@@ -575,27 +571,27 @@
   "MIERCOLES": [
    [
     "165026",
-    "MILHEN HNOS Y SOC. DE HECHO"
+    "MILHEN HNOS.SOC.DE HECHO."
    ],
    [
     "163092",
-    "COMERCIALIZACIÓN RIVADAVIA S.R.L"
+    "COMERCIALIZADORA RIVADAVIA SRL."
    ],
    [
     "162402",
-    "MILHEN HNOS Y SOC DE HECHO DE ALI"
+    "MILHEM HNO S.DE HECHO DE ALI."
    ],
    [
     "160775",
-    "GARCÍA VICENTE"
+    "GARCIA VICENTE."
    ],
    [
-    "160107",
-    "SING BALWANT"
+    "161044",
+    "PARODI ALEXIS NAHUEL"
    ],
    [
-    "160108",
-    "AGRO MG."
+    "161221",
+    "FLORES MARIA."
    ]
   ],
   "JUEVES": [
@@ -605,26 +601,34 @@
    ],
    [
     "169073",
-    "SILVA JORGELINA DEL VALLE"
+    "SILVA JORGELINA DEL VALLE."
    ],
    [
     "162813",
-    "LOZANO SONIA MALALI DEL VALLE"
+    "LOZANO SONIA MALALI  DEL VALLE"
    ],
    [
     "163068",
-    "PONCE DAVID OMAR"
-   ],
-   [
-    "161292",
-    "CARMENA MARCELO"
+    "PONCE OMAR DAVID"
    ],
    [
     "164489",
     "SILVA JORGELINA DEL VALLE"
+   ],
+   [
+    "161292",
+    "CARMENA MARCELO"
    ]
   ],
   "VIERNES": [
+   [
+    "162402",
+    "MILHEM HNO S.DE HECHO DE ALI."
+   ],
+   [
+    "163092",
+    "COMERCIALIZADORA RIVADAVIA SRL."
+   ],
    [
     "166513",
     "RAMOS IGNACIO MIGUEL"
@@ -634,20 +638,12 @@
     "YAN JIALI"
    ],
    [
-    "165600",
-    "JOSE GRAMAJO"
-   ],
-   [
     "165768",
-    "HB AUTOSERVICIO"
+    "HP AUTOSERVICIO"
    ],
    [
     "172105",
     "RODRIGO GASTON FERNANDEZ"
-   ],
-   [
-    "160949",
-    "CORBALÁN ROBERTO ANTONIO"
    ]
   ]
  },

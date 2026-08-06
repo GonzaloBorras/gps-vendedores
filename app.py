@@ -147,6 +147,28 @@ def _day_range(fecha):
     return start_ms, start_ms + 86400000
 
 
+JORNADA_START_HM = 8 * 60       # 08:00
+JORNADA_END_HM_LV = 16 * 60     # 16:00 de lunes a viernes
+JORNADA_END_HM_SAB = 13 * 60    # 13:00 los sábados
+
+
+def _jornada_window(code):
+    """Ventana (start_ms, end_ms) de hoy para el merchan en hora Argentina.
+    None en domingo. El final se acota con las horas configuradas por merchan."""
+    now = datetime.now(timezone(timedelta(hours=-3)))
+    wd = now.weekday()  # 0=Lu ... 5=Sá, 6=Do
+    if wd == 6:
+        return None
+    end_hm = JORNADA_END_HM_SAB if wd == 5 else JORNADA_END_HM_LV
+    day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_ts = int((day + timedelta(minutes=JORNADA_START_HM)).timestamp() * 1000)
+    end_ts = int((day + timedelta(minutes=end_hm)).timestamp() * 1000)
+    srow = _exec(get_db(), 'SELECT shift_ms FROM shifts WHERE code=?', (code,)).fetchone()
+    if srow:
+        end_ts = min(end_ts, start_ts + srow['shift_ms'])
+    return start_ts, end_ts
+
+
 # ---------------- Esquema ----------------
 
 def init_db():
@@ -449,16 +471,10 @@ def track():
 
     db = get_db()
     ts = int(time.time() * 1000)
-    # Corte de jornada: pasadas las 8 hs (o el valor configurado) desde la
-    # primera señal del día, no se registran más posiciones del merchan.
-    s, e = _day_range(_today_str())
-    first = _exec(db, 'SELECT MIN(ts) AS t FROM positions WHERE code = ? AND ts >= ? AND ts < ?',
-                  (code, s, e)).fetchone()
-    shift_ms = SHIFT_DEFAULT_MS
-    srow = _exec(db, 'SELECT shift_ms FROM shifts WHERE code = ?', (code,)).fetchone()
-    if srow:
-        shift_ms = srow['shift_ms']
-    if first and first['t'] is not None and ts - first['t'] >= shift_ms:
+    # Corte de jornada por horario fijo (08:00-16:00 de lunes a viernes,
+    # 08:00-13:00 los sábados, domingo sin jornada) para todos los merchans.
+    win = _jornada_window(code)
+    if not win or ts < win[0] or ts >= win[1]:
         _exec(db, 'DELETE FROM alerts WHERE code = ?', (code,))
         db.commit()
         return jsonify({'ok': True, 'ts': ts, 'jornada_fin': True}), 200
@@ -531,7 +547,17 @@ def shift_get():
     if code not in VENDOR_BY_CODE:
         return jsonify({'ok': False, 'error': 'codigo invalido'}), 404
     row = _exec(get_db(), _q('SELECT shift_ms FROM shifts WHERE code=?'), (code,)).fetchone()
-    return jsonify({'ok': True, 'code': code, 'shift_ms': row['shift_ms'] if row else SHIFT_DEFAULT_MS})
+    win = _jornada_window(code)
+    now = int(time.time() * 1000)
+    return jsonify({
+        'ok': True,
+        'code': code,
+        'shift_ms': row['shift_ms'] if row else SHIFT_DEFAULT_MS,
+        'start_ts': win[0] if win else None,
+        'end_ts': win[1] if win else None,
+        'dentro': bool(win and win[0] <= now < win[1]),
+        'jornada_hoy': bool(win),
+    })
 
 
 @app.route('/api/config/shift', methods=['POST'])

@@ -189,6 +189,33 @@ body.sidebar-hidden .sidebar { display: none; }
 .rep-low { background: #fef9c3; color: #854d0e; }
 .rep-bad { background: #fee2e2; color: #b91c1c; }
 .exp-link { display: block; width: 100%; margin-top: 6px; padding: 8px; border: 0; border-radius: 8px; background: #059669; color: #fff; text-align: center; text-decoration: none; font-weight: 600; font-size: 13px; cursor: pointer; }
+.toggle-row { min-height: 36px; }
+.meta-bar { height: 6px; background: #eef2ff; border-radius: 999px; overflow: hidden; margin-top: 5px; }
+.meta-bar > span { display: block; height: 100%; background: #22c55e; border-radius: 999px; }
+body.dark .sidebar { background: #1a2234; }
+body.dark .sidebar .head { background: #0f1420; }
+body.dark .filtros { border-bottom-color: #2a3450; }
+body.dark .sidebar input, body.dark .sidebar select { background: #0f1420; border-color: #2a3450; color: #fff; }
+body.dark #statusbar, body.dark .leyenda, body.dark .map-tools button,
+body.dark .card-actions .dots { background: #1a2234; color: #e5e7eb; border-color: #2a3450; }
+body.dark .vendor { background: #1a2234; border-color: #2a3450; }
+body.dark .vendor .name { color: #fff; }
+body.dark .vendor .code, body.dark .vendor .last, body.dark .vendor .card-meta { color: #9ca3af; }
+body.dark .vendor .card-meta b { color: #e5e7eb; }
+body.dark .tab { background: #1a2234; border-color: #2a3450; color: #9ca3af; }
+body.dark .tab.active { background: #0f1420; border-color: #0f1420; color: #fff; }
+body.dark .config { background: #1a2234; }
+body.dark .config label, body.dark .config h2, body.dark .config h3 { color: #e5e7eb; }
+body.dark .config select, body.dark .config input, body.dark .config textarea,
+body.dark .config .vlist { background: #0f1420; border-color: #2a3450; color: #fff; }
+body.dark .config .cfg-tab { background: #0f1420; color: #9ca3af; }
+body.dark .config .cfg-tab.active { background: #1d4ed8; color: #fff; }
+body.dark .meta-bar { background: #2a3450; }
+@media (max-width: 720px) {
+  .sidebar { width: min(300px, calc(100vw - 20px)); }
+  .vendor button, .card-actions .dots { min-height: 38px; }
+  .map-tools button { width: 42px; height: 42px; font-size: 17px; }
+}
 </style>
 </head>
 <body>
@@ -208,7 +235,7 @@ body.sidebar-hidden .sidebar { display: none; }
 <div class="sidebar">
   <div class="head">
     <h1>GPS Merchan</h1>
-    <div class="sub">Tucumán &amp; Catamarca — <span id="activos">0</span> activos</div>
+    <div class="sub">Tucumán &amp; Catamarca — <span id="activos">0</span> activos · <span id="sinCount">0 sin señal</span></div>
     <button class="gear" onclick="openConfig()" title="Configuración">⚙</button>
   </div>
   <div class="tabs">
@@ -218,6 +245,14 @@ body.sidebar-hidden .sidebar { display: none; }
     <input type="text" id="search" placeholder="Buscar merchan...">
     <select id="prov"><option value="">Todas las provincias</option>
       <option>TUCUMAN</option><option>CATAMARCA</option></select>
+    <label class="toggle-row">
+      <span style="flex:none">Día:</span>
+      <input type="date" id="fecha-select" onchange="onFechaChange()" style="margin:0;flex:1">
+    </label>
+    <label class="toggle-row">
+      <input type="checkbox" id="solo-sin" onchange="applyFilters()">
+      <span>Solo sin señal</span>
+    </label>
     <label class="toggle-row">
       <input type="checkbox" id="pdv-toggle" onchange="togglePDV()" checked>
       <span>Mostrar PDV (clientes)</span>
@@ -232,6 +267,7 @@ body.sidebar-hidden .sidebar { display: none; }
 <div class="leyenda">🟢 Punto verde: enviando ahora<br>⚪ Punto gris: sin señal (más de 2 min)<br>🔴 Rojo: PDV más cercano al seleccionar un merchan</div>
 <div class="map-tools">
   <button id="refreshBtn" title="Refrescar panel" onclick="location.reload()">⟳</button>
+  <button id="darkBtn" title="Modo oscuro" onclick="toggleDark()">🌙</button>
   <button id="sidebarBtn" title="Mostrar / ocultar lista" onclick="toggleSidebar()">◧</button>
 </div>
 <div class="config-overlay" id="config-overlay">
@@ -375,6 +411,20 @@ var RUTAS_DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
 var RUTAS_DIA_NAMES = { LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado' };
 var RUTAS_TODAY = { 1: 'LUNES', 2: 'MARTES', 3: 'MIERCOLES', 4: 'JUEVES', 5: 'VIERNES', 6: 'SABADO' }[new Date().getDay()] || '';
 var rutasByMerchan = {};
+var fechaSel = todayStr();
+function rutaKeyFor(fecha) {
+  if (!fecha) return '';
+  var p = fecha.split('-');
+  var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  return RUTAS_DIAS[d.getDay()] || '';
+}
+function selKey() { return rutaKeyFor(fechaSel); }
+function fmtHora(ts) {
+  if (!ts) return '—';
+  var d = new Date(ts - 3 * 3600 * 1000);
+  var p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
 
 function toast(msg) {
   var t = document.getElementById('toast');
@@ -398,18 +448,20 @@ function loadRutasCache() {
 
 function rutaHoyCount(code) {
   var d = rutasByMerchan[code];
-  if (!d || !RUTAS_TODAY) return 0;
-  var lst = d[RUTAS_TODAY];
+  var k = selKey();
+  if (!d || !k) return 0;
+  var lst = d[k];
   return lst ? lst.length : 0;
 }
 
 function rutaHoyPendientes(code) {
   var d = rutasByMerchan[code];
-  if (!d || !RUTAS_TODAY || !d[RUTAS_TODAY]) return 0;
+  var k = selKey();
+  if (!d || !k || !d[k]) return 0;
   var vis = (visitasToday[code] || {}).clientes || [];
   var set = {};
   vis.forEach(function (c) { set[String(c)] = 1; });
-  return d[RUTAS_TODAY].filter(function (v) { return !set[String(v.cliente)]; }).length;
+  return d[k].filter(function (v) { return !set[String(v.cliente)]; }).length;
 }
 
 function markerIcon(color) {
@@ -420,26 +472,30 @@ function markerIcon(color) {
 }
 
 function makePopup(v, pos) {
-  var ago = Math.round(pos.last / 1000);
-  var when = ago < 60 ? ago + ' seg' : Math.round(ago / 60) + ' min';
+  var ago = pos.last != null ? Math.round(pos.last / 1000) : null;
+  var when = ago == null ? '—' : (ago < 60 ? ago + ' seg' : Math.round(ago / 60) + ' min');
   var hoy = '';
   if (v.grupo === 'merchan') {
     var total = rutaHoyCount(v.code);
     if (total) {
       var pend = rutaHoyPendientes(v.code);
       var done = total - pend;
-      hoy = '<div class="ruta">Ruta hoy (' + RUTAS_DIA_NAMES[RUTAS_TODAY] + '): ' + pend +
+      hoy = '<div class="ruta">Ruta ' + (fechaSel === todayStr() ? 'hoy' : 'del día ' + fechaSel) +
+        ' (' + (RUTAS_DIA_NAMES[selKey()] || '—') + '): ' + pend +
         ' pendientes de ' + total + (done ? ' · ' + done + ' visitados' : '') + '</div>';
     }
   }
+  var horaTxt = (pos.last != null && pos.last > 60 * 60000) || pos.last == null
+    ? ' <span style="color:#b91c1c;font-weight:700">SIN SEÑAL</span>' : '';
   return '<div class="popup-info">' +
     '<div class="name">' + esc(v.name) + ' <span style="color:#9ca3af;font-size:10px">' + esc(v.prov) + '</span></div>' +
     '<div>Código: ' + esc(v.code) + '</div>' +
-    '<div class="ruta">Última señal: hace ' + when + '</div>' +
+    '<div class="ruta">Última señal: hace ' + when + ' (' + fmtHora(pos.ts) + ')</div>' +
     hoy +
     '<div style="margin-top:4px">' +
-    '<button class="btn btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Ver recorrido</button> ' +
+    '<button class="btn btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Recorrido</button> ' +
     '<button class="btn btn-route" onclick="playRoute(\'' + esc(v.code) + '\')">Reproducir</button> ' +
+    (v.grupo === 'merchan' ? '<button class="btn btn-route" onclick="showRutaDia(\'' + esc(v.code) + '\')">Ruta del día</button> ' : '') +
     '<a class="btn btn-gmaps" href="https://www.google.com/maps/search/?api=1&query=' + pos.lat + ',' + pos.lon +
     '" target="_blank" rel="noopener">Google Maps</a>' +
     '</div></div>';
@@ -463,8 +519,8 @@ function renderSidebar(list) {
       var totalHoy = rutaHoyCount(v.code);
       var pendHoy = rutaHoyPendientes(v.code);
       meta = '<div class="card-meta" id="meta-' + esc(v.code) + '">' +
-        'Visitas hoy: — · PDV: —' +
-        (totalHoy ? ' · Ruta hoy: <b>' + pendHoy + '</b><span class="hoy-badge">HOY</span>' : '') +
+        'Visitas: — · PDV: —' +
+        (totalHoy ? ' · Ruta: <b>' + pendHoy + '</b> pend' : '') +
         '</div>';
     }
     el.innerHTML = '<div class="row1"><span class="dot ' + (on ? 'on' : 'off') + '"></span>' +
@@ -477,6 +533,7 @@ function renderSidebar(list) {
       '<div class="acts">' +
       '<button class="btn-copy" onclick="copyLink(\'' + esc(v.code) + '\')">Copiar link</button>' +
       '<button class="btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Recorrido</button>' +
+      (v.grupo === 'merchan' ? '<a class="btn btn-copy" href="/api/export/visitas.csv?desde=' + fechaSel + '&hasta=' + fechaSel + '&code=' + esc(v.code) + '" target="_blank" rel="noopener">CSV día</a>' : '') +
       '</div></div>';
     el.querySelector('.row1').addEventListener('click', function () {
       if (v.grupo === 'merchan') { showMerchanPDV(v.code); } else { flyTo(v.code); }
@@ -485,6 +542,11 @@ function renderSidebar(list) {
   });
   var act = list.filter(function (v) { var p = markers[v.code] && markers[v.code]._pos; return p && p.active; }).length;
   document.getElementById('activos').textContent = act;
+  var sinCount = list.filter(function (v) {
+    var p = markers[v.code] && markers[v.code]._pos;
+    return !p || p.last == null || p.last > 10 * 60000;
+  }).length;
+  document.getElementById('sinCount').textContent = sinCount;
   renderedCodes = list.map(function (v) { return v.code; }).join('\u0001');
   renderMerchanMeta();
 }
@@ -500,6 +562,7 @@ var merchanNear = {};
 var visitasToday = {};
 var visitedPdvSet = {};
 var resumenData = {};
+var jornadasData = {};
 
 function haversineM(lat1, lon1, lat2, lon2) {
   var R = 6371000;
@@ -533,18 +596,25 @@ function renderMerchanMeta() {
     var vi = visitasToday[code] || { n: 0, clientes: [] };
     var n = merchanNear[code];
     var rs = resumenData[code] || {};
-    var html = 'Visitas hoy: ' + vi.n +
+    var j = jornadasData[code];
+    var html = 'Visitas: ' + vi.n +
       ' · PDV: ' + (n && n.razon
         ? esc(n.razon) + ' (' + (n.dist_m < 1000 ? n.dist_m + ' m' : (n.dist_m / 1000).toFixed(1) + ' km') + ')'
         : '—');
     if (n && n.pendiente) html += ' <span class="hoy-badge" style="background:#dc2626">🎯 PDV pendiente</span>';
     else if (n && n.dentro) html += ' <span class="hoy-badge" style="background:#059669">✔ en PDV</span>';
+    if (j) {
+      if (!j.jornada_hoy) html += ' <span class="hoy-badge" style="background:#6b7280">Descanso</span>';
+      else if (j.dentro) html += ' <span class="hoy-badge" style="background:#1d4ed8">Jornada activa</span>';
+      else html += ' <span class="hoy-badge" style="background:#9333ea">Jornada finalizada</span>';
+    }
     if (rs.ruta_total) {
       var pend = rs.ruta_total - rs.ruta_vis;
       var pct = Math.round(rs.ruta_vis / rs.ruta_total * 100);
-      html += ' · Ruta hoy: <b>' + pend + '</b> pend · Cumpl.: <b>' + pct + '%</b>';
+      html += ' · Ruta: <b>' + pend + '</b> pend · Cumpl.: <b>' + pct + '%</b>' +
+        '<div class="meta-bar"><span style="width:' + pct + '%"></span></div>';
     }
-    if (rs.km != null) html += ' · Km hoy: <b>' + rs.km + '</b>';
+    if (rs.km != null) html += ' · Km: <b>' + rs.km + '</b>';
     if (desviadoDeRuta(code)) html += ' <span class="hoy-badge" style="background:#f59e0b">⬆ Fuera de ruta</span>';
     el.innerHTML = html;
   });
@@ -554,7 +624,7 @@ function updateCardData() {
   fetch('/api/merchan-pdv').then(function (r) { return r.json(); })
     .then(function (d) { merchanNear = d || {}; renderMerchanMeta(); })
     .catch(function () {});
-  fetch('/api/visitas/resumen?fecha=' + todayStr()).then(function (r) { return r.json(); })
+  fetch('/api/visitas/resumen?fecha=' + fechaSel).then(function (r) { return r.json(); })
     .then(function (d) {
       visitasToday = d || {};
       visitedPdvSet = {};
@@ -565,8 +635,11 @@ function updateCardData() {
       renderMerchanMeta();
     })
     .catch(function () {});
-  fetch('/api/resumen').then(function (r) { return r.json(); })
+  fetch('/api/resumen?fecha=' + fechaSel).then(function (r) { return r.json(); })
     .then(function (d) { resumenData = d || {}; renderMerchanMeta(); })
+    .catch(function () {});
+  fetch('/api/jornadas').then(function (r) { return r.json(); })
+    .then(function (d) { jornadasData = d || {}; renderMerchanMeta(); })
     .catch(function () {});
 }
 
@@ -622,6 +695,11 @@ function updateSidebarStatus(list) {
   }
   var act = list.filter(function (v) { var p = markers[v.code] && markers[v.code]._pos; return p && p.active; }).length;
   document.getElementById('activos').textContent = act;
+  var sinCount = list.filter(function (v) {
+    var p = markers[v.code] && markers[v.code]._pos;
+    return !p || p.last == null || p.last > 10 * 60000;
+  }).length;
+  document.getElementById('sinCount').textContent = sinCount;
 }
 
 function refresh() {
@@ -708,13 +786,39 @@ function renderAlerts(arr) {
 
 function showRoute(code) {
   if (routeLayer) map.removeLayer(routeLayer);
-  fetch('/api/history?code=' + encodeURIComponent(code) + '&fecha=' + todayStr()).then(function (r) { return r.json(); }).then(function (pts) {
-    if (!pts.length) { toast('Sin recorrido registrado hoy'); return; }
+  fetch('/api/history?code=' + encodeURIComponent(code) + '&fecha=' + fechaSel).then(function (r) { return r.json(); }).then(function (pts) {
+    if (!pts.length) { toast('Sin recorrido registrado el ' + fechaSel); return; }
     routeLayer = L.polyline(pts.map(function (p) { return [p.lat, p.lon]; }), {
       color: '#6366f1', weight: 3, opacity: 0.8
     }).addTo(map);
     map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
   }).catch(function () {});
+}
+
+var rutaDiaLayer = null;
+function showRutaDia(code) {
+  if (rutaDiaLayer) { map.removeLayer(rutaDiaLayer); rutaDiaLayer = null; }
+  var d = rutasByMerchan[code];
+  var lst = (d && d[selKey()]) || [];
+  if (!lst.length) { toast('Sin ruta asignada ese día'); return; }
+  var pts = lst.filter(function (v) { return v.lat != null && v.lon != null; });
+  if (!pts.length) { toast('La ruta de ese día no tiene ubicaciones cargadas'); return; }
+  var line = L.polyline(pts.map(function (v) { return [v.lat, v.lon]; }), {
+    color: '#7c3aed', weight: 3, dashArray: '6 6', opacity: 0.8
+  });
+  var vis = (visitasToday[code] || {}).clientes || [];
+  var visSet = {};
+  vis.forEach(function (c) { visSet[String(c)] = 1; });
+  var marks = pts.map(function (v) {
+    var isVis = visSet[String(v.cliente)];
+    return L.circleMarker([v.lat, v.lon], {
+      radius: 6, color: '#fff', weight: 1,
+      fillColor: isVis ? '#22c55e' : '#7c3aed', fillOpacity: 0.95
+    });
+  });
+  rutaDiaLayer = L.layerGroup([line].concat(marks)).addTo(map);
+  map.fitBounds(line.getBounds(), { padding: [40, 40] });
+  toast('Ruta del ' + (RUTAS_DIA_NAMES[selKey()] || 'día') + ' ' + fechaSel + ': ' + lst.length + ' PDV');
 }
 
 var replayMarker = null;
@@ -725,8 +829,8 @@ function stopReplay() {
 }
 function playRoute(code) {
   stopReplay();
-  fetch('/api/history?code=' + encodeURIComponent(code) + '&fecha=' + todayStr()).then(function (r) { return r.json(); }).then(function (pts) {
-    if (!pts.length) { toast('Sin recorrido hoy para reproducir'); return; }
+  fetch('/api/history?code=' + encodeURIComponent(code) + '&fecha=' + fechaSel).then(function (r) { return r.json(); }).then(function (pts) {
+    if (!pts.length) { toast('Sin recorrido ese día para reproducir'); return; }
     if (routeLayer) map.removeLayer(routeLayer);
     routeLayer = L.polyline(pts.map(function (p) { return [p.lat, p.lon]; }), {
       color: '#6366f1', weight: 3, opacity: 0.8
@@ -1357,6 +1461,18 @@ function applyFilters() {
     if (q && !(v.name + ' ' + v.code + ' ' + v.prov).toLowerCase().includes(q)) return false;
     return true;
   });
+  if (document.getElementById('solo-sin') && document.getElementById('solo-sin').checked) {
+    list = list.filter(function (v) {
+      var pp = markers[v.code] && markers[v.code]._pos;
+      return !pp || pp.last == null || pp.last > 10 * 60000;
+    }).sort(function (a, b) {
+      var pa = markers[a.code] && markers[a.code]._pos;
+      var pb = markers[b.code] && markers[b.code]._pos;
+      var la = pa ? (pa.last != null ? pa.last : Infinity) : Infinity;
+      var lb = pb ? (pb.last != null ? pb.last : Infinity) : Infinity;
+      return lb - la;
+    });
+  }
   markerLayer.clearLayers();
   list.forEach(function (v) { if (markers[v.code]) markerLayer.addLayer(markers[v.code]); });
   currentList = list;
@@ -1372,6 +1488,23 @@ function applyFilters() {
 document.getElementById('search').addEventListener('input', applyFilters);
 document.getElementById('prov').addEventListener('change', applyFilters);
 document.getElementById('tab-merchan').textContent = 'Merchan (' + vendorsData.filter(function (v) { return v.grupo === 'merchan'; }).length + ')';
+
+function onFechaChange() {
+  var d = document.getElementById('fecha-select').value;
+  if (!d) { d = todayStr(); document.getElementById('fecha-select').value = d; }
+  fechaSel = d;
+  toast('Mostrando datos del ' + fechaSel);
+  updateCardData();
+  applyFilters();
+}
+function toggleDark() {
+  var on = document.body.classList.toggle('dark');
+  var b = document.getElementById('darkBtn');
+  if (b) b.classList.toggle('active', on);
+  try { localStorage.setItem('gps_dark', on ? '1' : '0'); } catch (e) {}
+}
+try { if (localStorage.getItem('gps_dark') === '1') { document.body.classList.add('dark'); } } catch (e) {}
+document.getElementById('fecha-select').value = todayStr();
 
 map.setView([-27.8, -65.6], 9);
 loadRutasCache();

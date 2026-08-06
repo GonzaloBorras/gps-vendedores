@@ -150,6 +150,9 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 @keyframes nextFlash { 0%,100% { background: #0f1420; } 40% { background: rgba(29,78,216,.35); border-color: #3b82f6; } }
 .fuera-badge { display: inline-block; margin-left: 6px; background: #7c3aed; color: #fff;
   border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+.sinub-badge { display: inline-block; margin-left: 6px; background: #d97706; color: #fff;
+  border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+.sinub-hint { color: #d97706; }
 .busca-hint { font-size: 11px; color: #8b93a7; margin: -4px 0 8px; line-height: 1.4; }
 .ruta-banner { display: none; margin-top: 12px; background: #fefce8; border: 1px solid #fde047;
   color: #854d0e; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 600;
@@ -705,11 +708,14 @@ function renderRutaHoy() {
       var dir = (v.calle || '') + (v.altura ? ' ' + v.altura : '');
       var vis = visitasCache[v.cliente];
       var d = pdvDistM(v);
+      var sinUb = !vis && (v.lat == null || v.lon == null);
       return '<div class="pdv-item ' + (vis ? 'visited' : '') + (d !== null && d > (v.radius || 150) ? ' pdv-far' : '') + '" data-cliente="' + v.cliente + '" onclick="marcarVisita(\'' + v.cliente + '\',\'' + esc(v.razon) + '\')">' +
-        '<div class="r">' + esc(v.razon) + '</div>' +
+        '<div class="r">' + esc(v.razon) + (sinUb ? '<span class="sinub-badge">sin ubicación</span>' : '') + '</div>' +
         '<div class="d">Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(v) + '</div>' +
         (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
-        (vis ? '<small>registrado · tocá para quitar</small>' : '<small>tocá para marcar como visitado</small>') +
+        (sinUb
+          ? '<small class="sinub-hint">Sin ubicación: registrá la visita con foto y queda cargado con GPS.</small>'
+          : (vis ? '<small>registrado · tocá para quitar</small>' : '<small>tocá para marcar como visitado</small>')) +
         '</div>';
     }).join('');
   renderProximo();
@@ -960,6 +966,7 @@ function confirmarFoto() {
     fd.append('code', code);
     fd.append('cliente', c);
     fd.append('fecha', todayStr());
+    fd.append('razon', pdvNameCache[c] || c);
     fd.append('validate', 'true');
     fd.append('accuracy', acc || lastAcc || '0');
     if (lat != null && lon != null) {

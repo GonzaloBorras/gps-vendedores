@@ -492,6 +492,7 @@ function toggleCardActions(btn) {
 
 var merchanNear = {};
 var visitasToday = {};
+var visitedPdvSet = {};
 
 function renderMerchanMeta() {
   document.querySelectorAll('.vendor .card-meta').forEach(function (el) {
@@ -516,7 +517,15 @@ function updateCardData() {
     .then(function (d) { merchanNear = d || {}; renderMerchanMeta(); })
     .catch(function () {});
   fetch('/api/visitas/resumen?fecha=' + todayStr()).then(function (r) { return r.json(); })
-    .then(function (d) { visitasToday = d || {}; renderMerchanMeta(); })
+    .then(function (d) {
+      visitasToday = d || {};
+      visitedPdvSet = {};
+      Object.keys(visitasToday).forEach(function (code) {
+        (visitasToday[code].clientes || []).forEach(function (c) { visitedPdvSet[String(c)] = 1; });
+      });
+      refreshPDVColors();
+      renderMerchanMeta();
+    })
     .catch(function () {});
 }
 
@@ -876,7 +885,7 @@ function quitarVisitaPanel(c) {
     method: 'DELETE', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code: code, cliente: c, fecha: fecha })
   }).then(function (r) { return r.json(); }).then(function (d) {
-    if (d.ok) loadVisitasPanel();
+    if (d.ok) { loadVisitasPanel(); updateCardData(); }
   }).catch(function () {});
 }
 
@@ -913,6 +922,7 @@ function addVisitaPanel(c) {
       document.getElementById('vis-search').value = '';
       document.getElementById('vis-res').innerHTML = '';
       loadVisitasPanel();
+      updateCardData();
     }
   }).catch(function () {});
 }
@@ -1231,9 +1241,12 @@ function togglePDV() {
   }
   fetch('/api/pdv').then(function (r) { return r.json(); }).then(function (arr) {
     var pts = arr.map(function (d) {
+      var vis = visitedPdvSet[d.c];
       var m = L.circleMarker([d.lat, d.lon], {
-        radius: 4, color: '#6b7280', weight: 1, fillColor: '#9ca3af', fillOpacity: 0.6
+        radius: 4, color: vis ? '#1d4ed8' : '#6b7280', weight: 1,
+        fillColor: vis ? '#1d4ed8' : '#9ca3af', fillOpacity: 0.85
       });
+      m._c = d.c;
       var dir = d.calle || '—';
       if (d.altura) dir += ' ' + d.altura;
       m.bindPopup('<div class="popup-info">' +
@@ -1254,6 +1267,13 @@ function togglePDV() {
     if (map.getZoom() >= 16) map.addLayer(pdvPlain); else map.addLayer(pdvCluster);
     document.getElementById('statusbar').textContent = 'PDV cargados: ' + arr.length;
   }).catch(function () {});
+}
+
+function refreshPDVColors() {
+  pdvPoints.forEach(function (m) {
+    var vis = visitedPdvSet[m._c];
+    m.setStyle({ color: vis ? '#1d4ed8' : '#6b7280', fillColor: vis ? '#1d4ed8' : '#9ca3af' });
+  });
 }
 
 function syncPDVZoom() {

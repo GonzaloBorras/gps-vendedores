@@ -40,6 +40,10 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
   border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
 .list { flex: 1; overflow: auto; padding: 8px; }
 .vendor { border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; border: 1px solid #e5e7eb; }
+.vendor.inactive { border-color: #fca5a5; }
+.vendor.inactive-long { border-color: #ef4444; background: #fef2f2; }
+.vendor .sin-badge { display: inline-block; background: #ef4444; color: #fff; border-radius: 4px;
+  padding: 0 5px; font-size: 9px; font-weight: 700; margin-left: 4px; vertical-align: middle; }
 .vendor .row1 { display: flex; align-items: center; gap: 8px; }
 .vendor .name { font-weight: 700; font-size: 13px; flex: 1; }
 .vendor .code { font-size: 11px; color: #6b7280; }
@@ -452,6 +456,8 @@ function renderSidebar(list) {
     var lastTxt = pos ? ('Última señal: hace ' + (Math.round(pos.last / 1000) < 60
       ? Math.round(pos.last / 1000) + ' seg'
       : Math.round(pos.last / 60000) + ' min')) : 'Sin señal';
+    if (pos && pos.last != null && pos.last > 10 * 60000) lastTxt += ' <span class="sin-badge">SIN SEÑAL</span>';
+    else if (!pos) lastTxt += ' <span class="sin-badge">SIN SEÑAL</span>';
     var meta = '';
     if (v.grupo === 'merchan') {
       var totalHoy = rutaHoyCount(v.code);
@@ -493,21 +499,53 @@ function toggleCardActions(btn) {
 var merchanNear = {};
 var visitasToday = {};
 var visitedPdvSet = {};
+var resumenData = {};
+
+function haversineM(lat1, lon1, lat2, lon2) {
+  var R = 6371000;
+  var dLat = (lat2 - lat1) * Math.PI / 180;
+  var dLon = (lon2 - lon1) * Math.PI / 180;
+  var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+function desviadoDeRuta(code) {
+  var pos = markers[code] && markers[code]._pos;
+  if (!pos || pos.lat == null || pos.lon == null) return false;
+  if (pos.last == null || pos.last > 30 * 60000) return false;
+  var d = rutasByMerchan[code];
+  if (!d || !d[RUTAS_TODAY]) return false;
+  var min = Infinity;
+  d[RUTAS_TODAY].forEach(function (v) {
+    if (v.lat == null || v.lon == null) return;
+    var dd = haversineM(pos.lat, pos.lon, v.lat, v.lon);
+    if (dd < min) min = dd;
+  });
+  if (min === Infinity) return false;
+  return min > 6000;
+}
 
 function renderMerchanMeta() {
   document.querySelectorAll('.vendor .card-meta').forEach(function (el) {
     var code = el.id.replace('meta-', '');
     var vi = visitasToday[code] || { n: 0, clientes: [] };
     var n = merchanNear[code];
-    var totalHoy = rutaHoyCount(code);
-    var pendHoy = rutaHoyPendientes(code);
+    var rs = resumenData[code] || {};
     var html = 'Visitas hoy: ' + vi.n +
       ' · PDV: ' + (n && n.razon
         ? esc(n.razon) + ' (' + (n.dist_m < 1000 ? n.dist_m + ' m' : (n.dist_m / 1000).toFixed(1) + ' km') + ')'
         : '—');
     if (n && n.pendiente) html += ' <span class="hoy-badge" style="background:#dc2626">🎯 PDV pendiente</span>';
     else if (n && n.dentro) html += ' <span class="hoy-badge" style="background:#059669">✔ en PDV</span>';
-    if (totalHoy) html += ' · Ruta hoy: <b>' + pendHoy + '</b><span class="hoy-badge">HOY</span>';
+    if (rs.ruta_total) {
+      var pend = rs.ruta_total - rs.ruta_vis;
+      var pct = Math.round(rs.ruta_vis / rs.ruta_total * 100);
+      html += ' · Ruta hoy: <b>' + pend + '</b> pend · Cumpl.: <b>' + pct + '%</b>';
+    }
+    if (rs.km != null) html += ' · Km hoy: <b>' + rs.km + '</b>';
+    if (desviadoDeRuta(code)) html += ' <span class="hoy-badge" style="background:#f59e0b">⬆ Fuera de ruta</span>';
     el.innerHTML = html;
   });
 }
@@ -526,6 +564,9 @@ function updateCardData() {
       refreshPDVColors();
       renderMerchanMeta();
     })
+    .catch(function () {});
+  fetch('/api/resumen').then(function (r) { return r.json(); })
+    .then(function (d) { resumenData = d || {}; renderMerchanMeta(); })
     .catch(function () {});
 }
 
@@ -559,11 +600,25 @@ function updateSidebarStatus(list) {
     var dot = el.querySelector('.dot');
     if (dot) dot.className = 'dot ' + (on ? 'on' : 'off');
     var last = el.querySelector('.last');
-    if (last) last.textContent = pos
-      ? ('Última señal: hace ' + (Math.round(pos.last / 1000) < 60
-        ? Math.round(pos.last / 1000) + ' seg'
-        : Math.round(pos.last / 60000) + ' min'))
-      : 'Sin señal';
+    var sinBadge = el.querySelector('.sin-badge');
+    var cls = 'vendor';
+    if (pos && pos.last != null) {
+      if (pos.last > 10 * 60000) cls = 'vendor inactive-long';
+      else if (!pos.active) cls = 'vendor inactive';
+    } else if (!pos) {
+      cls = 'vendor inactive';
+    }
+    el.className = cls;
+    if (last) {
+      var txt = pos
+        ? ('Última señal: hace ' + (Math.round(pos.last / 1000) < 60
+          ? Math.round(pos.last / 1000) + ' seg'
+          : Math.round(pos.last / 60000) + ' min'))
+        : 'Sin señal';
+      if (pos && pos.last != null && pos.last > 10 * 60000) txt += ' <span class="sin-badge">SIN SEÑAL</span>';
+      else if (!pos) txt += ' <span class="sin-badge">SIN SEÑAL</span>';
+      last.innerHTML = txt;
+    }
   }
   var act = list.filter(function (v) { var p = markers[v.code] && markers[v.code]._pos; return p && p.active; }).length;
   document.getElementById('activos').textContent = act;

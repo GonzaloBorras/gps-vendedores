@@ -1026,6 +1026,7 @@ def visitas_post():
     pdv = next((p for p in PDV if p.get('c') == cliente), None)
     razon = pdv.get('r', '') if pdv else str(body.get('razon', '')).strip()
     calle = pdv.get('calle', '') if pdv else str(body.get('calle', '')).strip()
+    altura = pdv.get('altura', '') if pdv else str(body.get('altura', '')).strip()
     vta = pdv.get('vta', '') if pdv else str(body.get('vta', '')).strip()
     if not pdv and not razon:
         return jsonify({'ok': False, 'error': 'cliente no encontrado en PDV'}), 404
@@ -1062,6 +1063,33 @@ def visitas_post():
             d = _haversine(use_lat, use_lon, pdv['lat'], pdv['lon'])
             if d > limit:
                 return jsonify({'ok': False, 'error': 'No estás en el PDV (%s). Estás a %d m de ese PDV.' % (pdv.get('r', ''), int(d))}), 400
+    # PDV de ruta que no estaba georreferenciado: al primer registro de visita
+    # con GPS, queda cargado en el catálogo (pdvs_extra) con el código real.
+    if pdv is None and razon:
+        g_lat = g_lon = None
+        try:
+            if body.get('lat') not in (None, ''):
+                g_lat = float(body.get('lat'))
+            if body.get('lon') not in (None, ''):
+                g_lon = float(body.get('lon'))
+        except (TypeError, ValueError):
+            g_lat = g_lon = None
+        if g_lat is not None and g_lon is not None and -90 <= g_lat <= 90 and -180 <= g_lon <= 180:
+            nprov = v.get('prov', '')
+            _exec(db, '''INSERT INTO pdvs_extra(cliente, razon, calle, altura, vta, prov, lat, lon, creado_por, ts)
+                         VALUES (?,?,?,?,?,?,?,?,?,?)
+                         ON CONFLICT(cliente) DO UPDATE SET
+                           razon=excluded.razon, calle=excluded.calle, altura=excluded.altura, vta=excluded.vta,
+                           prov=excluded.prov, lat=excluded.lat, lon=excluded.lon, ts=excluded.ts''',
+                  (cliente, razon, calle, altura, vta, nprov, g_lat, g_lon, code, int(time.time() * 1000)))
+            db.commit()
+            nuevo = {'c': cliente, 'r': razon, 'calle': calle, 'altura': altura, 'vta': vta,
+                     'prov': nprov, 'lat': g_lat, 'lon': g_lon}
+            if not PDV_BY_CODE.get(cliente):
+                PDV.append(nuevo)
+            PDV_BY_CODE[cliente] = nuevo
+            if not any(p.get('c') == cliente for p in PDV_EXTRA):
+                PDV_EXTRA.append(nuevo)
     ts = int(time.time() * 1000)
     if PG:
         _exec(db, '''INSERT INTO visitas(fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts)

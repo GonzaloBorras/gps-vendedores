@@ -449,6 +449,19 @@ def track():
 
     db = get_db()
     ts = int(time.time() * 1000)
+    # Corte de jornada: pasadas las 8 hs (o el valor configurado) desde la
+    # primera señal del día, no se registran más posiciones del merchan.
+    s, e = _day_range(_today_str())
+    first = _exec(db, 'SELECT MIN(ts) AS t FROM positions WHERE code = ? AND ts >= ? AND ts < ?',
+                  (code, s, e)).fetchone()
+    shift_ms = SHIFT_DEFAULT_MS
+    srow = _exec(db, 'SELECT shift_ms FROM shifts WHERE code = ?', (code,)).fetchone()
+    if srow:
+        shift_ms = srow['shift_ms']
+    if first and first['t'] is not None and ts - first['t'] >= shift_ms:
+        _exec(db, 'DELETE FROM alerts WHERE code = ?', (code,))
+        db.commit()
+        return jsonify({'ok': True, 'ts': ts, 'jornada_fin': True}), 200
     _exec(db, 'INSERT INTO positions(code, name, lat, lon, session, ts) VALUES (?,?,?,?,?,?)',
           (code, vendor['name'], lat, lon, str(body.get('session'))[:64], ts))
     _exec(db, 'DELETE FROM alerts WHERE code = ?', (code,))

@@ -49,6 +49,7 @@ function send() {
       type: 'sent',
       ok: !!d.ok,
       error: d.error,
+      fin: !!d.jornada_fin,
       ts: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     });
   }).catch(function () {

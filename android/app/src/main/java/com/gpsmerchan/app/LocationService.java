@@ -18,10 +18,15 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+
+import org.json.JSONObject;
 
 public class LocationService extends Service implements LocationListener {
 
@@ -39,6 +44,11 @@ public class LocationService extends Service implements LocationListener {
     private long lastGpsSent = 0;
     private Handler handler;
     private Runnable gpsCheck;
+    private Runnable shiftRefresh;
+
+    private long jornadaStart = 0;
+    private long jornadaEnd = 0;
+    private boolean jornadaKnown = false;
 
     @Override
     public void onCreate() {
@@ -53,7 +63,15 @@ public class LocationService extends Service implements LocationListener {
             @Override
             public void run() {
                 reportGps(anyProviderEnabled());
+                checkJornada();
                 handler.postDelayed(this, 60000);
+            }
+        };
+        shiftRefresh = new Runnable() {
+            @Override
+            public void run() {
+                refreshShift();
+                handler.postDelayed(this, 300000);
             }
         };
     }
@@ -112,6 +130,10 @@ public class LocationService extends Service implements LocationListener {
                 handler.removeCallbacks(gpsCheck);
                 handler.postDelayed(gpsCheck, 60000);
             }
+            if (handler != null && shiftRefresh != null) {
+                handler.removeCallbacks(shiftRefresh);
+                handler.post(shiftRefresh);
+            }
         } catch (SecurityException e) {
             Log.e(TAG, "permiso de ubicacion no concedido", e);
         }
@@ -123,11 +145,13 @@ public class LocationService extends Service implements LocationListener {
         } catch (Exception ignored) {
         }
         if (handler != null && gpsCheck != null) handler.removeCallbacks(gpsCheck);
+        if (handler != null && shiftRefresh != null) handler.removeCallbacks(shiftRefresh);
     }
 
     @Override
     public void onLocationChanged(Location loc) {
         if (loc == null) return;
+        if (!jornadaActiva()) return;
         if (lastLoc == null || loc.getTime() > lastLoc.getTime()) {
             lastLoc = loc;
         }
@@ -221,6 +245,69 @@ public class LocationService extends Service implements LocationListener {
                 }
             }
         }).start();
+    }
+
+    private void refreshShift() {
+        if (code.isEmpty()) return;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                HttpURLConnection conn = null;
+                try {
+                    URL url = new URL(MainActivity.BASE_URL + "/api/shift?code=" + code);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("GET");
+                    conn.setConnectTimeout(10000);
+                    conn.setReadTimeout(10000);
+                    int st = conn.getResponseCode();
+                    if (st == 200) {
+                        InputStream is = conn.getInputStream();
+                        BufferedReader r = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = r.readLine()) != null) sb.append(line);
+                        r.close();
+                        JSONObject o = new JSONObject(sb.toString());
+                        if (o.optBoolean("ok", false)) {
+                            final long s = o.optLong("start_ts", 0);
+                            final long e = o.optLong("end_ts", 0);
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    jornadaStart = s;
+                                    jornadaEnd = e;
+                                    jornadaKnown = true;
+                                    checkJornada();
+                                }
+                            });
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "shift consulta fallida", e);
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+            }
+        }).start();
+    }
+
+    private boolean jornadaActiva() {
+        checkJornada();
+        if (!jornadaKnown) return true;
+        long now = System.currentTimeMillis();
+        return now >= jornadaStart && now < jornadaEnd;
+    }
+
+    private void checkJornada() {
+        if (!jornadaKnown) return;
+        long now = System.currentTimeMillis();
+        if (now < jornadaStart || now >= jornadaEnd) {
+            Log.i(TAG, "jornada finalizada, detengo el servicio");
+            MainActivity.notifyJornadaEnd();
+            stopTracking();
+            stopForeground(true);
+            stopSelf();
+        }
     }
 
     private Notification buildNotification() {

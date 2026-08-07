@@ -17,48 +17,56 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 #map { position: absolute; inset: 0; }
 .sidebar {
   position: absolute; top: 10px; left: 10px; bottom: 10px; z-index: 1000;
-  width: 300px; max-width: calc(100vw - 24px);
+  width: 264px; max-width: calc(100vw - 24px);
   background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.25);
   display: flex; flex-direction: column; overflow: hidden;
 }
-.sidebar .head { padding: 14px 16px; background: #1a1a2e; color: #fff; position: relative; }
-.sidebar .head h1 { font-size: 17px; }
-.sidebar .head .sub { font-size: 12px; color: #bbb; margin-top: 2px; }
-.gear { position: absolute; top: 10px; right: 12px; background: none; border: 1px solid #4b4b6b;
-  color: #fff; border-radius: 8px; padding: 3px 9px; cursor: pointer; font-size: 15px; }
+.sidebar .head { padding: 10px 12px; background: #1a1a2e; color: #fff; position: relative; }
+.sidebar .head h1 { font-size: 15px; }
+.sidebar .head .sub { font-size: 11px; color: #bbb; margin-top: 2px; }
+.gear { position: absolute; top: 8px; right: 10px; background: none; border: 1px solid #4b4b6b;
+  color: #fff; border-radius: 8px; padding: 2px 7px; cursor: pointer; font-size: 14px; }
 .gear:hover { background: #2a2a48; }
-.sidebar .filtros { padding: 10px 12px; border-bottom: 1px solid #eee; }
-.toggle-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151;
-  padding: 2px 0 6px; cursor: pointer; }
+.sidebar .filtros { padding: 8px 10px; border-bottom: 1px solid #eee; }
+.toggle-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #374151;
+  padding: 1px 0 4px; cursor: pointer; }
 .toggle-row input { width: auto; margin: 0; }
-.tabs { display: flex; gap: 6px; padding: 10px 12px 0; }
-.tab { flex: 1; padding: 8px; border: 1px solid #ddd; background: #fff; border-radius: 8px;
-  font-weight: 600; font-size: 13px; cursor: pointer; color: #555; }
+.tabs { display: flex; gap: 6px; padding: 8px 10px 0; }
+.tab { flex: 1; padding: 6px; border: 1px solid #ddd; background: #fff; border-radius: 8px;
+  font-weight: 600; font-size: 12px; cursor: pointer; color: #555; }
 .tab:hover { background: #f0f0f0; }
 .tab.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
-.sidebar input, .sidebar select { width: 100%; padding: 7px 10px; margin-bottom: 6px;
-  border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
-.list { flex: 1; overflow: auto; padding: 8px; }
-.vendor { border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; border: 1px solid #e5e7eb; }
+.sidebar input, .sidebar select { width: 100%; padding: 6px 8px; margin-bottom: 4px;
+  border: 1px solid #ccc; border-radius: 6px; font-size: 12px; }
+.list { flex: 1; overflow: auto; padding: 6px; }
+.vendor { border-radius: 8px; padding: 6px 8px; margin-bottom: 5px; border: 1px solid #e5e7eb; }
 .vendor.inactive { border-color: #fca5a5; }
 .vendor.inactive-long { border-color: #ef4444; background: #fef2f2; }
 .vendor .sin-badge { display: inline-block; background: #ef4444; color: #fff; border-radius: 4px;
   padding: 0 5px; font-size: 9px; font-weight: 700; margin-left: 4px; vertical-align: middle; }
 .vendor .row1 { display: flex; align-items: center; gap: 8px; }
-.vendor .name { font-weight: 700; font-size: 13px; flex: 1; }
-.vendor .code { font-size: 11px; color: #6b7280; }
-.vendor .prov { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; }
+.vendor .name { font-weight: 700; font-size: 12px; flex: 1; }
+.vendor .code { font-size: 10px; color: #6b7280; }
+.vendor .prov { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
 .dot.on { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
 .dot.off { background: #9ca3af; }
+.pdv-tick { width: 16px; height: 16px; border-radius: 50%; background: #059669; color: #fff;
+  font-size: 11px; font-weight: 700; line-height: 15px; text-align: center; border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.pdv-dot { width: 9px; height: 9px; border-radius: 50%; background: #9ca3af; border: 1.5px solid #6b7280; }
+.foto-ok { color: #047857; font-weight: 700; }
+.foto-miss { color: #b91c1c; font-weight: 700; }
+.foto-link { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 600;
+  color: #1d4ed8; text-decoration: none; }
 .vendor .actions { display: flex; gap: 6px; margin-top: 6px; }
 .vendor button { border: 0; border-radius: 6px; padding: 5px 8px; font-size: 11px;
   font-weight: 600; cursor: pointer; }
 .btn-route { background: #eef2ff; color: #4338ca; }
 .btn-copy { background: #ecfdf5; color: #047857; }
 .btn-gmaps { background: #eff6ff; color: #1d4ed8; text-decoration: none; text-align: center; padding: 5px 8px; }
-.vendor .last { font-size: 11px; color: #6b7280; margin-top: 4px; }
-.vendor .card-meta { font-size: 11px; color: #6b7280; margin-top: 3px; line-height: 1.5; }
+.vendor .last { font-size: 10px; color: #6b7280; margin-top: 3px; }
+.vendor .card-meta { font-size: 10px; color: #6b7280; margin-top: 3px; line-height: 1.5; }
 .vendor .card-meta b { color: #1f2937; }
 .vendor .card-meta .hoy-badge { display: inline-block; background: #1d4ed8; color: #fff; border-radius: 4px;
   padding: 0 5px; font-size: 9px; font-weight: 700; margin-left: 4px; vertical-align: middle; }
@@ -81,8 +89,8 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
   cursor: pointer; text-decoration: none; display: inline-block; margin-top: 6px; }
 .popup-info .btn-route { background: #eef2ff; color: #4338ca; }
 .popup-info .btn-gmaps { background: #eff6ff; color: #1d4ed8; }
-.zoom-prov { width: 100%; margin-top: 4px; padding: 7px; border: 0; border-radius: 6px; background: #1a1a2e;
-  color: #fff; font-weight: 600; font-size: 12px; cursor: pointer; }
+.zoom-prov { width: 100%; margin-top: 4px; padding: 6px; border: 0; border-radius: 6px; background: #1a1a2e;
+  color: #fff; font-weight: 600; font-size: 11px; cursor: pointer; }
 .overlay { position: absolute; inset: 0; z-index: 2000; background: rgba(15,20,32,.9);
   display: flex; align-items: center; justify-content: center; }
 .login { background: #fff; border-radius: 12px; padding: 24px; width: 300px; text-align: center; }
@@ -515,6 +523,11 @@ function markerIcon(color) {
   });
 }
 
+var pdvIconVis = L.divIcon({ className: '', html: '<div class="pdv-tick">✓</div>',
+  iconSize: [16, 16], iconAnchor: [8, 8] });
+var pdvIconNo = L.divIcon({ className: '', html: '<div class="pdv-dot"></div>',
+  iconSize: [9, 9], iconAnchor: [4.5, 4.5] });
+
 function makePopup(v, pos) {
   var ago = pos.last != null ? Math.round(pos.last / 1000) : null;
   var when = ago == null ? '—' : (ago < 60 ? ago + ' seg' : Math.round(ago / 60) + ' min');
@@ -531,11 +544,24 @@ function makePopup(v, pos) {
   }
   var horaTxt = (pos.last != null && pos.last > 60 * 60000) || pos.last == null
     ? ' <span style="color:#b91c1c;font-weight:700">SIN SEÑAL</span>' : '';
+  var visTxt = '';
+  if (v.grupo === 'merchan') {
+    var vi = visitasToday[v.code];
+    if (vi && vi.n) {
+      var nFoto = 0;
+      var fotos = vi.fotos || {};
+      Object.keys(fotos).forEach(function (c) { if (fotos[c]) nFoto++; });
+      visTxt = '<div class="ruta">Visitas ' + (fechaSel === todayStr() ? 'hoy' : 'del día ' + fechaSel) + ': <b>' +
+        vi.n + '</b> · Con foto: <span class="' + (nFoto === vi.n ? 'foto-ok' : 'foto-miss') + '">' +
+        nFoto + '/' + vi.n + '</span></div>';
+    }
+  }
   return '<div class="popup-info">' +
     '<div class="name">' + esc(v.name) + ' <span style="color:#9ca3af;font-size:10px">' + esc(v.prov) + '</span></div>' +
     '<div>Código: ' + esc(v.code) + '</div>' +
     '<div class="ruta">Última señal: hace ' + when + ' (' + fmtHora(pos.ts) + ')</div>' +
     hoy +
+    visTxt +
     '<div style="margin-top:4px">' +
     '<button class="btn btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Recorrido</button> ' +
     '<button class="btn btn-route" onclick="playRoute(\'' + esc(v.code) + '\')">Reproducir</button> ' +
@@ -606,6 +632,7 @@ function toggleCardActions(btn) {
 var merchanNear = {};
 var visitasToday = {};
 var visitedPdvSet = {};
+var visitedFoto = {};
 var resumenData = {};
 var jornadasData = {};
 
@@ -673,8 +700,11 @@ function updateCardData() {
     .then(function (d) {
       visitasToday = d || {};
       visitedPdvSet = {};
+      visitedFoto = {};
       Object.keys(visitasToday).forEach(function (code) {
         (visitasToday[code].clientes || []).forEach(function (c) { visitedPdvSet[String(c)] = 1; });
+        var fotos = (visitasToday[code] || {}).fotos || {};
+        Object.keys(fotos).forEach(function (c) { visitedFoto[String(c)] = fotos[c]; });
       });
       refreshPDVColors();
       renderMerchanMeta();
@@ -1070,10 +1100,14 @@ function loadVisitasPanel() {
         return;
       }
       box.innerHTML = '<div class="vlist">' + arr.map(function (v) {
+        var fotoHtml = v.has_foto
+          ? '<span class="foto-ok">✓ Foto</span><a class="foto-link" target="_blank" rel="noopener" href="/api/visitas/foto/img?code=' + encodeURIComponent(code) + '&cliente=' + encodeURIComponent(v.cliente) + '&fecha=' + encodeURIComponent(fecha) + '">Ver foto</a>'
+          : '<span class="foto-miss">✗ Sin foto</span>';
         return '<div class="vitem">' +
           '<div style="flex:1">' +
             '<div class="vi-name">' + esc(v.razon) + '</div>' +
             '<div class="vi-det">Cliente: ' + esc(v.cliente) + (v.calle ? ' · ' + esc(v.calle) : '') + '</div>' +
+            '<div class="vi-det">' + fotoHtml + '</div>' +
             (v.vta ? '<div class="vi-vta">' + esc(v.vta) + '</div>' : '') +
           '</div>' +
           '<button onclick="quitarVisitaPanel(\'' + esc(v.cliente) + '\')">Quitar</button>' +
@@ -1450,19 +1484,25 @@ function togglePDV() {
   fetch('/api/pdv').then(function (r) { return r.json(); }).then(function (arr) {
     var pts = arr.map(function (d) {
       var vis = visitedPdvSet[d.c];
-      var m = L.circleMarker([d.lat, d.lon], {
-        radius: 4, color: vis ? '#1d4ed8' : '#6b7280', weight: 1,
-        fillColor: vis ? '#1d4ed8' : '#9ca3af', fillOpacity: 0.85
-      });
+      var m = L.marker([d.lat, d.lon], { icon: vis ? pdvIconVis : pdvIconNo });
       m._c = d.c;
       var dir = d.calle || '—';
       if (d.altura) dir += ' ' + d.altura;
+      var estado = '';
+      if (vis) {
+        var f = visitedFoto[String(d.c)];
+        estado = '<div style="margin-top:4px">' +
+          '<b style="color:#047857">✔ Visitado (' + esc(fechaSel) + ')</b>' +
+          ' · <span class="' + (f ? 'foto-ok' : 'foto-miss') + '">' +
+          (f ? '✓ Foto cargada' : '✗ Sin foto') + '</span></div>';
+      }
       m.bindPopup('<div class="popup-info">' +
         '<div class="name">' + esc(d.r) + '</div>' +
         '<div>Cliente: ' + (d.c ? esc(d.c) : '—') +
           ' &nbsp; <span style="color:#9ca3af;font-size:10px">' + esc(d.prov) + '</span></div>' +
         '<div>' + esc(dir) + '</div>' +
         (d.vta ? '<div class="ruta">' + esc(d.vta) + '</div>' : '') +
+        estado +
         '<a href="https://www.google.com/maps/search/?api=1&query=' + d.lat + ',' + d.lon +
         '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;border:0;border-radius:6px;padding:5px 10px;background:#eff6ff;color:#1d4ed8;font-weight:600;text-decoration:none">Google Maps</a>' +
         '</div>');
@@ -1480,7 +1520,7 @@ function togglePDV() {
 function refreshPDVColors() {
   pdvPoints.forEach(function (m) {
     var vis = visitedPdvSet[m._c];
-    m.setStyle({ color: vis ? '#1d4ed8' : '#6b7280', fillColor: vis ? '#1d4ed8' : '#9ca3af' });
+    m.setIcon(vis ? pdvIconVis : pdvIconNo);
   });
 }
 

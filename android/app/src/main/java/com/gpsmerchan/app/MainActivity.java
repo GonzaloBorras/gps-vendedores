@@ -251,8 +251,6 @@ public class MainActivity extends Activity {
     private void loadAdmin() {
         setContentView(R.layout.activity_main);
         web = findViewById(R.id.web);
-        ImageButton change = findViewById(R.id.change_btn);
-        change.setVisibility(View.GONE);
         lockNavigation = false;
 
         WebSettings s = web.getSettings();
@@ -284,14 +282,6 @@ public class MainActivity extends Activity {
     private void loadTracker(final String code) {
         setContentView(R.layout.activity_main);
         web = findViewById(R.id.web);
-        ImageButton change = findViewById(R.id.change_btn);
-        change.setContentDescription("Cerrar aplicación");
-        change.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                finish();
-            }
-        });
         lockNavigation = true;
 
         WebSettings s = web.getSettings();

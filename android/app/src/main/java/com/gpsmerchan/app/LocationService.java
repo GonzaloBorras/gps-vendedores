@@ -31,7 +31,9 @@ import org.json.JSONObject;
 public class LocationService extends Service implements LocationListener {
 
     private static final String CHANNEL_ID = "gps_live";
+    private static final String CHANNEL_ALERTA = "gps_alerta";
     private static final int NOTIF_ID = 1;
+    private static final int GPS_ALERT_ID = 2;
     private static final String TAG = "GPSMerchan";
 
     private LocationManager lm;
@@ -146,6 +148,11 @@ public class LocationService extends Service implements LocationListener {
         }
         if (handler != null && gpsCheck != null) handler.removeCallbacks(gpsCheck);
         if (handler != null && shiftRefresh != null) handler.removeCallbacks(shiftRefresh);
+        try {
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (nm != null) nm.cancel(GPS_ALERT_ID);
+        } catch (Exception ignored) {
+        }
     }
 
     @Override
@@ -187,9 +194,11 @@ public class LocationService extends Service implements LocationListener {
     private void reportGps(final boolean gps) {
         if (code.isEmpty()) return;
         long now = System.currentTimeMillis();
-        if (gps == lastGpsState && now - lastGpsSent < 15000) return;
+        boolean changed = gps != lastGpsState;
+        if (!changed && now - lastGpsSent < 15000) return;
         lastGpsState = gps;
         lastGpsSent = now;
+        if (changed) updateGpsNotif(gps);
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -214,6 +223,26 @@ public class LocationService extends Service implements LocationListener {
                 }
             }
         }).start();
+    }
+
+    private void updateGpsNotif(boolean gps) {
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (nm == null) return;
+        if (!gps) {
+            Intent open = new Intent(this, MainActivity.class);
+            PendingIntent pi = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE);
+            Notification n = new Notification.Builder(this, CHANNEL_ALERTA)
+                    .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+                    .setContentTitle("GPS apagado")
+                    .setContentText("Apagaste la ubicación. Volvé a prenderla para que el administrador vea tu posición.")
+                    .setContentIntent(pi)
+                    .setAutoCancel(true)
+                    .setPriority(Notification.PRIORITY_HIGH)
+                    .build();
+            nm.notify(GPS_ALERT_ID, n);
+        } else {
+            nm.cancel(GPS_ALERT_ID);
+        }
     }
 
     private void sendPosition(final Location loc) {
@@ -330,6 +359,10 @@ public class LocationService extends Service implements LocationListener {
                 NotificationManager.IMPORTANCE_LOW);
         ch.setDescription("Mantiene el envío de ubicación con la pantalla apagada");
         nm.createNotificationChannel(ch);
+        NotificationChannel ach = new NotificationChannel(CHANNEL_ALERTA, "Alertas de GPS",
+                NotificationManager.IMPORTANCE_HIGH);
+        ach.setDescription("Aviso cuando apagás la ubicación");
+        nm.createNotificationChannel(ach);
     }
 
     @Override

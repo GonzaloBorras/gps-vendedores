@@ -423,7 +423,14 @@ function fmtHora(ts) {
   if (!ts) return '—';
   var d = new Date(ts - 3 * 3600 * 1000);
   var p = function (n) { return (n < 10 ? '0' : '') + n; };
-  return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  return p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds());
+}
+function fmtFechaHora(ts) {
+  if (!ts) return '—';
+  var d = new Date(ts - 3 * 3600 * 1000);
+  var p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return p(d.getUTCDate()) + '/' + p(d.getUTCMonth() + 1) + '/' + d.getUTCFullYear() + ' ' +
+    p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds());
 }
 
 function toast(msg) {
@@ -773,7 +780,7 @@ function renderAlerts(arr) {
   var codes = Object.keys(currentAlerts);
   if (codes.length) {
     var ts = currentAlerts[codes[0]];
-    var hora = ts ? new Date(ts - 3 * 3600 * 1000).toLocaleTimeString('es-AR') : '';
+    var hora = fmtHora(ts);
     bar.innerHTML = '🚫 <b>Alerta GPS</b> (ubicación apagada o sin señal): ' + codes.map(function (c) {
       var v = vendorsData.find(function (x) { return x.code === c; });
       return esc(v ? v.name : c);
@@ -853,8 +860,7 @@ function playRoute(code) {
       var p = pts[idx];
       replayMarker.setLatLng([p.lat, p.lon]);
       var dt = new Date(p.ts);
-      dt = new Date(dt.getTime() - 3 * 3600 * 1000);
-      document.getElementById('statusbar').textContent = 'Reproduciendo ' + code + ' — ' + dt.toLocaleTimeString('es-AR');
+      document.getElementById('statusbar').textContent = 'Reproduciendo ' + code + ' — ' + fmtHora(dt.getTime());
     }, 200);
   }).catch(function () { toast('Error al reproducir.'); });
 }
@@ -1300,11 +1306,9 @@ function loadGeoevents() {
   fetch('/api/geoevents?code=' + encodeURIComponent(code) + '&limit=20').then(function (r) { return r.json(); }).then(function (arr) {
     if (!arr.length) { box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Sin eventos todavía.</div>'; return; }
     box.innerHTML = arr.map(function (x) {
-      var t = new Date(x.ts);
-      t = new Date(t.getTime() - 3 * 3600 * 1000);
       var icono = x.tipo === 'enter' ? '🟢 entró a' : '⚪ salió de';
       var dist = x.dist_m != null ? ' (' + x.dist_m + ' m)' : '';
-      return '<div class="vitem"><div style="flex:1"><div class="vi-name">' + icono + ' ' + esc(x.razon || x.cliente) + dist + '</div><div class="vi-det">Cliente: ' + esc(x.cliente) + ' · ' + t.toLocaleString('es-AR') + '</div></div></div>';
+      return '<div class="vitem"><div style="flex:1"><div class="vi-name">' + icono + ' ' + esc(x.razon || x.cliente) + dist + '</div><div class="vi-det">Cliente: ' + esc(x.cliente) + ' · ' + fmtFechaHora(x.ts) + '</div></div></div>';
     }).join('');
   }).catch(function () {});
 }
@@ -1347,9 +1351,9 @@ function loadReporte() {
 
 function hhmm(ts) {
   if (!ts) return '—';
-  var d = new Date(ts);
+  var d = new Date(ts - 3 * 3600 * 1000);
   var p = function (n) { return (n < 10 ? '0' : '') + n; };
-  return p(d.getHours()) + ':' + p(d.getMinutes());
+  return p(d.getUTCHours()) + ':' + p(d.getUTCMinutes());
 }
 function loadEstadias() {
   var code = document.getElementById('rep-vendor').value;

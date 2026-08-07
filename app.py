@@ -525,6 +525,14 @@ def alerts_list():
     return jsonify(out)
 
 
+@app.route('/api/alerts/visto', methods=['POST'])
+def alerts_visto():
+    db = get_db()
+    _exec(db, 'DELETE FROM alerts WHERE tipo = ?', ('gps_off',))
+    db.commit()
+    return jsonify({'ok': True})
+
+
 @app.route('/api/start-check', methods=['POST'])
 def start_check():
     body = request.get_json(force=True, silent=True) or {}

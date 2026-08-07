@@ -277,6 +277,9 @@ public class MainActivity extends Activity {
             }
         });
         web.loadUrl(BASE_URL);
+        Intent an = new Intent(this, AdminNotifService.class);
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(an);
+        else startService(an);
     }
 
     private void loadTracker(final String code) {
@@ -375,6 +378,12 @@ public class MainActivity extends Activity {
             return;
         }
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    protected void onDestroy() {
+        stopService(new Intent(this, AdminNotifService.class));
+        super.onDestroy();
     }
 
     @Override

@@ -17,37 +17,37 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 #map { position: absolute; inset: 0; }
 .sidebar {
   position: absolute; top: 10px; left: 10px; bottom: 10px; z-index: 1000;
-  width: 264px; max-width: calc(100vw - 24px);
+  width: 240px; max-width: calc(100vw - 24px);
   background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.25);
   display: flex; flex-direction: column; overflow: hidden;
 }
-.sidebar .head { padding: 10px 12px; background: #1a1a2e; color: #fff; position: relative; }
-.sidebar .head h1 { font-size: 15px; }
-.sidebar .head .sub { font-size: 11px; color: #bbb; margin-top: 2px; }
-.gear { position: absolute; top: 8px; right: 10px; background: none; border: 1px solid #4b4b6b;
-  color: #fff; border-radius: 8px; padding: 2px 7px; cursor: pointer; font-size: 14px; }
+.sidebar .head { padding: 8px 10px; background: #1a1a2e; color: #fff; position: relative; }
+.sidebar .head h1 { font-size: 14px; }
+.sidebar .head .sub { font-size: 10px; color: #bbb; margin-top: 1px; }
+.gear { position: absolute; top: 7px; right: 8px; background: none; border: 1px solid #4b4b6b;
+  color: #fff; border-radius: 8px; padding: 1px 6px; cursor: pointer; font-size: 13px; }
 .gear:hover { background: #2a2a48; }
-.sidebar .filtros { padding: 8px 10px; border-bottom: 1px solid #eee; }
-.toggle-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #374151;
-  padding: 1px 0 4px; cursor: pointer; }
+.sidebar .filtros { padding: 6px 8px; border-bottom: 1px solid #eee; }
+.toggle-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #374151;
+  padding: 1px 0 3px; cursor: pointer; }
 .toggle-row input { width: auto; margin: 0; }
-.tabs { display: flex; gap: 6px; padding: 8px 10px 0; }
-.tab { flex: 1; padding: 6px; border: 1px solid #ddd; background: #fff; border-radius: 8px;
-  font-weight: 600; font-size: 12px; cursor: pointer; color: #555; }
+.tabs { display: flex; gap: 6px; padding: 6px 8px 0; }
+.tab { flex: 1; padding: 5px; border: 1px solid #ddd; background: #fff; border-radius: 8px;
+  font-weight: 600; font-size: 11px; cursor: pointer; color: #555; }
 .tab:hover { background: #f0f0f0; }
 .tab.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
-.sidebar input, .sidebar select { width: 100%; padding: 6px 8px; margin-bottom: 4px;
-  border: 1px solid #ccc; border-radius: 6px; font-size: 12px; }
-.list { flex: 1; overflow: auto; padding: 6px; }
-.vendor { border-radius: 8px; padding: 6px 8px; margin-bottom: 5px; border: 1px solid #e5e7eb; }
+.sidebar input, .sidebar select { width: 100%; padding: 5px 8px; margin-bottom: 3px;
+  border: 1px solid #ccc; border-radius: 6px; font-size: 11px; }
+.list { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 5px; }
+.vendor { border-radius: 8px; padding: 5px 7px; margin-bottom: 4px; border: 1px solid #e5e7eb; }
 .vendor.inactive { border-color: #fca5a5; }
 .vendor.inactive-long { border-color: #ef4444; background: #fef2f2; }
 .vendor .sin-badge { display: inline-block; background: #ef4444; color: #fff; border-radius: 4px;
   padding: 0 5px; font-size: 9px; font-weight: 700; margin-left: 4px; vertical-align: middle; }
-.vendor .row1 { display: flex; align-items: center; gap: 8px; }
-.vendor .name { font-weight: 700; font-size: 12px; flex: 1; }
-.vendor .code { font-size: 10px; color: #6b7280; }
-.vendor .prov { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; }
+.vendor .row1 { display: flex; align-items: center; gap: 6px; }
+.vendor .name { font-weight: 700; font-size: 11px; flex: 1; }
+.vendor .code { font-size: 9px; color: #6b7280; }
+.vendor .prov { font-size: 8px; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
 .dot.on { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
 .dot.off { background: #9ca3af; }
@@ -65,11 +65,11 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .btn-route { background: #eef2ff; color: #4338ca; }
 .btn-copy { background: #ecfdf5; color: #047857; }
 .btn-gmaps { background: #eff6ff; color: #1d4ed8; text-decoration: none; text-align: center; padding: 5px 8px; }
-.vendor .last { font-size: 10px; color: #6b7280; margin-top: 3px; }
-.vendor .card-meta { font-size: 10px; color: #6b7280; margin-top: 3px; line-height: 1.5; }
+.vendor .last { font-size: 9px; color: #6b7280; margin-top: 2px; }
+.vendor .card-meta { font-size: 9px; color: #6b7280; margin-top: 2px; line-height: 1.4; }
 .vendor .card-meta b { color: #1f2937; }
 .vendor .card-meta .hoy-badge { display: inline-block; background: #1d4ed8; color: #fff; border-radius: 4px;
-  padding: 0 5px; font-size: 9px; font-weight: 700; margin-left: 4px; vertical-align: middle; }
+  padding: 0 4px; font-size: 8px; font-weight: 700; margin-left: 3px; vertical-align: middle; }
 .card-actions { position: relative; margin-top: 6px; }
 .card-actions .dots { border: 1px solid #e5e7eb; background: #fff; border-radius: 6px; padding: 3px 10px;
   font-size: 13px; font-weight: 700; color: #6b7280; cursor: pointer; }
@@ -113,11 +113,11 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .scrim { display: none; }
 body.sidebar-hidden .sidebar { display: none; }
 @media (max-width: 720px) {
-  body.sidebar-hidden .sidebar { display: block; }
-  .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: min(320px, 86vw); max-width: none;
+  body.sidebar-hidden .sidebar { display: flex; }
+  .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: min(300px, 82vw); max-width: none;
     border-radius: 0 16px 16px 0; z-index: 1500; box-shadow: 6px 0 24px rgba(0,0,0,.35);
     transform: translateX(-105%); transition: transform .25s ease; }
-  body.sidebar-hidden .sidebar { transform: translateX(0); }
+  body.sidebar-hidden .sidebar { display: flex; transform: translateX(0); }
   .scrim { position: fixed; inset: 0; background: rgba(10,14,24,.55); z-index: 1490;
     -webkit-tap-highlight-color: transparent; }
   body.sidebar-hidden .scrim { display: block; }
@@ -125,16 +125,16 @@ body.sidebar-hidden .sidebar { display: none; }
     background: transparent; }
   .map-tools button { width: 48px; height: 48px; font-size: 20px; border-radius: 14px;
     box-shadow: 0 3px 10px rgba(0,0,0,.3); }
-  .tab { min-height: 46px; font-size: 14px; }
-  .filtros { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
+  .tab { min-height: 44px; font-size: 13px; }
+  .filtros { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px; }
   .filtros > #search { grid-column: 1 / -1; }
   .filtros .toggle-row, .filtros .zoom-prov { grid-column: 1 / -1; }
-  .filtros input[type=text], .filtros select, .filtros input[type=date] { min-height: 46px; font-size: 16px; }
-  .filtros .toggle-row { min-height: 46px; font-size: 14px; }
-  .zoom-prov { min-height: 46px; font-size: 13px; }
-  .vendor button, .card-actions .dots { min-height: 46px; min-width: 46px; padding: 8px 12px; font-size: 13px; }
-  .vendor .name { font-size: 15px; }
-  .vendor .code, .vendor .last, .vendor .card-meta { font-size: 13px; }
+  .filtros input[type=text], .filtros select, .filtros input[type=date] { min-height: 44px; font-size: 16px; }
+  .filtros .toggle-row { min-height: 44px; font-size: 13px; }
+  .zoom-prov { min-height: 44px; font-size: 12px; }
+  .vendor button, .card-actions .dots { min-height: 44px; min-width: 44px; padding: 6px 10px; font-size: 12px; }
+  .vendor .name { font-size: 13px; }
+  .vendor .code, .vendor .last, .vendor .card-meta { font-size: 11px; }
   .leaflet-popup-content-wrapper { border-radius: 14px; }
   .leaflet-popup-content { margin: 12px 14px; }
   .popup-info { font-size: 13px; }
@@ -398,6 +398,11 @@ body.dark .meta-bar { background: #2a3450; }
       <label>Mensaje</label>
       <textarea id="msg-text" rows="3" placeholder="Ej: Recordá iniciar el envío al llegar al primer PDV de la ruta."></textarea>
       <button class="btn-block" style="background:#1d4ed8;color:#fff" onclick="sendMessage()">Enviar (con aviso push)</button>
+      <div style="border-top:1px solid #eee;margin-top:12px;padding-top:10px">
+        <h3>Alertas de ubicación en este celular</h3>
+        <p style="font-size:12px;color:#6b7280;line-height:1.5">Cuando un merchan apaga la ubicación vas a recibir una notificación con su nombre. (En la app de administrador se activa automáticamente; en el navegador, tocá el botón y aceptá el permiso.)</p>
+        <button class="btn-block" id="adminPushBtn" style="background:#059669;color:#fff" onclick="enableAdminPush()">🔔 Activar notificaciones</button>
+      </div>
     </div>
     <div class="cfg-pane" id="pane-geocercas">
       <h3>Geocercas (entradas/salidas de PDV)</h3>
@@ -1360,6 +1365,47 @@ function sendMessage() {
       if (d.ok) { document.getElementById('msg-text').value = ''; cfgMsg('Mensaje enviado a ' + d.n + ' merchan(s) con aviso push.'); }
       else cfgMsg('Error: ' + d.error);
     }).catch(function () { cfgMsg('Error de conexión.'); });
+}
+
+// ---------------- Notificaciones del administrador ----------------
+var adminPushKey = null;
+fetch('/api/push/vapid').then(function (r) { return r.json(); })
+  .then(function (d) { adminPushKey = d.publicKey; }).catch(function () {});
+function adminUrlB64ToU8(s) {
+  var pad = s.replace(/=+$/, '');
+  var arr = atob(pad.replace(/-/g, '+').replace(/_/g, '/'));
+  var out = new Uint8Array(arr.length);
+  for (var i = 0; i < arr.length; i++) out[i] = arr.charCodeAt(i);
+  return out;
+}
+function adminPushBtn(active, txt) {
+  var b = document.getElementById('adminPushBtn');
+  if (!b) return;
+  if (active) { b.textContent = txt || '🔔 Notificaciones activadas'; b.style.background = '#22c55e'; b.style.opacity = '.85'; }
+  else { b.textContent = txt || '🔔 Activar notificaciones'; b.style.background = '#059669'; b.style.opacity = '1'; }
+}
+function enableAdminPush() {
+  var b = document.getElementById('adminPushBtn');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !adminPushKey) {
+    if (b) { b.textContent = 'No disponible en este navegador'; }
+    return;
+  }
+  Notification.requestPermission().then(function (perm) {
+    if (perm !== 'granted') { if (b) { b.textContent = 'Permiso denegado'; b.style.opacity = '.6'; } return; }
+    navigator.serviceWorker.ready.then(function (reg) {
+      return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: adminUrlB64ToU8(adminPushKey) });
+    }).then(function (sub) {
+      return fetch('/api/push/subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: 'ADMIN', subscription: sub.toJSON() })
+      });
+    }).then(function () { adminPushBtn(true); })
+      .catch(function () { adminPushBtn(false, 'No se pudieron activar. Reintentá.'); });
+  });
+}
+if ('serviceWorker' in navigator && 'PushManager' in window) {
+  navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); })
+    .then(function (sub) { if (sub) adminPushBtn(true); }).catch(function () {});
 }
 
 function fillGeoVendors() {

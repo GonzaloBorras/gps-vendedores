@@ -22,7 +22,7 @@ RUTAS_FILE = os.path.join(BASE_DIR, 'rutas.json')
 OVERRIDES_FILE = os.path.join(BASE_DIR, 'overrides.json')
 
 APP_VERSION = '2.4'
-APP_VERSION_CODE = 6
+APP_VERSION_CODE = 7
 APK_URL = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-v1.0/GPS-Merchan.apk'
 APK_URL_ADMIN = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-admin/GPS-Admin.apk'
 
@@ -494,15 +494,35 @@ def gps_status():
         return jsonify({'ok': False, 'error': 'codigo invalido'}), 404
     db = get_db()
     ts = int(time.time() * 1000)
+    name = VENDOR_BY_CODE[code]['name']
     if body.get('gps'):
+        existed = _exec(db, 'SELECT 1 FROM alerts WHERE code = ?', (code,)).fetchone()
         _exec(db, 'DELETE FROM alerts WHERE code = ?', (code,))
+        db.commit()
+        if existed:
+            _send_push_to('ADMIN', name + ' (' + code + ') volvió a activar la ubicación')
     else:
+        existed = _exec(db, 'SELECT 1 FROM alerts WHERE code = ?', (code,)).fetchone()
         _exec(db,
               '''INSERT INTO alerts(code, tipo, ts, msj) VALUES (?, 'gps_off', ?, ?)
                  ON CONFLICT(code) DO UPDATE SET ts = excluded.ts, msj = excluded.msj''',
               (code, ts, 'Ubicación apagada o sin señal GPS'))
-    db.commit()
+        db.commit()
+        if not existed:
+            _send_push_to('ADMIN', '⚠ ' + name + ' (' + code + ') apagó la ubicación. Revisá el panel.')
     return jsonify({'ok': True})
+
+
+@app.route('/api/alerts')
+def alerts_list():
+    rows = _exec(get_db(), _q(
+        'SELECT code, ts, msj FROM alerts WHERE tipo = ? ORDER BY ts'), ('gps_off',)).fetchall()
+    out = []
+    for r in rows:
+        v = VENDOR_BY_CODE.get(r['code'], {})
+        out.append({'code': r['code'], 'name': v.get('name', r['code']),
+                    'ts': r['ts'], 'msj': r['msj']})
+    return jsonify(out)
 
 
 @app.route('/api/start-check', methods=['POST'])
@@ -1307,7 +1327,7 @@ def push_vapid():
 def push_subscribe():
     body = request.get_json(force=True, silent=True) or {}
     code = str(body.get('code', '')).strip().upper()
-    if code not in VENDOR_BY_CODE:
+    if code not in VENDOR_BY_CODE and code != 'ADMIN':
         return jsonify({'ok': False, 'error': 'codigo invalido'}), 404
     sub = body.get('subscription') or {}
     endpoint = str(sub.get('endpoint', '')).strip()

@@ -990,16 +990,41 @@ def visitas_foto():
     return jsonify({'ok': True, 'foto': row['foto'], 'foto_ts': row['foto_ts']})
 
 
+@app.route('/api/visitas/foto/img')
+def visitas_foto_img():
+    code = request.args.get('code', '').strip().upper()
+    cliente = request.args.get('cliente', '').strip()
+    fecha = request.args.get('fecha', '').strip() or _today_str()
+    row = _exec(get_db(), _q(
+        'SELECT foto FROM visitas WHERE code=? AND cliente=? AND fecha=?'),
+        (code, cliente, fecha)).fetchone()
+    if not row or not row['foto']:
+        return 'sin foto', 404
+    data = base64.b64decode(row['foto'])
+    if data[:2] == b'\xff\xd8':
+        ctype = 'image/jpeg'
+    elif data[:4] == b'\x89PNG':
+        ctype = 'image/png'
+    elif data[:3] == b'GIF':
+        ctype = 'image/gif'
+    elif data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        ctype = 'image/webp'
+    else:
+        ctype = 'image/jpeg'
+    return Response(data, mimetype=ctype)
+
+
 @app.route('/api/visitas/resumen')
 def visitas_resumen():
     fecha = request.args.get('fecha', '').strip() or date.today().isoformat()
     rows = _exec(get_db(),
-                 'SELECT code, cliente FROM visitas WHERE fecha = ? ORDER BY ts', (fecha,)).fetchall()
+                 'SELECT code, cliente, foto_ts FROM visitas WHERE fecha = ? ORDER BY ts', (fecha,)).fetchall()
     out = {}
     for r in rows:
-        item = out.setdefault(r['code'], {'n': 0, 'clientes': []})
+        item = out.setdefault(r['code'], {'n': 0, 'clientes': [], 'fotos': {}})
         item['n'] += 1
         item['clientes'].append(r['cliente'])
+        item['fotos'][r['cliente']] = 1 if (r['foto_ts'] and r['foto_ts'] > 0) else 0
     return jsonify(out)
 
 

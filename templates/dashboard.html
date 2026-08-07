@@ -858,11 +858,24 @@ function renderAlerts(arr) {
     bar.innerHTML = '🚫 <b>Alerta GPS</b> (ubicación apagada o sin señal): ' + codes.map(function (c) {
       var v = vendorsData.find(function (x) { return x.code === c; });
       return esc(v ? v.name : c);
-    }).join(', ') + (hora ? ' <small>(' + hora + ')</small>' : '');
+    }).join(', ') + (hora ? ' <small>(' + hora + ')</small>' : '')
+      + ' <button onclick="markAlertsRead()" style="margin-left:8px;background:#b91c1c;color:#fff;border:0;border-radius:4px;padding:2px 10px;font-size:12px;cursor:pointer">✓ Marcar leídas</button>';
     bar.style.display = 'block';
   } else {
     bar.style.display = 'none';
   }
+}
+
+function markAlertsRead() {
+  fetch('/api/alerts/visto', { method: 'POST' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.ok) {
+        currentAlerts = {};
+        renderAlerts();
+      }
+    })
+    .catch(function () {});
 }
 
 function showRoute(code) {

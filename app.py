@@ -1659,6 +1659,11 @@ def tracker(code):
     return render_template('tracker.html', vendor=vendor)
 
 
+@app.route('/mapa-pdv')
+def mapa_pdv():
+    return render_template('mapa_pdv.html')
+
+
 @app.route('/', methods=['GET', 'POST'])
 def dashboard():
     if request.method == 'POST':

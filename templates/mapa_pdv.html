@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Red de puntos de venta</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <style>
+    html, body, #map { height: 100%; margin: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+    .overlay {
+      position: fixed; top: 12px; left: 12px; z-index: 2000; width: min(300px, calc(100vw - 24px));
+      background: #ffffff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,.18);
+      padding: 14px 16px; box-sizing: border-box;
+    }
+    .overlay h1 { margin: 0 0 2px; font-size: 17px; color: #111827; }
+    .overlay .sub { font-size: 12px; color: #6b7280; margin-bottom: 10px; }
+    .stats { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    .stat { flex: 1; min-width: 90px; background: #f3f4f6; border-radius: 8px; padding: 6px 8px; text-align: center; }
+    .stat b { display: block; font-size: 16px; color: #111827; }
+    .stat span { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; }
+    .ov-row { margin-bottom: 8px; }
+    .ov-row label { display: block; font-size: 11px; font-weight: 600; color: #374151; margin-bottom: 3px; }
+    .ov-row select { width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 13px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    .legend { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; border-top: 1px solid #e5e7eb; padding-top: 10px; font-size: 12px; color: #374151; }
+    .legend .li { display: flex; align-items: center; gap: 8px; }
+    .sw { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
+    .credit { position: fixed; bottom: 6px; right: 8px; z-index: 2000; font-size: 11px; color: #6b7280; background: rgba(255,255,255,.85); padding: 3px 8px; border-radius: 8px; }
+    .leaflet-popup-content-wrapper { border-radius: 12px; }
+    .leaflet-popup-content { margin: 10px 14px; }
+    .popup-name { font-weight: 700; font-size: 14px; color: #111827; }
+    .popup-row { font-size: 12px; color: #4b5563; margin-top: 2px; }
+    .popup-route { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 600; background: #eff6ff; color: #1d4ed8; border-radius: 6px; padding: 2px 8px; }
+    .popup a { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; color: #1d4ed8; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div class="overlay">
+    <h1>Red de puntos de venta</h1>
+    <div class="sub">Tucumán y Catamarca</div>
+    <div class="stats">
+      <div class="stat"><b id="stTotal">0</b><span>PDV</span></div>
+      <div class="stat"><b id="stTuc">0</b><span>Tucumán</span></div>
+      <div class="stat"><b id="stCat">0</b><span>Catamarca</span></div>
+    </div>
+    <div class="ov-row">
+      <label>Provincia</label>
+      <select id="fProv" onchange="applyFilters()">
+        <option value="">Todas</option>
+        <option value="TUCUMAN">Tucumán</option>
+        <option value="CATAMARCA">Catamarca</option>
+      </select>
+    </div>
+    <div class="ov-row">
+      <label>Ruta</label>
+      <select id="fRuta" onchange="applyFilters()"></select>
+    </div>
+    <div class="legend">
+      <div class="li"><span class="sw" style="background:#1d4ed8"></span> Tucumán</div>
+      <div class="li"><span class="sw" style="background:#059669"></span> Catamarca</div>
+    </div>
+  </div>
+
+  <div class="credit">Datos del proyecto · OpenStreetMap</div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script>
+    var map = L.map('map', { zoomControl: true }).setView([-27.6, -65.6], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19
+    }).addTo(map);
+
+    var PROV_COLOR = { TUCUMAN: '#1d4ed8', CATAMARCA: '#059669' };
+    var allPdv = [];
+    var markers = [];
+    var cluster = null;
+
+    function icono(p) {
+      return L.circleMarker([p.lat, p.lon], {
+        radius: 6, color: '#fff', weight: 1.5,
+        fillColor: PROV_COLOR[p.prov] || '#6b7280', fillOpacity: 0.95
+      });
+    }
+
+    function popup(d) {
+      var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
+      var html = '<div class="popup-name">' + esc(d.r) + '</div>';
+      if (d.c) html += '<div class="popup-row">Cliente: ' + esc(d.c) + ' · ' + esc(d.prov) + '</div>';
+      if (dir) html += '<div class="popup-row">' + esc(dir) + '</div>';
+      if (d.vta) html += '<span class="popup-route">' + esc(d.vta) + '</span>';
+      html += '<br><a href="https://www.google.com/maps/search/?api=1&query=' + d.lat + ',' + d.lon +
+        '" target="_blank" rel="noopener">Abrir en Google Maps</a>';
+      return html;
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+      });
+    }
+
+    function rutas() {
+      var set = {};
+      allPdv.forEach(function (d) { if (d.vta) set[d.vta] = 1; });
+      return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'es'); });
+    }
+
+    function rebuildSelect() {
+      var sel = document.getElementById('fRuta');
+      sel.innerHTML = '';
+      var o0 = document.createElement('option');
+      o0.value = ''; o0.textContent = 'Todas';
+      sel.appendChild(o0);
+      rutas().forEach(function (r) {
+        var o = document.createElement('option');
+        o.value = r; o.textContent = r;
+        sel.appendChild(o);
+      });
+    }
+
+    function applyFilters() {
+      var p = document.getElementById('fProv').value;
+      var r = document.getElementById('fRuta').value;
+      var vis = allPdv.filter(function (d) {
+        if (p && d.prov !== p) return false;
+        if (r && d.vta !== r) return false;
+        return true;
+      });
+      if (cluster) map.removeLayer(cluster);
+      markers = vis.map(function (d) {
+        var m = icono(d);
+        m.bindPopup(popup(d));
+        return m;
+      });
+      cluster = L.markerClusterGroup({ disableClusteringAtZoom: 15, maxClusterRadius: 50, showCoverageOnHover: false });
+      cluster.addLayers(markers);
+      map.addLayer(cluster);
+      if (vis.length && map.getZoom() < 7) {
+        map.fitBounds(L.latLngBounds(vis.map(function (d) { return [d.lat, d.lon]; })), { padding: [30, 30] });
+      }
+    }
+
+    fetch('/api/pdv').then(function (r) { return r.json(); }).then(function (arr) {
+      allPdv = arr.filter(function (d) {
+        return typeof d.lat === 'number' && typeof d.lon === 'number' && d.lat !== 0 && d.lon !== 0;
+      });
+      document.getElementById('stTotal').textContent = allPdv.length;
+      document.getElementById('stTuc').textContent = allPdv.filter(function (d) { return d.prov === 'TUCUMAN'; }).length;
+      document.getElementById('stCat').textContent = allPdv.filter(function (d) { return d.prov === 'CATAMARCA'; }).length;
+      rebuildSelect();
+      applyFilters();
+    }).catch(function () {});
+  </script>
+</body>
+</html>

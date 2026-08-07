@@ -102,9 +102,50 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
   display: flex; align-items: center; justify-content: center; }
 .map-tools button:active { transform: scale(.94); }
 .map-tools button.active { background: #1a1a2e; color: #fff; }
+.scrim { display: none; }
 body.sidebar-hidden .sidebar { display: none; }
 @media (max-width: 720px) {
-  .map-tools button { width: 38px; height: 38px; font-size: 17px; }
+  body.sidebar-hidden .sidebar { display: block; }
+  .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: min(320px, 86vw); max-width: none;
+    border-radius: 0 16px 16px 0; z-index: 1500; box-shadow: 6px 0 24px rgba(0,0,0,.35);
+    transform: translateX(-105%); transition: transform .25s ease; }
+  body.sidebar-hidden .sidebar { transform: translateX(0); }
+  .scrim { position: fixed; inset: 0; background: rgba(10,14,24,.55); z-index: 1490;
+    -webkit-tap-highlight-color: transparent; }
+  body.sidebar-hidden .scrim { display: block; }
+  .map-tools { top: auto; bottom: 16px; right: 12px; flex-direction: column; gap: 8px;
+    background: transparent; }
+  .map-tools button { width: 48px; height: 48px; font-size: 20px; border-radius: 14px;
+    box-shadow: 0 3px 10px rgba(0,0,0,.3); }
+  .tab { min-height: 46px; font-size: 14px; }
+  .filtros { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
+  .filtros > #search { grid-column: 1 / -1; }
+  .filtros .toggle-row, .filtros .zoom-prov { grid-column: 1 / -1; }
+  .filtros input[type=text], .filtros select, .filtros input[type=date] { min-height: 46px; font-size: 16px; }
+  .filtros .toggle-row { min-height: 46px; font-size: 14px; }
+  .zoom-prov { min-height: 46px; font-size: 13px; }
+  .vendor button, .card-actions .dots { min-height: 46px; min-width: 46px; padding: 8px 12px; font-size: 13px; }
+  .vendor .name { font-size: 15px; }
+  .vendor .code, .vendor .last, .vendor .card-meta { font-size: 13px; }
+  .leaflet-popup-content-wrapper { border-radius: 14px; }
+  .leaflet-popup-content { margin: 12px 14px; }
+  .popup-info { font-size: 13px; }
+  .popup-info .name { font-size: 15px; }
+  .popup-info .btn { display: block; width: 100%; box-sizing: border-box; text-align: center;
+    margin: 6px 0 0; min-height: 44px; font-size: 13px; line-height: 32px; }
+  #statusbar { bottom: 14px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+    max-width: calc(100vw - 24px); overflow: hidden; text-overflow: ellipsis; }
+  .leyenda { top: 10px; left: 50%; transform: translateX(-50%); right: auto; bottom: auto; font-size: 11px;
+    padding: 4px 10px; border-radius: 999px; white-space: nowrap; line-height: 1.4; }
+  #toast { bottom: 90px; }
+  .config-overlay { align-items: flex-end; padding: 0; }
+  .config { width: 100%; max-width: 100%; max-height: 92vh; border-radius: 18px 18px 0 0; padding: 0; }
+  .config h2 { position: sticky; top: 0; background: inherit; z-index: 2; padding: 14px 16px 10px; margin: 0; }
+  .config .cfg-tabs { padding: 10px 12px 8px; -webkit-overflow-scrolling: touch; }
+  .config .cfg-tab { min-height: 46px; white-space: nowrap; font-size: 13px; }
+  .config .cfg-pane { padding: 0 16px 16px; }
+  .config select, .config input[type=text], .config textarea { min-height: 46px; font-size: 16px; }
+  .config .row button, .config .btn-block { min-height: 46px; font-size: 14px; }
 }
 .config-overlay { position: absolute; inset: 0; z-index: 2100; background: rgba(15,20,32,.85);
   display: none; align-items: center; justify-content: center; }
@@ -211,11 +252,6 @@ body.dark .config .vlist { background: #0f1420; border-color: #2a3450; color: #f
 body.dark .config .cfg-tab { background: #0f1420; color: #9ca3af; }
 body.dark .config .cfg-tab.active { background: #1d4ed8; color: #fff; }
 body.dark .meta-bar { background: #2a3450; }
-@media (max-width: 720px) {
-  .sidebar { width: min(300px, calc(100vw - 20px)); }
-  .vendor button, .card-actions .dots { min-height: 38px; }
-  .map-tools button { width: 42px; height: 42px; font-size: 17px; }
-}
 </style>
 </head>
 <body>
@@ -264,12 +300,13 @@ body.dark .meta-bar { background: #2a3450; }
 <div class="statusbar" id="statusbar"></div>
 <div class="alertbar" id="alertbar"></div>
 <div class="toast" id="toast"></div>
-<div class="leyenda">🟢 Punto verde: enviando ahora<br>⚪ Punto gris: sin señal (más de 2 min)<br>🔴 Rojo: PDV más cercano al seleccionar un merchan</div>
+<div class="leyenda">🟢 Punto verde: merchan (siempre verde)<br>🔴 Rojo: PDV más cercano al seleccionar un merchan</div>
 <div class="map-tools">
   <button id="refreshBtn" title="Refrescar panel" onclick="location.reload()">⟳</button>
   <button id="darkBtn" title="Modo oscuro" onclick="toggleDark()">🌙</button>
   <button id="sidebarBtn" title="Mostrar / ocultar lista" onclick="toggleSidebar()">◧</button>
 </div>
+<div class="scrim" id="scrim" onclick="closeSidebar()"></div>
 <div class="config-overlay" id="config-overlay">
   <div class="config">
     <h2>Configuración</h2>
@@ -544,6 +581,7 @@ function renderSidebar(list) {
       '</div></div>';
     el.querySelector('.row1').addEventListener('click', function () {
       if (v.grupo === 'merchan') { showMerchanPDV(v.code); } else { flyTo(v.code); }
+      if (window.innerWidth <= 720) closeSidebar();
     });
     box.appendChild(el);
   });
@@ -714,7 +752,7 @@ function refresh() {
     arr.forEach(function (p) {
       if (p.lat == null) return;
       if (!markers[p.code]) {
-        var m = markerIcon(p.color);
+        var m = markerIcon('#22c55e');
         m.bindPopup('', { maxWidth: 260 });
         m._pos = p;
         m.on('click', function () { m.setPopupContent(makePopup(p, p)); });
@@ -723,6 +761,7 @@ function refresh() {
       var m = markers[p.code];
       m.setLatLng([p.lat, p.lon]);
       m._pos = p;
+      m.setStyle({ fillColor: '#22c55e', color: '#fff' });
       m.setPopupContent(makePopup(p, p));
     });
     renderAlerts(arr);
@@ -1390,6 +1429,12 @@ function toggleSidebar() {
   var btn = document.getElementById('sidebarBtn');
   if (btn) btn.classList.toggle('active', hidden);
 }
+function closeSidebar() {
+  if (window.innerWidth > 720) return;
+  document.body.classList.remove('sidebar-hidden');
+  var btn = document.getElementById('sidebarBtn');
+  if (btn) btn.classList.remove('active');
+}
 
 function togglePDV() {
   var on = document.getElementById('pdv-toggle').checked;
@@ -1450,6 +1495,7 @@ function syncPDVZoom() {
 }
 map.on('zoomend', syncPDVZoom);
 map.on('moveend', syncPDVZoom);
+map.on('click', function () { if (window.innerWidth <= 720) closeSidebar(); });
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

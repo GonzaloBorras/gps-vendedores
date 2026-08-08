@@ -446,7 +446,8 @@ def maintenance():
             _cleanup_monthly()
         if request.args.get('vacuum') and PG:
             import psycopg2
-            con = psycopg2.connect(DATABASE_URL, autocommit=True)
+            con = psycopg2.connect(DATABASE_URL)
+            con.autocommit = True
             try:
                 cur = con.cursor()
                 cur.execute('VACUUM (FULL) positions')

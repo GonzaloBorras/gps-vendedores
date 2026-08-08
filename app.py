@@ -404,8 +404,10 @@ def _db_sizes():
     try:
         if PG:
             rows = _exec(con, """SELECT c.relname AS tabla, pg_total_relation_size(c.oid) AS bytes,
-                              n_live_tup AS filas
-                              FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                              COALESCE(s.n_live_tup, 0) AS filas
+                              FROM pg_class c
+                              JOIN pg_namespace n ON n.oid = c.relnamespace
+                              LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
                               WHERE n.nspname = 'public' AND c.relkind = 'r'
                               ORDER BY bytes DESC""").fetchall()
         else:
@@ -423,20 +425,23 @@ def _db_sizes():
 def maintenance():
     if not (session.get('auth') or request.args.get('pin') == DASH_PIN):
         return jsonify({'ok': False, 'error': 'no autorizado'}), 401
-    if request.args.get('purge'):
-        _cleanup_rolling()
-        _cleanup_monthly()
-    if request.args.get('vacuum') and PG:
-        con = psycopg2.connect(DATABASE_URL, autocommit=True)
-        try:
-            cur = con.cursor()
-            cur.execute('VACUUM (FULL) positions')
-            cur.execute('VACUUM (FULL) visitas')
-            cur.execute('VACUUM (FULL) geoevents')
-            cur.execute('VACUUM (FULL) messages')
-        finally:
-            con.close()
-    return jsonify(_db_sizes())
+    try:
+        if request.args.get('purge'):
+            _cleanup_rolling()
+            _cleanup_monthly()
+        if request.args.get('vacuum') and PG:
+            con = psycopg2.connect(DATABASE_URL, autocommit=True)
+            try:
+                cur = con.cursor()
+                cur.execute('VACUUM (FULL) positions')
+                cur.execute('VACUUM (FULL) visitas')
+                cur.execute('VACUUM (FULL) geoevents')
+                cur.execute('VACUUM (FULL) messages')
+            finally:
+                con.close()
+        return jsonify(_db_sizes())
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
 
 # ---------------- PDV adicionales (creados por los merchans desde el mapa) ----------------

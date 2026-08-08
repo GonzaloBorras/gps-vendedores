@@ -26,5 +26,6 @@ public class BootReceiver extends BroadcastReceiver {
         i.putExtra("session", prefs.getString(MainActivity.KEY_SESSION, ""));
         if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(i);
         else context.startService(i);
+        WatchdogReceiver.schedule(context);
     }
 }

@@ -430,7 +430,7 @@ def maintenance():
         return jsonify({'ok': False, 'error': 'no autorizado'}), 401
     info = {}
     try:
-        if request.args.get('recompress'):
+        if request.args.get('recompress') and not request.args.get('status'):
             if MAINT_STATE.get('running'):
                 return jsonify({'ok': True, 'recompress_running': True, **MAINT_STATE})
             MAINT_STATE.clear()
@@ -438,6 +438,9 @@ def maintenance():
                                 'bytes_despues': 0, 'por_fecha': {}})
             threading.Thread(target=_recompress_bg, daemon=True).start()
             return jsonify({'ok': True, 'recompress_running': True, 'started': True})
+        if request.args.get('status'):
+            return jsonify({'ok': True, 'recompress_running': MAINT_STATE.get('running', False),
+                            **MAINT_STATE})
         if request.args.get('purge'):
             _cleanup_rolling()
             _cleanup_monthly()

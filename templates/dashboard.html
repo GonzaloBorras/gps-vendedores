@@ -111,6 +111,8 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .mch-ic { background: #22c55e; color: #fff; border-radius: 50%; width: 28px; height: 28px;
   display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;
   border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.45); }
+.map-watermark { position: absolute; bottom: 10px; left: 10px; z-index: 900; font-size: 11px;
+  color: #64748b; opacity: .5; pointer-events: none; user-select: none; letter-spacing: .3px; }
 .map-tools { position: absolute; top: 10px; right: 10px; z-index: 1300; display: flex; gap: 8px; }
 .map-tools button { width: 42px; height: 42px; border: 0; border-radius: 10px; background: #fff;
   color: #1a1a2e; font-size: 19px; line-height: 1; box-shadow: 0 2px 8px rgba(0,0,0,.25); cursor: pointer;
@@ -321,6 +323,7 @@ body.dark .meta-bar { background: #2a3450; }
   <button id="darkBtn" title="Modo oscuro" onclick="toggleDark()">🌙</button>
   <button id="sidebarBtn" title="Mostrar / ocultar lista" onclick="toggleSidebar()">◧</button>
 </div>
+<div class="map-watermark" id="mapWatermark"></div>
 <div class="scrim" id="scrim" onclick="closeSidebar()"></div>
 <div class="config-overlay" id="config-overlay">
   <div class="config">
@@ -464,7 +467,10 @@ var markerLayer = L.layerGroup().addTo(map);
 var renderedCodes = null;
 var currentList = [];
 var CUR_APP = null;
-fetch('/api/app-version').then(function (r) { return r.json(); }).then(function (d) { CUR_APP = d; }).catch(function () {});
+fetch('/api/app-version').then(function (r) { return r.json(); }).then(function (d) {
+  CUR_APP = d;
+  document.getElementById('mapWatermark').textContent = 'GPS Vendedores · v' + (d.version || '');
+}).catch(function () {});
 
 var RUTAS_DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
 var RUTAS_DIA_NAMES = { LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado' };

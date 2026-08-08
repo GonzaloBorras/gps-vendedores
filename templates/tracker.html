@@ -203,41 +203,133 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   border-bottom: 1px dashed #2a3450; }
 .onboard-box li b { color: #fff; }
 .onboard-box .btn { margin-top: 4px; background: #1d4ed8; color: #fff; }
+
+/* ---------- Layout dashboard: mapa grande + panel lateral ---------- */
+body { display: block; align-items: initial; justify-content: initial; padding: 0; overflow: hidden; }
+#app { display: flex; height: 100vh; width: 100vw; }
+#side {
+  width: 360px; max-width: 92vw; flex: none; background: #1a2234;
+  border-right: 1px solid #2a3450; z-index: 1100; display: flex; flex-direction: column; overflow: hidden;
+}
+#mapWrap { flex: 1; position: relative; min-width: 0; }
+#mapa { position: absolute; inset: 0; width: 100%; height: 100%; background: #0f1420; z-index: 1; border: 0; }
+.map-legend { position: absolute; left: 12px; bottom: 12px; z-index: 400; background: rgba(15,20,32,.85);
+  border: 1px solid #2a3450; color: #cbd5e1; border-radius: 8px; padding: 6px 10px; font-size: 11px; }
+.map-badge { position: absolute; top: 12px; right: 12px; z-index: 400; background: rgba(15,20,32,.85);
+  border: 1px solid #2a3450; color: #cbd5e1; border-radius: 8px; padding: 6px 10px; font-size: 11px; }
+.side-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #2a3450; }
+.side-avatar { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg,#1d4ed8,#7c3aed);
+  display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: #fff; flex: none; }
+.side-titles { flex: 1; min-width: 0; text-align: left; }
+.side-titles h1 { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side-titles .prov { color: #93c5fd; font-size: 12px; }
+.side-toggle { background: #334155; color: #fff; border: 0; width: 30px; height: 30px; border-radius: 8px; font-size: 14px; cursor: pointer; flex: none; }
+#side .chips { justify-content: flex-start; margin: 10px 14px 0; padding: 0; }
+#side .status { justify-content: flex-start; padding: 10px 14px 0; }
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 14px; }
+.metrics .metric { padding: 9px 12px; }
+#side .error, #side .note-ok, #side .gps-warn, #side .aviso, #side .msg-banner, #side .ruta-banner,
+#side .ruta-progress, #side .prox { margin: 8px 14px 0; }
+.side-actions { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 10px 14px; }
+.side-actions button { width: 100%; padding: 11px; border: 0; border-radius: 10px; font-size: 14px;
+  font-weight: 700; cursor: pointer; min-height: 44px; margin: 0; }
+.side-actions #visitasBtn { background: #1d4ed8; color: #fff; }
+.side-actions #mapaBtn { background: #7c3aed; color: #fff; }
+.side-actions #addPdvBtn { background: #334155; color: #cbd5e1; }
+.tabs { display: flex; border-top: 1px solid #2a3450; flex: none; }
+.tabs .tab { flex: 1; padding: 10px; background: #10182b; border: 0; color: #8b93a7; font-weight: 700;
+  font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; }
+.tabs .tab.active { color: #fff; border-bottom-color: #3b82f6; background: #0f1420; }
+.panes { flex: 1; overflow-y: auto; padding: 10px 14px 16px; -webkit-overflow-scrolling: touch; }
+.pane { display: none; }
+.pane.active { display: block; }
+.pane-title { font-size: 12px; color: #8b93a7; text-transform: uppercase; margin-bottom: 8px; }
+.pane-title .ruta-hoy-count, .pane-title .visita-count { color: #93c5fd; font-weight: 700; }
+.push-row { margin-bottom: 10px; }
+.push-row .push-btn { margin: 0; }
+#pane-ruta .ruta-hoy-title { margin-top: 6px; }
+.fab { display: none; position: fixed; bottom: 16px; left: 16px; z-index: 1200; width: 52px; height: 52px;
+  border-radius: 50%; border: 0; background: #1d4ed8; color: #fff; font-size: 22px; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,.5); align-items: center; justify-content: center; }
+.scrim { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1150; }
+@media (max-width: 760px) {
+  .fab { display: flex; }
+  #side { position: fixed; top: 0; left: 0; bottom: 0; transform: translateX(-105%);
+    transition: transform .25s ease; box-shadow: 0 0 40px rgba(0,0,0,.6); }
+  #side.open { transform: translateX(0); }
+  .scrim.show { display: block; }
+}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="dot on" id="dot"></div>
-  <h1>{{ vendor.name }}</h1>
-  <div class="prov">{{ vendor.prov }}</div>
-  <div class="status"><span id="stateText">Iniciando...</span></div>
-  <div class="chips">
-    <div class="jornada-chip" id="jornadaChip">🕐 Cargando jornada…</div>
-    <div class="gps-chip" id="gpsChip">🛰 GPS: esperando…</div>
-  </div>
-  <div class="grid">
-    <div class="metric"><div class="label">Latitud</div><div class="value" id="lat">--</div></div>
-    <div class="metric"><div class="label">Longitud</div><div class="value" id="lon">--</div></div>
-    <div class="metric"><div class="label">Precisión</div><div class="value" id="acc">--</div></div>
-    <div class="metric"><div class="label">Último envío</div><div class="value" id="last">--</div></div>
-  </div>
-  <div class="error" id="err"></div>
-  <div class="note-ok" id="note"></div>
-  <div class="gps-warn" id="gpsWarn">🚫 Ubicación apagada o sin señal GPS. El administrador va a recibir una alerta. Activá la ubicación del celular.</div>
-  <div class="aviso" id="absenceBanner"></div>
-  <div class="msg-banner" id="msgBanner"></div>
-  <div class="ruta-banner" id="rutaUpdateBanner">🔄 Tu ruteo de hoy se actualizó.<br><button onclick="location.reload()">Recargar para ver los cambios</button></div>
-  <div class="prox" id="proxPdv"></div>
-  <div class="ruta-progress" id="rutaProgress"></div>
-  <button id="visitasBtn">Registro de PDV</button>
-  <button class="btn mapa" id="mapaBtn">🗺️ Mapa de PDV</button>
-  <span class="visita-count" id="visitaCount"></span>
-  <div class="jornada" id="jornada"></div>
-  <hint>Tu ubicación se envía automáticamente en el horario de trabajo
-  (8 a 16 h; los sábados hasta las 13) y la jornada se corta sola a las 8 horas.<br><br>
-  💡 Para usarla como app: en el navegador tocá el menú (⋮) y elegí
-  <b>"Agregar a pantalla de inicio"</b>.</hint>
+<div id="app">
+  <aside id="side" class="open">
+    <div class="side-head">
+      <div class="side-avatar">{{ vendor.name[0] }}</div>
+      <div class="side-titles">
+        <h1>{{ vendor.name }}</h1>
+        <div class="prov">{{ vendor.prov }}</div>
+      </div>
+      <button class="side-toggle" id="sideToggle" onclick="toggleSide()">«</button>
+    </div>
+    <div class="chips">
+      <div class="jornada-chip" id="jornadaChip">🕐 Cargando jornada…</div>
+      <div class="gps-chip" id="gpsChip">🛰 GPS: esperando…</div>
+    </div>
+    <div class="status"><span class="dot on" id="dot"></span><span id="stateText">Iniciando...</span></div>
+    <div class="metrics">
+      <div class="metric"><div class="label">Latitud</div><div class="value" id="lat">--</div></div>
+      <div class="metric"><div class="label">Longitud</div><div class="value" id="lon">--</div></div>
+      <div class="metric"><div class="label">Precisión</div><div class="value" id="acc">--</div></div>
+      <div class="metric"><div class="label">Último envío</div><div class="value" id="last">--</div></div>
+    </div>
+    <div class="error" id="err"></div>
+    <div class="note-ok" id="note"></div>
+    <div class="gps-warn" id="gpsWarn">🚫 Ubicación apagada o sin señal GPS. El administrador va a recibir una alerta. Activá la ubicación del celular.</div>
+    <div class="aviso" id="absenceBanner"></div>
+    <div class="msg-banner" id="msgBanner"></div>
+    <div class="ruta-banner" id="rutaUpdateBanner">🔄 Tu ruteo de hoy se actualizó.<br><button onclick="location.reload()">Recargar para ver los cambios</button></div>
+    <div class="ruta-progress" id="rutaProgress"></div>
+    <div class="prox" id="proxPdv"></div>
+    <div class="side-actions">
+      <button id="visitasBtn">📋 Registro de PDV</button>
+      <button id="mapaBtn">📍 Mi posición en el mapa</button>
+      <button id="addPdvBtn" onclick="openAddPdv()">➕ Agregar PDV</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="ruta" onclick="switchPane('ruta')">Ruta</button>
+      <button class="tab" data-tab="visitas" onclick="switchPane('visitas')">Visitados</button>
+      <button class="tab" data-tab="avisos" onclick="switchPane('avisos')">Avisos</button>
+    </div>
+    <div class="panes">
+      <div class="pane active" id="pane-ruta">
+        <div class="pane-title">Mi ruta de hoy <span class="ruta-hoy-count" id="rutaHoyCount"></span></div>
+        <div id="rutaHoySide"></div>
+        <div class="ruta-hoy-title" style="cursor:pointer" onclick="toggleMiRuteo()">Mi ruteo completo <span id="miRuteoToggle">▸</span></div>
+        <div id="miRuteo" style="display:none"></div>
+      </div>
+      <div class="pane" id="pane-visitas">
+        <div class="pane-title">Visitados hoy <span class="visita-count" id="visitaCount"></span></div>
+        <div id="visitasTodaySide"></div>
+      </div>
+      <div class="pane" id="pane-avisos">
+        <div class="push-row"><button class="push-btn" id="pushBtn" onclick="enablePush()">🔔 Activar avisos</button></div>
+        <div class="jornada" id="jornada"></div>
+        <hint>Tu ubicación se envía automáticamente en el horario de trabajo
+        (8 a 16 h; los sábados hasta las 13) y la jornada se corta sola a las 8 horas.<br><br>
+        💡 Para usarla como app: en el navegador tocá el menú (⋮) y elegí
+        <b>"Agregar a pantalla de inicio"</b>.</hint>
+      </div>
+    </div>
+  </aside>
+  <main id="mapWrap">
+    <div id="mapa"></div>
+    <div class="map-legend" id="mapaMsg">Cargando PDV...</div>
+    <div class="map-badge"><span style="color:#1d4ed8">●</span> visitado · <span style="color:#9ca3af">●</span> pendiente</div>
+  </main>
 </div>
+<button class="fab" onclick="toggleSide()">☰</button>
+<div class="scrim" id="scrim" onclick="toggleSide()"></div>
 
 <div class="toast-ok" id="toastOk"></div>
 
@@ -257,10 +349,6 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 <div class="visitas-overlay" id="visitasOverlay">
   <div class="visitas-box">
     <h2>Registrar PDV visitado</h2>
-    <div class="ruta-hoy-title">Mi ruta de hoy</div>
-    <div id="rutaHoy"></div>
-    <div class="ruta-hoy-title" style="cursor:pointer" onclick="toggleMiRuteo()">Mi ruteo completo <span id="miRuteoToggle">▸</span></div>
-    <div id="miRuteo" style="display:none"></div>
     <input type="search" id="visitasSearch" placeholder="Buscar por cliente, razón social, calle o ruta...">
     <div class="busca-hint">Podés registrar <b>cualquier</b> PDV, aunque no esté en tu ruteo de hoy (por ejemplo, si te pidieron un cambio de día).</div>
     <div id="visitasResults"></div>
@@ -281,20 +369,6 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
     <img id="fotoPreview" alt="Vista previa">
     <button class="btn-foto" id="fotoConfirmBtn" onclick="confirmarFoto()" disabled>Registrar visita</button>
     <button class="btn-foto-cancel" onclick="closeFoto()">Cancelar</button>
-  </div>
-</div>
-
-<div class="mapa-overlay" id="mapaOverlay">
-  <div class="mapa-box">
-    <div class="mapa-head">
-      <h2>Mapa de PDV</h2>
-      <button class="mapa-close" onclick="closeMapa()">✕</button>
-    </div>
-    <div id="mapa"></div>
-    <div class="mapa-foot">
-      <button class="btn-addpdv" onclick="openAddPdv()">➕ Agregar PDV en mi ubicación</button>
-    </div>
-    <div class="mapa-msg" id="mapaMsg"></div>
   </div>
 </div>
 
@@ -827,19 +901,21 @@ function loadRutaHoy(cb) {
 }
 
 function renderRutaHoy() {
-  var box = document.getElementById('rutaHoy');
+  var box = document.getElementById('rutaHoySide');
+  var cnt = document.getElementById('rutaHoyCount');
   if (!RUTA_TODAY) {
-    box.innerHTML = '<div class="empty">Hoy no hay ruta programada (día de descanso).</div>';
+    if (box) box.innerHTML = '<div class="empty">Hoy no hay ruta programada (día de descanso).</div>';
+    if (cnt) cnt.textContent = '';
     return;
   }
   if (!rutaHoy.length) {
-    box.innerHTML = '<div class="empty">Sin PDV asignados para el ' + RUTA_DIA_NAME + '. Buscá y registrá cualquier PDV.</div>';
+    if (box) box.innerHTML = '<div class="empty">Sin PDV asignados para el ' + RUTA_DIA_NAME + '. Buscá y registrá cualquier PDV.</div>';
+    if (cnt) cnt.textContent = '';
     return;
   }
   var pend = rutaHoy.filter(function (v) { return !visitasCache[v.cliente]; }).length;
-  box.innerHTML = '<span class="ruta-hoy-count">' + RUTA_DIA_NAME + ' · ' + rutaHoy.length +
-    ' PDV · ' + pend + ' pendientes</span>' +
-    rutaHoy.map(function (v) {
+  if (cnt) cnt.textContent = RUTA_DIA_NAME + ' · ' + rutaHoy.length + ' PDV · ' + pend + ' pend';
+  if (box) box.innerHTML = rutaHoy.map(function (v) {
       var dir = (v.calle || '') + (v.altura ? ' ' + v.altura : '');
       var vis = visitasCache[v.cliente];
       var d = pdvDistM(v);
@@ -902,8 +978,8 @@ function irProximo() {
     document.getElementById('visitasOverlay').classList.add('open');
     return;
   }
-  var box = document.getElementById('rutaHoy');
-  var item = box.querySelector('.pdv-item[data-cliente="' + b.v.cliente + '"]');
+  var box = document.getElementById('rutaHoySide');
+  var item = box ? box.querySelector('.pdv-item[data-cliente="' + b.v.cliente + '"]') : null;
   if (item) {
     item.scrollIntoView({ behavior: 'smooth', block: 'center' });
     item.classList.add('next-flash');
@@ -991,19 +1067,23 @@ function loadVisitas() {
 
 function renderVisitas() {
   var box = document.getElementById('visitasToday');
+  var side = document.getElementById('visitasTodaySide');
   var keys = Object.keys(visitasCache);
+  var html;
   if (!keys.length) {
-    box.innerHTML = '<div class="empty">Todavía no registraste visitas hoy.</div>';
-    return;
+    html = '<div class="empty">Todavía no registraste visitas hoy.</div>';
+  } else {
+    html = keys.map(function (c) {
+      var v = visitasCache[c];
+      return '<div class="pdv-item visited" onclick="quitarVisita(\'' + c + '\')">' +
+        '<div class="r">' + esc(v.razon) + '</div>' +
+        '<div class="d">Cliente: ' + esc(c) + (v.calle ? ' · ' + esc(v.calle) : '') + '</div>' +
+        (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
+        '<small>tocá para quitar</small></div>';
+    }).join('');
   }
-  box.innerHTML = keys.map(function (c) {
-    var v = visitasCache[c];
-    return '<div class="pdv-item visited" onclick="quitarVisita(\'' + c + '\')">' +
-      '<div class="r">' + esc(v.razon) + '</div>' +
-      '<div class="d">Cliente: ' + esc(c) + (v.calle ? ' · ' + esc(v.calle) : '') + '</div>' +
-      (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
-      '<small>tocá para quitar</small></div>';
-  }).join('');
+  if (box) box.innerHTML = html;
+  if (side) side.innerHTML = html;
 }
 
 function quitarVisita(c) {
@@ -1166,11 +1246,11 @@ function updateMyPosition() {
   if (lastLat === null || !myMarker || !myCircle) return;
   myMarker.setLatLng([lastLat, lastLon]);
   myCircle.setLatLng([lastLat, lastLon]);
+  if (mapa && !window._centered) { window._centered = true; mapa.setView([lastLat, lastLon], 15); }
 }
 function openMapa() {
-  document.getElementById('mapaOverlay').classList.add('open');
-  initMapa();
-  setTimeout(function () { mapa.invalidateSize(); }, 80);
+  if (!mapa) { initMapa(); }
+  setTimeout(function () { if (mapa) mapa.invalidateSize(); }, 60);
   if (!pdvAll.length) cargarPdvMapa();
   if (lastLat !== null) { updateMyPosition(); mapa.setView([lastLat, lastLon], Math.max(mapa.getZoom(), 15)); }
   else if ('geolocation' in navigator) {
@@ -1182,7 +1262,6 @@ function openMapa() {
     }, function () {}, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
   }
 }
-function closeMapa() { document.getElementById('mapaOverlay').classList.remove('open'); }
 
 function makePdvMarker(d) {
   var vis = !!visitasCache[d.c];
@@ -1421,16 +1500,44 @@ function closeOnboard() {
 
 // Botón "atrás" de Android: cierra pantallas abiertas antes de minimizar la app
 window.closeAnyOverlay = function () {
-  var o = document.querySelector('.visitas-overlay.open,.foto-overlay.open,.mapa-overlay.open,.addpdv-overlay.open');
+  var o = document.querySelector('.visitas-overlay.open,.foto-overlay.open,.addpdv-overlay.open');
   if (o) { o.classList.remove('open'); return true; }
   return false;
 };
+
+// Panel lateral
+function switchPane(tab) {
+  document.querySelectorAll('#side .tabs .tab').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+  });
+  document.querySelectorAll('#side .pane').forEach(function (p) {
+    p.classList.toggle('active', p.id === 'pane-' + tab);
+  });
+  setTimeout(function () { if (mapa) mapa.invalidateSize(); }, 60);
+}
+function toggleSide() {
+  var s = document.getElementById('side');
+  var sc = document.getElementById('scrim');
+  var open = s.classList.toggle('open');
+  if (sc) sc.classList.toggle('show', open);
+  setTimeout(function () { if (mapa) mapa.invalidateSize(); }, 280);
+}
+(function () {
+  if (window.innerWidth <= 760) {
+    document.getElementById('side').classList.remove('open');
+    var sc = document.getElementById('scrim');
+    if (sc) sc.classList.remove('show');
+  }
+})();
 
 loadVisitas();
 loadRutaHoy();
 checkAbsence();
 loadMessages();
 maybeOnboard();
+initMapa();
+setTimeout(function () { if (mapa) mapa.invalidateSize(); }, 150);
+cargarPdvMapa();
 setInterval(loadMessages, 60000);
 setInterval(loadVisitas, 300000);
 setInterval(renderProximo, 15000);

@@ -213,7 +213,9 @@ public class LocationService extends Service implements LocationListener {
                     conn.setConnectTimeout(10000);
                     conn.setReadTimeout(10000);
                     conn.setRequestProperty("Content-Type", "application/json");
-                    String body = "{\"code\":\"" + code + "\",\"gps\":" + gps + "}";
+                    String body = "{\"code\":\"" + code + "\",\"gps\":" + gps +
+                            ",\"app\":\"android\",\"version\":\"" + BuildConfig.VERSION_NAME +
+                            "\",\"versionCode\":" + BuildConfig.VERSION_CODE + "}";
                     OutputStream os = conn.getOutputStream();
                     os.write(body.getBytes(StandardCharsets.UTF_8));
                     os.close();
@@ -267,7 +269,8 @@ public class LocationService extends Service implements LocationListener {
                     conn.setReadTimeout(15000);
                     conn.setRequestProperty("Content-Type", "application/json");
                     String body = "{\"code\":\"" + code + "\",\"lat\":" + lat + ",\"lon\":" + lon +
-                            ",\"session\":\"" + session + "\"}";
+                            ",\"session\":\"" + session + "\",\"app\":\"android\",\"version\":\"" +
+                            BuildConfig.VERSION_NAME + "\",\"versionCode\":" + BuildConfig.VERSION_CODE + "}";
                     OutputStream os = conn.getOutputStream();
                     os.write(body.getBytes(StandardCharsets.UTF_8));
                     os.close();

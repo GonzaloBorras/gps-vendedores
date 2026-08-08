@@ -22,7 +22,7 @@ RUTAS_FILE = os.path.join(BASE_DIR, 'rutas.json')
 OVERRIDES_FILE = os.path.join(BASE_DIR, 'overrides.json')
 
 APP_VERSION = '2.4'
-APP_VERSION_CODE = 9
+APP_VERSION_CODE = 10
 APK_URL = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-v1.0/GPS-Merchan.apk'
 APK_URL_ADMIN = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-admin/GPS-Admin.apk'
 
@@ -193,6 +193,7 @@ def init_db():
             'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)',
             'CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, code TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, ts BIGINT NOT NULL)',
             'CREATE INDEX IF NOT EXISTS idx_push_subs_code ON push_subs(code)',
+            'CREATE TABLE IF NOT EXISTS devices (code TEXT PRIMARY KEY, app TEXT NOT NULL DEFAULT \'web\', app_version TEXT NOT NULL DEFAULT \'\', version_code INTEGER NOT NULL DEFAULT 0, updated_at BIGINT NOT NULL)',
         ]:
             cur.execute(s)
         cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto TEXT')
@@ -291,6 +292,13 @@ def init_db():
                 ts INTEGER NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_push_subs_code ON push_subs(code);
+            CREATE TABLE IF NOT EXISTS devices (
+                code TEXT PRIMARY KEY,
+                app TEXT NOT NULL DEFAULT 'web',
+                app_version TEXT NOT NULL DEFAULT '',
+                version_code INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL
+            );
         ''')
         vcols = [r[1] for r in con.execute('PRAGMA table_info(visitas)')]
         if 'foto' not in vcols:
@@ -443,6 +451,23 @@ def check_geofence(db, code, lat, lon, now):
 
 # ---------------- API ----------------
 
+def _upsert_device(db, code, app, version, version_code):
+    try:
+        vc = int(version_code)
+    except (TypeError, ValueError):
+        vc = 0
+    v = str(version)[:20] if version else ''
+    a = str(app)[:20] if app else 'web'
+    if a == 'web':
+        row = _exec(db, 'SELECT app FROM devices WHERE code=?', (code,)).fetchone()
+        if row and row['app'] == 'android':
+            return
+    _exec(db, '''INSERT INTO devices(code, app, app_version, version_code, updated_at) VALUES (?,?,?,?,?)
+                 ON CONFLICT(code) DO UPDATE SET app = excluded.app, app_version = excluded.app_version,
+                 version_code = excluded.version_code, updated_at = excluded.updated_at''',
+          (code, a, v, vc, int(time.time() * 1000)))
+
+
 @app.route('/api/app-version')
 def app_version():
     kind = request.args.get('app', 'merchan')
@@ -471,6 +496,7 @@ def track():
 
     db = get_db()
     ts = int(time.time() * 1000)
+    _upsert_device(db, code, body.get('app'), body.get('version'), body.get('versionCode'))
     # Corte de jornada por horario fijo (08:00-16:00 de lunes a viernes,
     # 08:00-13:00 los sábados, domingo sin jornada) para todos los merchans.
     win = _jornada_window(code)
@@ -495,6 +521,7 @@ def gps_status():
     db = get_db()
     ts = int(time.time() * 1000)
     name = VENDOR_BY_CODE[code]['name']
+    _upsert_device(db, code, body.get('app'), body.get('version'), body.get('versionCode'))
     if body.get('gps'):
         existed = _exec(db, 'SELECT 1 FROM alerts WHERE code = ?', (code,)).fetchone()
         _exec(db, 'DELETE FROM alerts WHERE code = ?', (code,))
@@ -661,12 +688,15 @@ def positions():
     db = get_db()
     now = int(time.time() * 1000)
     rows = _exec(db, '''
-        SELECT p.code, p.name, p.lat, p.lon, p.ts, v.prov, v.color, v.grupo
+        SELECT p.code, p.name, p.lat, p.lon, p.ts, v.prov, v.color, v.grupo,
+               d.app, d.app_version, d.version_code
         FROM positions p
         JOIN (SELECT code, MAX(ts) AS mts FROM positions GROUP BY code) mx
           ON p.code = mx.code AND p.ts = mx.mts
         JOIN vendors v ON v.code = p.code
+        LEFT JOIN devices d ON d.code = p.code
     ''').fetchall()
+    devs = {d['code']: d for d in _exec(db, 'SELECT code, app, app_version, version_code FROM devices').fetchall()}
     alerts = {a['code']: a['ts'] for a in _exec(db, 'SELECT code, ts FROM alerts').fetchall()}
     out = []
     for r in rows:
@@ -683,6 +713,9 @@ def positions():
             'last': now - r['ts'],
             'gpsAlert': r['code'] in alerts,
             'gpsAlertTs': alerts.get(r['code']),
+            'app': r['app'] if r['app'] else 'web',
+            'appVersion': r['app_version'] if r['app_version'] else '',
+            'appVersionCode': r['version_code'] if r['version_code'] else 0,
         })
     for code, a_ts in alerts.items():
         if code in {r['code'] for r in rows}:
@@ -703,6 +736,9 @@ def positions():
             'last': None,
             'gpsAlert': True,
             'gpsAlertTs': a_ts,
+            'app': (devs.get(code) or {}).get('app') or 'web',
+            'appVersion': (devs.get(code) or {}).get('app_version') or '',
+            'appVersionCode': (devs.get(code) or {}).get('version_code') or 0,
         })
     return jsonify(out)
 

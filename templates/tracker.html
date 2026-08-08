@@ -235,6 +235,8 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
   font-weight: 800; cursor: pointer; min-height: 44px; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
 .map-fab #visitasBtn { background: #1d4ed8; color: #fff; }
 .map-fab #addPdvBtn { background: #22c55e; color: #07120a; }
+.map-watermark { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); z-index: 400;
+  font-size: 11px; color: #64748b; opacity: .5; pointer-events: none; user-select: none; letter-spacing: .3px; }
 .tabs { display: flex; border-top: 1px solid #2a3450; flex: none; }
 .tabs .tab { flex: 1; padding: 10px; background: #10182b; border: 0; color: #8b93a7; font-weight: 700;
   font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; }
@@ -324,6 +326,7 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
       <button id="visitasBtn" onclick="openVisitas()">＋ Registrar PDV</button>
       <button id="addPdvBtn" onclick="openAddPdv()">＋ Cargar nuevo PDV</button>
     </div>
+    <div class="map-watermark" id="mapWatermark"></div>
   </main>
 </div>
 <button class="fab" onclick="toggleSide()">☰</button>
@@ -1529,6 +1532,9 @@ loadVisitas();
 loadRutaHoy();
 loadMiRuteo();
 checkAbsence();
+fetch('/api/app-version').then(function (r) { return r.json(); }).then(function (d) {
+  document.getElementById('mapWatermark').textContent = 'GPS Merchan · v' + (d.version || '');
+}).catch(function () {});
 loadMessages();
 maybeOnboard();
 initMapa();

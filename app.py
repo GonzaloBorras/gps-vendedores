@@ -445,6 +445,7 @@ def maintenance():
             _cleanup_rolling()
             _cleanup_monthly()
         if request.args.get('vacuum') and PG:
+            import psycopg2
             con = psycopg2.connect(DATABASE_URL, autocommit=True)
             try:
                 cur = con.cursor()

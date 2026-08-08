@@ -52,6 +52,8 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
   font-size: 11px; font-weight: 700; line-height: 15px; text-align: center; border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,.5); }
 .pdv-dot { width: 9px; height: 9px; border-radius: 50%; background: #9ca3af; border: 1.5px solid #6b7280; }
+.pdv-ruta { width: 10px; height: 10px; border-radius: 50%; background: #1d4ed8; border: 1.5px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.5); }
 .foto-ok { color: #047857; font-weight: 700; }
 .foto-miss { color: #b91c1c; font-weight: 700; }
 .foto-link { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 600;
@@ -312,7 +314,7 @@ body.dark .meta-bar { background: #2a3450; }
 <div class="statusbar" id="statusbar"></div>
 <div class="alertbar" id="alertbar"></div>
 <div class="toast" id="toast"></div>
-<div class="leyenda">🟢 Punto verde: merchan (siempre verde)<br>🔴 Rojo: PDV más cercano al seleccionar un merchan</div>
+<div class="leyenda">🟢 Punto verde: merchan (siempre verde)<br>🔴 Rojo: PDV más cercano al seleccionar un merchan<br><span style="color:#1d4ed8">●</span> PDV de ruteo · <span style="color:#16a34a">●</span> visitado · <span style="color:#9ca3af">●</span> sin visita</div>
 <div class="map-tools">
   <button id="refreshBtn" title="Refrescar panel" onclick="location.reload()">⟳</button>
   <button id="darkBtn" title="Modo oscuro" onclick="toggleDark()">🌙</button>
@@ -506,10 +508,13 @@ function toast(msg) {
 function loadRutasCache() {
   fetch('/api/rutas').then(function (r) { return r.json(); }).then(function (arr) {
     rutasByMerchan = {};
+    pdvRutaSet = {};
     arr.forEach(function (v) {
       (rutasByMerchan[v.merchan] = rutasByMerchan[v.merchan] || {})[v.dia] =
         (rutasByMerchan[v.merchan][v.dia] || []).concat(v);
+      pdvRutaSet[String(v.cliente)] = 1;
     });
+    refreshPDVColors();
     if (currentList.length) renderSidebar(currentList);
   }).catch(function () {});
 }
@@ -549,6 +554,13 @@ var pdvIconVis = L.divIcon({ className: '', html: '<div class="pdv-tick">✓</di
   iconSize: [16, 16], iconAnchor: [8, 8] });
 var pdvIconNo = L.divIcon({ className: '', html: '<div class="pdv-dot"></div>',
   iconSize: [9, 9], iconAnchor: [4.5, 4.5] });
+var pdvIconRuta = L.divIcon({ className: '', html: '<div class="pdv-ruta"></div>',
+  iconSize: [10, 10], iconAnchor: [5, 5] });
+function pdvIconFor(c) {
+  if (visitedPdvSet[String(c)]) return pdvIconVis;
+  if (pdvRutaSet[String(c)]) return pdvIconRuta;
+  return pdvIconNo;
+}
 
 function makePopup(v, pos) {
   var ago = pos.last != null ? Math.round(pos.last / 1000) : null;
@@ -662,6 +674,7 @@ var merchanNear = {};
 var visitasToday = {};
 var visitedPdvSet = {};
 var visitedFoto = {};
+var pdvRutaSet = {};
 var resumenData = {};
 var jornadasData = {};
 
@@ -1551,7 +1564,7 @@ function togglePDV() {
   fetch('/api/pdv').then(function (r) { return r.json(); }).then(function (arr) {
     var pts = arr.map(function (d) {
       var vis = visitedPdvSet[d.c];
-      var m = L.marker([d.lat, d.lon], { icon: vis ? pdvIconVis : pdvIconNo });
+      var m = L.marker([d.lat, d.lon], { icon: pdvIconFor(d.c) });
       m._c = d.c;
       var dir = d.calle || '—';
       if (d.altura) dir += ' ' + d.altura;
@@ -1586,8 +1599,7 @@ function togglePDV() {
 
 function refreshPDVColors() {
   pdvPoints.forEach(function (m) {
-    var vis = visitedPdvSet[m._c];
-    m.setIcon(vis ? pdvIconVis : pdvIconNo);
+    m.setIcon(pdvIconFor(m._c));
   });
 }
 

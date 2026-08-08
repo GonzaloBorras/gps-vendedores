@@ -28,14 +28,11 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
   color: #fff; border-radius: 8px; padding: 1px 6px; cursor: pointer; font-size: 13px; }
 .gear:hover { background: #2a2a48; }
 .sidebar .filtros { padding: 6px 8px; border-bottom: 1px solid #eee; }
+.chk-row { display: flex; align-items: center; gap: 14px; margin-top: 2px; }
+.chk-row .toggle-row { flex: none; padding: 0; margin: 0; }
 .toggle-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #374151;
   padding: 1px 0 3px; cursor: pointer; }
 .toggle-row input { width: auto; margin: 0; }
-.tabs { display: flex; gap: 6px; padding: 6px 8px 0; }
-.tab { flex: 1; padding: 5px; border: 1px solid #ddd; background: #fff; border-radius: 8px;
-  font-weight: 600; font-size: 11px; cursor: pointer; color: #555; }
-.tab:hover { background: #f0f0f0; }
-.tab.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
 .sidebar input, .sidebar select { width: 100%; padding: 5px 8px; margin-bottom: 3px;
   border: 1px solid #ccc; border-radius: 6px; font-size: 11px; }
 .list { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 5px; }
@@ -93,8 +90,6 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
   cursor: pointer; text-decoration: none; display: inline-block; margin-top: 6px; }
 .popup-info .btn-route { background: #eef2ff; color: #4338ca; }
 .popup-info .btn-gmaps { background: #eff6ff; color: #1d4ed8; }
-.zoom-prov { width: 100%; margin-top: 4px; padding: 6px; border: 0; border-radius: 6px; background: #1a1a2e;
-  color: #fff; font-weight: 600; font-size: 11px; cursor: pointer; }
 .overlay { position: absolute; inset: 0; z-index: 2000; background: rgba(15,20,32,.9);
   display: flex; align-items: center; justify-content: center; }
 .login { background: #fff; border-radius: 12px; padding: 24px; width: 300px; text-align: center; }
@@ -137,10 +132,10 @@ body.sidebar-hidden .sidebar { display: none; }
   .tab { min-height: 44px; font-size: 13px; }
   .filtros { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px; }
   .filtros > #search { grid-column: 1 / -1; }
-  .filtros .toggle-row, .filtros .zoom-prov { grid-column: 1 / -1; }
+  .filtros .toggle-row { grid-column: 1 / -1; }
   .filtros input[type=text], .filtros select, .filtros input[type=date] { min-height: 44px; font-size: 16px; }
   .filtros .toggle-row { min-height: 44px; font-size: 13px; }
-  .zoom-prov { min-height: 44px; font-size: 12px; }
+  .chk-row { gap: 18px; }
   .vendor button, .card-actions .dots { min-height: 44px; min-width: 44px; padding: 6px 10px; font-size: 12px; }
   .vendor .name { font-size: 13px; }
   .vendor .code, .vendor .last, .vendor .card-meta { font-size: 11px; }
@@ -291,26 +286,22 @@ body.dark .meta-bar { background: #2a3450; }
     <div class="sub">Tucumán &amp; Catamarca — <span id="activos">0</span> activos · <span id="sinCount">0 sin señal</span></div>
     <button class="gear" onclick="openConfig()" title="Configuración">⚙</button>
   </div>
-  <div class="tabs">
-    <button class="tab active" id="tab-merchan">Merchan</button>
-  </div>
   <div class="filtros">
     <input type="text" id="search" placeholder="Buscar merchan...">
-    <select id="prov"><option value="">Todas las provincias</option>
-      <option>TUCUMAN</option><option>CATAMARCA</option></select>
     <label class="toggle-row">
       <span style="flex:none">Día:</span>
-      <input type="date" id="fecha-select" onchange="onFechaChange()" style="margin:0;flex:1">
+      <input type="date" id="fecha-select" onchange="onFechaChange()" style="margin:0;flex:1;font-size:10px;padding:2px 6px">
     </label>
-    <label class="toggle-row">
-      <input type="checkbox" id="solo-sin" onchange="applyFilters()">
-      <span>Solo sin señal</span>
-    </label>
-    <label class="toggle-row">
-      <input type="checkbox" id="pdv-toggle" onchange="togglePDV()" checked>
-      <span>Mostrar PDV (clientes)</span>
-    </label>
-    <button class="zoom-prov" onclick="zoomProvincia()">📍 Zoom a la provincia seleccionada</button>
+    <div class="chk-row">
+      <label class="toggle-row">
+        <input type="checkbox" id="solo-sin" onchange="applyFilters()">
+        <span>Sin señal</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="pdv-toggle" onchange="togglePDV()" checked>
+        <span>Mostrar PDV</span>
+      </label>
+    </div>
   </div>
   <div class="list" id="list"></div>
 </div>
@@ -749,25 +740,6 @@ function updateCardData() {
   fetch('/api/jornadas').then(function (r) { return r.json(); })
     .then(function (d) { jornadasData = d || {}; renderMerchanMeta(); })
     .catch(function () {});
-}
-
-function zoomProvincia() {
-  var p = document.getElementById('prov').value;
-  var pds = pdvPoints.filter(function (m) { return true; });
-  var pts = [];
-  vendorsData.forEach(function (v) {
-    if (v.grupo !== currentGroup) return;
-    if (p && v.prov !== p) return;
-    var m = markers[v.code];
-    if (m) pts.push(m.getLatLng());
-  });
-  if (pts.length) {
-    map.flyToBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 12 });
-  } else if (p) {
-    toast('No hay vendedores con posición en ' + p);
-  } else {
-    map.flyTo([-27.8, -65.6], 9);
-  }
 }
 
 function updateSidebarStatus(list) {
@@ -1632,10 +1604,8 @@ function esc(s) {
 
 function applyFilters() {
   var q = document.getElementById('search').value.trim().toLowerCase();
-  var p = document.getElementById('prov').value;
   var list = vendorsData.filter(function (v) {
     if (v.grupo !== currentGroup) return false;
-    if (p && v.prov !== p) return false;
     if (q && !(v.name + ' ' + v.code + ' ' + v.prov).toLowerCase().includes(q)) return false;
     return true;
   });
@@ -1664,8 +1634,6 @@ function applyFilters() {
 }
 
 document.getElementById('search').addEventListener('input', applyFilters);
-document.getElementById('prov').addEventListener('change', applyFilters);
-document.getElementById('tab-merchan').textContent = 'Merchan (' + vendorsData.filter(function (v) { return v.grupo === 'merchan'; }).length + ')';
 
 function onFechaChange() {
   var d = document.getElementById('fecha-select').value;

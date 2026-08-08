@@ -192,9 +192,13 @@ body.sidebar-hidden .sidebar { display: none; }
 .visitas-sec .row input[type=search] { flex: 1; }
 .vlist { max-height: 200px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px;
   padding: 6px; margin-top: 6px; background: #fafafa; }
-.vitem { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px;
+.vitem { display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px; border-radius: 6px;
   font-size: 12px; border: 1px solid transparent; cursor: pointer; }
 .vitem:hover { background: #eef2ff; }
+.vi-foto { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;
+  flex: none; display: block; background: #f1f5f9; }
+.vi-foto-link { flex: none; }
+.vi-note { font-size: 10px; color: #9ca3af; margin-bottom: 6px; }
 .vitem .vi-name { font-weight: 600; color: #1f2937; }
 .vitem .vi-det { font-size: 10px; color: #6b7280; }
 .vitem .vi-vta { font-size: 10px; color: #4338ca; }
@@ -347,6 +351,7 @@ body.dark .meta-bar { background: #2a3450; }
     </div>
     <div class="cfg-pane" id="pane-visitas">
       <h3>PDV visitados por día</h3>
+      <div class="vi-note">Las fotos de fachada se eliminan automáticamente al terminar el día.</div>
       <label>Merchan</label>
       <select id="vis-vendor" onchange="loadVisitasPanel()"></select>
       <label>Fecha</label>
@@ -1119,14 +1124,16 @@ function loadVisitasPanel() {
         return;
       }
       box.innerHTML = '<div class="vlist">' + arr.map(function (v) {
+        var href = '/api/visitas/foto/img?code=' + encodeURIComponent(code) + '&cliente=' + encodeURIComponent(v.cliente) + '&fecha=' + encodeURIComponent(fecha);
         var fotoHtml = v.has_foto
-          ? '<span class="foto-ok">✓ Foto</span><a class="foto-link" target="_blank" rel="noopener" href="/api/visitas/foto/img?code=' + encodeURIComponent(code) + '&cliente=' + encodeURIComponent(v.cliente) + '&fecha=' + encodeURIComponent(fecha) + '">Ver foto</a>'
+          ? '<a class="vi-foto-link" target="_blank" rel="noopener" href="' + href + '" title="Abrir foto"><img class="vi-foto" src="' + href + '" alt="Fachada" loading="lazy"></a>'
           : '<span class="foto-miss">✗ Sin foto</span>';
         return '<div class="vitem">' +
+          fotoHtml +
           '<div style="flex:1">' +
             '<div class="vi-name">' + esc(v.razon) + '</div>' +
             '<div class="vi-det">Cliente: ' + esc(v.cliente) + (v.calle ? ' · ' + esc(v.calle) : '') + '</div>' +
-            '<div class="vi-det">' + fotoHtml + '</div>' +
+            '<div class="vi-det">🕒 Hora: ' + esc(fmtHora(v.ts)) + '</div>' +
             (v.vta ? '<div class="vi-vta">' + esc(v.vta) + '</div>' : '') +
           '</div>' +
           '<button onclick="quitarVisitaPanel(\'' + esc(v.cliente) + '\')">Quitar</button>' +

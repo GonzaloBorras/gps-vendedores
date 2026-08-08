@@ -65,7 +65,6 @@ public class LocationService extends Service implements LocationListener {
             @Override
             public void run() {
                 reportGps(anyProviderEnabled());
-                checkJornada();
                 handler.postDelayed(this, 60000);
             }
         };
@@ -231,11 +230,14 @@ public class LocationService extends Service implements LocationListener {
         if (!gps) {
             Intent open = new Intent(this, MainActivity.class);
             PendingIntent pi = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE);
+            Intent gpsSet = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+            PendingIntent gpsPi = PendingIntent.getActivity(this, 2, gpsSet, PendingIntent.FLAG_IMMUTABLE);
             Notification n = new Notification.Builder(this, CHANNEL_ALERTA)
                     .setSmallIcon(android.R.drawable.ic_menu_mylocation)
                     .setContentTitle("GPS apagado")
                     .setContentText("Apagaste la ubicación. Volvé a prenderla para que el administrador vea tu posición.")
                     .setContentIntent(pi)
+                    .addAction(0, "Prender GPS", gpsPi)
                     .setAutoCancel(true)
                     .setPriority(Notification.PRIORITY_HIGH)
                     .build();
@@ -306,7 +308,6 @@ public class LocationService extends Service implements LocationListener {
                                     jornadaStart = s;
                                     jornadaEnd = e;
                                     jornadaKnown = true;
-                                    checkJornada();
                                 }
                             });
                         }
@@ -321,22 +322,9 @@ public class LocationService extends Service implements LocationListener {
     }
 
     private boolean jornadaActiva() {
-        checkJornada();
         if (!jornadaKnown) return true;
         long now = System.currentTimeMillis();
         return now >= jornadaStart && now < jornadaEnd;
-    }
-
-    private void checkJornada() {
-        if (!jornadaKnown) return;
-        long now = System.currentTimeMillis();
-        if (now < jornadaStart || now >= jornadaEnd) {
-            Log.i(TAG, "jornada finalizada, detengo el servicio");
-            MainActivity.notifyJornadaEnd();
-            stopTracking();
-            stopForeground(true);
-            stopSelf();
-        }
     }
 
     private Notification buildNotification() {

@@ -340,7 +340,7 @@ init_db()
 
 # ---------------- Limpieza automática de datos (fotos y recorrido) ----------------
 
-CLEANUP_DAYS = 30  # retención máxima del recorrido en días (rotación de seguridad)
+CLEANUP_DAYS = 15  # retención del recorrido en días (posiciones/geoevents)
 CLEANUP_INTERVAL_S = 3600  # revisar cada hora
 
 
@@ -396,6 +396,47 @@ def _cleanup_loop():
 
 _cleanup_rolling()
 threading.Thread(target=_cleanup_loop, daemon=True).start()
+
+
+def _db_sizes():
+    out = {'ok': True, 'tablas': []}
+    con = _raw_conn()
+    try:
+        if PG:
+            rows = _exec(con, """SELECT c.relname AS tabla, pg_total_relation_size(c.oid) AS bytes,
+                              n_live_tup AS filas
+                              FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                              WHERE n.nspname = 'public' AND c.relkind = 'r'
+                              ORDER BY bytes DESC""").fetchall()
+        else:
+            rows = _exec(con, """SELECT name AS tabla, (SELECT SUM(pgsize) FROM dbstat WHERE name = m.name)
+                              AS bytes, 0 AS filas
+                              FROM sqlite_master m WHERE type = 'table' ORDER BY bytes DESC""").fetchall()
+        for r in rows:
+            out['tablas'].append(dict(r))
+    finally:
+        con.close()
+    return out
+
+
+@app.route('/api/maintenance')
+def maintenance():
+    if not (session.get('auth') or request.args.get('pin') == DASH_PIN):
+        return jsonify({'ok': False, 'error': 'no autorizado'}), 401
+    if request.args.get('purge'):
+        _cleanup_rolling()
+        _cleanup_monthly()
+    if request.args.get('vacuum') and PG:
+        con = psycopg2.connect(DATABASE_URL, autocommit=True)
+        try:
+            cur = con.cursor()
+            cur.execute('VACUUM (FULL) positions')
+            cur.execute('VACUUM (FULL) visitas')
+            cur.execute('VACUUM (FULL) geoevents')
+            cur.execute('VACUUM (FULL) messages')
+        finally:
+            con.close()
+    return jsonify(_db_sizes())
 
 
 # ---------------- PDV adicionales (creados por los merchans desde el mapa) ----------------

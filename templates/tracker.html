@@ -697,7 +697,6 @@ function start() {
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 15000 });
 }
 function stopTracking() {
-  nativeLive(false);
   stopWorker();
   if (watchId !== null) navigator.geolocation.clearWatch(watchId);
   watchId = null;

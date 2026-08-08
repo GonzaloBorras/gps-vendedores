@@ -1658,7 +1658,7 @@ def export_visitas_csv():
     for r in rows:
         v = VENDOR_BY_CODE.get(r['code'])
         ts = r['ts']
-        hora = datetime.fromtimestamp(ts / 1000, timezone.utc).strftime('%H:%M:%S') if ts else ''
+        hora = (datetime.fromtimestamp(ts / 1000, timezone.utc) - timedelta(hours=3)).strftime('%H:%M:%S') if ts else ''
         cf = 'si' if (r['foto_ts'] and r['foto_ts'] > 0) else 'no'
         vals = [r['fecha'], r['code'], (v.get('name', '') if v else ''), r['cliente'],
                 r['razon'], r['calle'], r['vta'], hora, cf]

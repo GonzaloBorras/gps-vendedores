@@ -234,8 +234,7 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
 .side-actions button { width: 100%; padding: 11px; border: 0; border-radius: 10px; font-size: 14px;
   font-weight: 700; cursor: pointer; min-height: 44px; margin: 0; }
 .side-actions #visitasBtn { background: #1d4ed8; color: #fff; }
-.side-actions #mapaBtn { background: #7c3aed; color: #fff; }
-.side-actions #addPdvBtn { background: #334155; color: #cbd5e1; }
+.side-actions #addPdvBtn { background: #22c55e; color: #07120a; }
 .tabs { display: flex; border-top: 1px solid #2a3450; flex: none; }
 .tabs .tab { flex: 1; padding: 10px; background: #10182b; border: 0; color: #8b93a7; font-weight: 700;
   font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; }
@@ -292,9 +291,8 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
     <div class="ruta-progress" id="rutaProgress"></div>
     <div class="prox" id="proxPdv"></div>
     <div class="side-actions">
-      <button id="visitasBtn">📋 Registro de PDV</button>
-      <button id="mapaBtn">📍 Mi posición en el mapa</button>
-      <button id="addPdvBtn" onclick="openAddPdv()">➕ Agregar PDV</button>
+      <button id="visitasBtn">＋ Registrar PDV</button>
+      <button id="addPdvBtn" onclick="openAddPdv()">＋ Cargar nuevo PDV</button>
     </div>
     <div class="tabs">
       <button class="tab active" data-tab="ruta" onclick="switchPane('ruta')">Ruta</button>
@@ -305,8 +303,8 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
       <div class="pane active" id="pane-ruta">
         <div class="pane-title">Mi ruta de hoy <span class="ruta-hoy-count" id="rutaHoyCount"></span></div>
         <div id="rutaHoySide"></div>
-        <div class="ruta-hoy-title" style="cursor:pointer" onclick="toggleMiRuteo()">Mi ruteo completo <span id="miRuteoToggle">▸</span></div>
-        <div id="miRuteo" style="display:none"></div>
+        <div class="ruta-hoy-title" style="cursor:pointer" onclick="toggleMiRuteo()">Mi ruteo completo <span id="miRuteoToggle">▾</span></div>
+        <div id="miRuteo"></div>
       </div>
       <div class="pane" id="pane-visitas">
         <div class="pane-title">Visitados hoy <span class="visita-count" id="visitaCount"></span></div>
@@ -1376,8 +1374,6 @@ function guardarPdv() {
   }).catch(function () { msg.textContent = 'Error de conexión al guardar.'; });
 }
 
-document.getElementById('mapaBtn').onclick = openMapa;
-
 // ---------------- Ausencias, mensajes y avisos ----------------
 function checkAbsence() {
   fetch(base + '/api/absence?code=' + encodeURIComponent(code) + '&fecha=' + todayStr())
@@ -1532,6 +1528,7 @@ function toggleSide() {
 
 loadVisitas();
 loadRutaHoy();
+loadMiRuteo();
 checkAbsence();
 loadMessages();
 maybeOnboard();

@@ -36,6 +36,8 @@ public class LocationService extends Service implements LocationListener {
     private static final int GPS_ALERT_ID = 2;
     private static final String TAG = "GPSMerchan";
 
+    public static volatile boolean alive = false;
+
     private LocationManager lm;
     private String code = "";
     private String session = "";
@@ -109,6 +111,7 @@ public class LocationService extends Service implements LocationListener {
         } else {
             startForeground(NOTIF_ID, n);
         }
+        alive = true;
         startUpdates();
         return START_STICKY;
     }
@@ -360,6 +363,7 @@ public class LocationService extends Service implements LocationListener {
 
     @Override
     public void onDestroy() {
+        alive = false;
         stopTracking();
         super.onDestroy();
     }

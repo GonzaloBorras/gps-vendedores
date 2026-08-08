@@ -321,7 +321,7 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
   <main id="mapWrap">
     <div id="mapa"></div>
     <div class="map-legend" id="mapaMsg">Cargando PDV...</div>
-    <div class="map-badge"><span style="color:#1d4ed8">●</span> de tu ruta · <span style="color:#16a34a">●</span> visitado · <span style="color:#9ca3af">●</span> sin visita</div>
+    <div class="map-badge"><span style="color:#1d4ed8">●</span> de ruteo · <span style="color:#16a34a">●</span> visitado · <span style="color:#9ca3af">●</span> sin visita</div>
     <div class="map-fab">
       <button id="visitasBtn" onclick="openVisitas()">＋ Registrar PDV</button>
       <button id="addPdvBtn" onclick="openAddPdv()">＋ Cargar nuevo PDV</button>
@@ -889,24 +889,22 @@ function checkRutaUpdate(arr) {
 }
 
 function loadRutaHoy(cb) {
-  if (!RUTA_TODAY) { rutaSet = {}; renderRutaHoy(); updatePdvMarkers(); if (cb) cb(); return; }
-  fetch(base + '/api/rutas?merchan=' + encodeURIComponent(code))
+  fetch(base + '/api/rutas')
     .then(function (r) { return r.json(); })
     .then(function (arr) {
-      cacheRutas(arr);
-      checkRutaUpdate(arr);
-      rutaHoy = arr.filter(function (v) { return v.dia === RUTA_TODAY; });
       rutaSet = {};
-      rutaHoy.forEach(function (v) { rutaSet[v.cliente] = 1; });
+      arr.forEach(function (v) { rutaSet[v.cliente] = 1; });
+      var mine = arr.filter(function (v) { return v.merchan === code; });
+      checkRutaUpdate(mine);
+      cacheRutas(mine);
+      rutaHoy = RUTA_TODAY ? mine.filter(function (v) { return v.dia === RUTA_TODAY; }) : [];
       renderRutaHoy();
       updatePdvMarkers();
       if (cb) cb();
     }).catch(function () {
       var c = cachedRutas();
       if (c) {
-        rutaHoy = c.filter(function (v) { return v.dia === RUTA_TODAY; });
-        rutaSet = {};
-        rutaHoy.forEach(function (v) { rutaSet[v.cliente] = 1; });
+        rutaHoy = RUTA_TODAY ? c.filter(function (v) { return v.dia === RUTA_TODAY; }) : [];
         renderRutaHoy();
       }
       updatePdvMarkers();

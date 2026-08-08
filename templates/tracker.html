@@ -237,10 +237,6 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
 .map-fab #addPdvBtn { background: #22c55e; color: #07120a; }
 .map-watermark { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); z-index: 400;
   font-size: 11px; color: #64748b; opacity: .5; pointer-events: none; user-select: none; letter-spacing: .3px; }
-.pdv-ic { background: #475569; color: #fff; border-radius: 50%; width: 26px; height: 26px;
-  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;
-  border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); }
-.pdv-ic.vis { background: #1d4ed8; }
 .tabs { display: flex; border-top: 1px solid #2a3450; flex: none; }
 .tabs .tab { flex: 1; padding: 10px; background: #10182b; border: 0; color: #8b93a7; font-weight: 700;
   font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; }
@@ -1268,16 +1264,12 @@ function openMapa() {
   }
 }
 
-function pdvInitials(r) {
-  var w = String(r || '').trim().split(/\s+/).filter(Boolean);
-  if (!w.length) return '?';
-  if (w.length === 1) return w[0].slice(0, 2).toUpperCase();
-  return (w[0][0] + w[1][0]).toUpperCase();
-}
 function makePdvMarker(d) {
   var vis = !!visitasCache[d.c];
-  var m = L.marker([d.lat, d.lon], { icon: pdvIcon(d.r, vis) });
-  m._initials = pdvInitials(d.r);
+  var m = L.circleMarker([d.lat, d.lon], {
+    radius: 6, color: vis ? '#1d4ed8' : '#9ca3af', weight: 1,
+    fillColor: vis ? '#1d4ed8' : '#9ca3af', fillOpacity: 0.85
+  });
   var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
   var dm = pdvDistM(d);
   m.bindPopup('<div class="mapa-pop">' +
@@ -1288,12 +1280,6 @@ function makePdvMarker(d) {
     '<button onclick="mapaMarcarVisita(\'' + d.c + '\',\'' + esc(d.r) + '\')">Registrar visita</button>' +
     '</div>');
   return m;
-}
-function pdvIcon(r, vis) {
-  return L.divIcon({
-    html: '<div class="pdv-ic' + (vis ? ' vis' : '') + '">' + esc(pdvInitials(r)) + '</div>',
-    className: '', iconSize: [26, 26], iconAnchor: [13, 13]
-  });
 }
 function mapaMarcarVisita(c, nombre) {
   if (mapa) mapa.closePopup();
@@ -1327,7 +1313,7 @@ function updatePdvMarkers() {
   Object.keys(pdvMarkers).forEach(function (c) {
     var m = pdvMarkers[c];
     var vis = !!visitasCache[c];
-    m.setIcon(pdvIcon(m._initials, vis));
+    m.setStyle({ color: vis ? '#1d4ed8' : '#9ca3af', fillColor: vis ? '#1d4ed8' : '#9ca3af' });
   });
 }
 

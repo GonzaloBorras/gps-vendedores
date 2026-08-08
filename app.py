@@ -421,6 +421,9 @@ def _db_sizes():
     return out
 
 
+MAINT_STATE = {}
+
+
 @app.route('/api/maintenance')
 def maintenance():
     if not (session.get('auth') or request.args.get('pin') == DASH_PIN):
@@ -428,7 +431,13 @@ def maintenance():
     info = {}
     try:
         if request.args.get('recompress'):
-            info['recompress'] = _recompress_photos()
+            if MAINT_STATE.get('running'):
+                return jsonify({'ok': True, 'recompress_running': True, **MAINT_STATE})
+            MAINT_STATE.clear()
+            MAINT_STATE.update({'running': True, 'done': 0, 'total': 0, 'bytes_antes': 0,
+                                'bytes_despues': 0, 'por_fecha': {}})
+            threading.Thread(target=_recompress_bg, daemon=True).start()
+            return jsonify({'ok': True, 'recompress_running': True, 'started': True})
         if request.args.get('purge'):
             _cleanup_rolling()
             _cleanup_monthly()
@@ -444,33 +453,36 @@ def maintenance():
                 con.close()
         out = _db_sizes()
         out.update(info)
+        if MAINT_STATE:
+            out['maint'] = {k: v for k, v in MAINT_STATE.items()}
         return jsonify(out)
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
-def _recompress_photos():
+def _recompress_bg():
     import io
     from PIL import Image
     con = _raw_conn()
-    total_before = 0
-    total_after = 0
     done = 0
     skipped = 0
-    por_fecha = {}
+    total_after = 0
     try:
         rows = _exec(con, 'SELECT fecha, code, cliente, foto FROM visitas WHERE foto IS NOT NULL').fetchall()
+        MAINT_STATE['total'] = len(rows)
         for r in rows:
             try:
                 raw = base64.b64decode(r['foto'])
             except Exception:
                 skipped += 1
                 continue
-            total_before += len(raw)
-            por_fecha[r['fecha']] = por_fecha.get(r['fecha'], 0) + 1
+            MAINT_STATE['bytes_antes'] += len(raw)
+            f = r['fecha']
+            MAINT_STATE['por_fecha'][str(f)] = MAINT_STATE['por_fecha'].get(str(f), 0) + 1
             if len(raw) < 300000:
                 total_after += len(raw)
                 skipped += 1
+                MAINT_STATE['done'] = done + skipped
                 continue
             try:
                 im = Image.open(io.BytesIO(raw))
@@ -486,11 +498,20 @@ def _recompress_photos():
                 done += 1
             except Exception:
                 total_after += len(raw)
+                skipped += 1
+            MAINT_STATE['done'] = done + skipped
         con.commit()
+    except Exception as e:
+        MAINT_STATE['error'] = str(e)
     finally:
-        con.close()
-    return {'fotos': done, 'sin_cambios': skipped, 'bytes_antes': total_before,
-            'bytes_despues': total_after, 'por_fecha': por_fecha}
+        try:
+            con.close()
+        except Exception:
+            pass
+        MAINT_STATE['running'] = False
+        MAINT_STATE['fotos'] = done
+        MAINT_STATE['sin_cambios'] = skipped
+        MAINT_STATE['bytes_despues'] = total_after
 
 
 # ---------------- PDV adicionales (creados por los merchans desde el mapa) ----------------

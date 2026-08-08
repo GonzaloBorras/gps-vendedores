@@ -66,6 +66,10 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .btn-copy { background: #ecfdf5; color: #047857; }
 .btn-gmaps { background: #eff6ff; color: #1d4ed8; text-decoration: none; text-align: center; padding: 5px 8px; }
 .vendor .last { font-size: 9px; color: #6b7280; margin-top: 2px; }
+.appver { display: inline-block; font-size: 8px; font-weight: 700; border-radius: 4px; padding: 0 4px;
+  margin-top: 3px; }
+.appver.up { background: #ecfdf5; color: #047857; }
+.appver.old { background: #fef3c7; color: #92400e; }
 .vendor .card-meta { font-size: 9px; color: #6b7280; margin-top: 2px; line-height: 1.4; }
 .vendor .card-meta b { color: #1f2937; }
 .vendor .card-meta .hoy-badge { display: inline-block; background: #1d4ed8; color: #fff; border-radius: 4px;
@@ -456,6 +460,8 @@ var currentGroup = 'merchan';
 var markerLayer = L.layerGroup().addTo(map);
 var renderedCodes = null;
 var currentList = [];
+var CUR_APP = null;
+fetch('/api/app-version').then(function (r) { return r.json(); }).then(function (d) { CUR_APP = d; }).catch(function () {});
 
 var RUTAS_DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
 var RUTAS_DIA_NAMES = { LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado' };
@@ -598,10 +604,17 @@ function renderSidebar(list) {
         (totalHoy ? ' · Ruta: <b>' + pendHoy + '</b> pend' : '') +
         '</div>';
     }
+    var appTxt = '';
+    if (v.app === 'android' && v.appVersion) {
+      var up = CUR_APP && v.appVersionCode >= CUR_APP.versionCode;
+      appTxt = '<div><span class="appver ' + (up ? 'up' : 'old') + '">App v' + esc(v.appVersion) +
+        (up ? ' · OK' : ' · desactualizada') + '</span></div>';
+    }
     el.innerHTML = '<div class="row1"><span class="dot ' + (on ? 'on' : 'off') + '"></span>' +
       '<span class="name">' + esc(v.name) + '</span><span class="prov">' + esc(v.prov) + '</span></div>' +
       '<div class="code">' + esc(v.code) + '</div>' +
       '<div class="last">' + lastTxt + '</div>' +
+      appTxt +
       meta +
       '<div class="card-actions" data-code="' + esc(v.code) + '">' +
       '<button class="dots" onclick="toggleCardActions(this)">⋯</button>' +

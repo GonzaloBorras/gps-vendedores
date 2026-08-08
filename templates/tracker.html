@@ -208,10 +208,10 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 body { display: block; align-items: initial; justify-content: initial; padding: 0; overflow: hidden; }
 #app { display: flex; height: 100vh; width: 100vw; }
 #side {
-  width: 360px; max-width: 92vw; flex: none; background: #1a2234;
+  width: 360px; max-width: 92vw; flex: none; background: #1a2234; position: relative;
   border-right: 1px solid #2a3450; z-index: 1100; display: flex; flex-direction: column; overflow: hidden;
 }
-#mapWrap { flex: 1; position: relative; min-width: 0; }
+#mapWrap { flex: 1; position: relative; min-width: 0; z-index: 0; }
 #mapa { position: absolute; inset: 0; width: 100%; height: 100%; background: #0f1420; z-index: 1; border: 0; }
 .map-legend { position: absolute; left: 12px; bottom: 12px; z-index: 400; background: rgba(15,20,32,.85);
   border: 1px solid #2a3450; color: #cbd5e1; border-radius: 8px; padding: 6px 10px; font-size: 11px; }
@@ -230,11 +230,11 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
 .metrics .metric { padding: 9px 12px; }
 #side .error, #side .note-ok, #side .gps-warn, #side .aviso, #side .msg-banner, #side .ruta-banner,
 #side .ruta-progress, #side .prox { margin: 8px 14px 0; }
-.side-actions { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 10px 14px; }
-.side-actions button { width: 100%; padding: 11px; border: 0; border-radius: 10px; font-size: 14px;
-  font-weight: 700; cursor: pointer; min-height: 44px; margin: 0; }
-.side-actions #visitasBtn { background: #1d4ed8; color: #fff; }
-.side-actions #addPdvBtn { background: #22c55e; color: #07120a; }
+.map-fab { position: absolute; right: 12px; bottom: 12px; z-index: 800; display: flex; flex-direction: column; gap: 8px; }
+.map-fab button { padding: 12px 16px; border: 0; border-radius: 12px; font-size: 14px;
+  font-weight: 800; cursor: pointer; min-height: 44px; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+.map-fab #visitasBtn { background: #1d4ed8; color: #fff; }
+.map-fab #addPdvBtn { background: #22c55e; color: #07120a; }
 .tabs { display: flex; border-top: 1px solid #2a3450; flex: none; }
 .tabs .tab { flex: 1; padding: 10px; background: #10182b; border: 0; color: #8b93a7; font-weight: 700;
   font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; }
@@ -250,7 +250,7 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
 .fab { display: none; position: fixed; bottom: 16px; left: 16px; z-index: 1200; width: 52px; height: 52px;
   border-radius: 50%; border: 0; background: #1d4ed8; color: #fff; font-size: 22px; cursor: pointer;
   box-shadow: 0 4px 16px rgba(0,0,0,.5); align-items: center; justify-content: center; }
-.scrim { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1150; }
+.scrim { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1050; }
 @media (max-width: 760px) {
   .fab { display: flex; }
   #side { position: fixed; top: 0; left: 0; bottom: 0; transform: translateX(-105%);
@@ -290,10 +290,6 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
     <div class="ruta-banner" id="rutaUpdateBanner">🔄 Tu ruteo de hoy se actualizó.<br><button onclick="location.reload()">Recargar para ver los cambios</button></div>
     <div class="ruta-progress" id="rutaProgress"></div>
     <div class="prox" id="proxPdv"></div>
-    <div class="side-actions">
-      <button id="visitasBtn">＋ Registrar PDV</button>
-      <button id="addPdvBtn" onclick="openAddPdv()">＋ Cargar nuevo PDV</button>
-    </div>
     <div class="tabs">
       <button class="tab active" data-tab="ruta" onclick="switchPane('ruta')">Ruta</button>
       <button class="tab" data-tab="visitas" onclick="switchPane('visitas')">Visitados</button>
@@ -324,6 +320,10 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
     <div id="mapa"></div>
     <div class="map-legend" id="mapaMsg">Cargando PDV...</div>
     <div class="map-badge"><span style="color:#1d4ed8">●</span> visitado · <span style="color:#9ca3af">●</span> pendiente</div>
+    <div class="map-fab">
+      <button id="visitasBtn" onclick="openVisitas()">＋ Registrar PDV</button>
+      <button id="addPdvBtn" onclick="openAddPdv()">＋ Cargar nuevo PDV</button>
+    </div>
   </main>
 </div>
 <button class="fab" onclick="toggleSide()">☰</button>
@@ -1469,7 +1469,6 @@ function closeVisitas() {
   visitasMsg('');
 }
 
-document.getElementById('visitasBtn').onclick = openVisitas;
 document.getElementById('visitasSearch').addEventListener('input', buscarPDV);
 
 function esc(s) {

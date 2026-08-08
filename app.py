@@ -425,7 +425,10 @@ def _db_sizes():
 def maintenance():
     if not (session.get('auth') or request.args.get('pin') == DASH_PIN):
         return jsonify({'ok': False, 'error': 'no autorizado'}), 401
+    info = {}
     try:
+        if request.args.get('recompress'):
+            info['recompress'] = _recompress_photos()
         if request.args.get('purge'):
             _cleanup_rolling()
             _cleanup_monthly()
@@ -439,9 +442,55 @@ def maintenance():
                 cur.execute('VACUUM (FULL) messages')
             finally:
                 con.close()
-        return jsonify(_db_sizes())
+        out = _db_sizes()
+        out.update(info)
+        return jsonify(out)
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+def _recompress_photos():
+    import io
+    from PIL import Image
+    con = _raw_conn()
+    total_before = 0
+    total_after = 0
+    done = 0
+    skipped = 0
+    por_fecha = {}
+    try:
+        rows = _exec(con, 'SELECT fecha, code, cliente, foto FROM visitas WHERE foto IS NOT NULL').fetchall()
+        for r in rows:
+            try:
+                raw = base64.b64decode(r['foto'])
+            except Exception:
+                skipped += 1
+                continue
+            total_before += len(raw)
+            por_fecha[r['fecha']] = por_fecha.get(r['fecha'], 0) + 1
+            if len(raw) < 300000:
+                total_after += len(raw)
+                skipped += 1
+                continue
+            try:
+                im = Image.open(io.BytesIO(raw))
+                im.load()
+                im = im.convert('RGB')
+                im.thumbnail((1024, 1024))
+                buf = io.BytesIO()
+                im.save(buf, format='JPEG', quality=72)
+                new_b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+                _exec(con, _q('UPDATE visitas SET foto = ? WHERE fecha = ? AND code = ? AND cliente = ?'),
+                      (new_b64, r['fecha'], r['code'], r['cliente']))
+                total_after += len(new_b64.encode('ascii'))
+                done += 1
+            except Exception:
+                total_after += len(raw)
+        con.commit()
+    finally:
+        con.close()
+    return {'fotos': done, 'sin_cambios': skipped, 'bytes_antes': total_before,
+            'bytes_despues': total_after, 'por_fecha': por_fecha}
 
 
 # ---------------- PDV adicionales (creados por los merchans desde el mapa) ----------------

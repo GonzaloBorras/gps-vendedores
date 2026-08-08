@@ -108,6 +108,9 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
 .leyenda { position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: #fff;
   border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.2); padding: 8px 10px; font-size: 12px; color: #555;
   line-height: 1.5; }
+.mch-ic { background: #22c55e; color: #fff; border-radius: 50%; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;
+  border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.45); }
 .map-tools { position: absolute; top: 10px; right: 10px; z-index: 1300; display: flex; gap: 8px; }
 .map-tools button { width: 42px; height: 42px; border: 0; border-radius: 10px; background: #fff;
   color: #1a1a2e; font-size: 19px; line-height: 1; box-shadow: 0 2px 8px rgba(0,0,0,.25); cursor: pointer;
@@ -527,10 +530,16 @@ function rutaHoyPendientes(code) {
   return d[k].filter(function (v) { return !set[String(v.cliente)]; }).length;
 }
 
-function markerIcon(color) {
-  return L.circleMarker([0, 0], {
-    radius: 9, color: '#fff', weight: 2,
-    fillColor: color, fillOpacity: 0.9
+function initials(name) {
+  var w = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return '?';
+  if (w.length === 1) return w[0].slice(0, 2).toUpperCase();
+  return (w[0][0] + w[1][0]).toUpperCase();
+}
+function merchanIcon(name) {
+  return L.divIcon({
+    html: '<div class="mch-ic">' + esc(initials(name)) + '</div>',
+    className: '', iconSize: [28, 28], iconAnchor: [14, 14]
   });
 }
 
@@ -800,7 +809,8 @@ function refresh() {
     arr.forEach(function (p) {
       if (p.lat == null) return;
       if (!markers[p.code]) {
-        var m = markerIcon('#22c55e');
+        var v = vendorsData.find(function (x) { return x.code === p.code; });
+        var m = merchanIcon(v ? v.name : p.code);
         m.bindPopup('', { maxWidth: 260 });
         m._pos = p;
         m.on('click', function () { m.setPopupContent(makePopup(p, p)); });
@@ -809,7 +819,6 @@ function refresh() {
       var m = markers[p.code];
       m.setLatLng([p.lat, p.lon]);
       m._pos = p;
-      m.setStyle({ fillColor: '#22c55e', color: '#fff' });
       m.setPopupContent(makePopup(p, p));
     });
     renderAlerts(arr);
@@ -1062,8 +1071,8 @@ function applyColor() {
     var v = vendorsData.find(function (x) { return x.code === code; });
     if (v) v.color = color;
     if (markers[code]) {
-      markers[code].setStyle({ fillColor: color });
       markers[code]._pos.color = color;
+      markers[code].setIcon(merchanIcon(v ? v.name : code));
     }
     cfgMsg('Color del pin actualizado.');
   }).catch(function () { cfgMsg('Error de conexión.'); });
@@ -1082,6 +1091,7 @@ function applyName() {
     if (v) v.name = name;
     if (markers[code]) {
       markers[code]._pos.name = name;
+      markers[code].setIcon(merchanIcon(name));
       markers[code].setPopupContent(makePopup(markers[code]._pos, markers[code]._pos));
     }
     cfgMsg('Nombre actualizado.');

@@ -353,10 +353,10 @@ def _cleanup_rolling():
     try:
         now_ar = _ar_now()
         cutoff_ms = int((now_ar - timedelta(days=CLEANUP_DAYS)).timestamp() * 1000)
-        cutoff_fecha = (now_ar.date() - timedelta(days=CLEANUP_DAYS)).isoformat()
+        today_ar = now_ar.date().isoformat()
         _exec(con, _q('DELETE FROM positions WHERE ts < ?'), (cutoff_ms,))
         _exec(con, _q('DELETE FROM geoevents WHERE ts < ?'), (cutoff_ms,))
-        _exec(con, _q('UPDATE visitas SET foto = NULL, foto_ts = NULL WHERE fecha < ?'), (cutoff_fecha,))
+        _exec(con, _q('UPDATE visitas SET foto = NULL, foto_ts = NULL WHERE fecha < ?'), (today_ar,))
         con.commit()
     finally:
         con.close()

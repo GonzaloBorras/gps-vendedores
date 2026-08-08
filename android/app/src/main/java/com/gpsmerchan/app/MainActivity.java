@@ -436,7 +436,8 @@ public class MainActivity extends Activity {
             if (!hasLocationPermission()) {
                 Toast.makeText(this, "Sin permiso de ubicación no se puede enviar la posición. Aceptá el permiso y probá de nuevo.", Toast.LENGTH_LONG).show();
             } else {
-                autoStartTracking();
+        autoStartTracking();
+        WatchdogReceiver.schedule(this);
             }
         }
     }
@@ -465,16 +466,22 @@ public class MainActivity extends Activity {
     }
 
     private void maybeAskBattery() {
-        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        if (prefs.getBoolean("batt_asked", false)) return;
-        prefs.edit().putBoolean("batt_asked", true).apply();
+        if (BuildConfig.IS_ADMIN) return;
         try {
             if (Build.VERSION.SDK_INT >= 23) {
                 PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
                 if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
-                    Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                            Uri.parse("package:" + getPackageName()));
-                    startActivity(i);
+                    SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+                    long last = prefs.getLong("batt_asked_ms", 0);
+                    if (System.currentTimeMillis() - last >= 24 * 60 * 60 * 1000L) {
+                        prefs.edit().putLong("batt_asked_ms", System.currentTimeMillis()).apply();
+                        Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                Uri.parse("package:" + getPackageName()));
+                        try {
+                            startActivity(i);
+                        } catch (Exception ignored) {
+                        }
+                    }
                 }
             }
         } catch (Exception ignored) {

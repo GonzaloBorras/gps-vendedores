@@ -1169,56 +1169,76 @@ function fotoPreview() {
     document.getElementById('fotoConfirmBtn').disabled = true;
   }
 }
+function compressFoto(file, done) {
+  if (!file || (file.type === 'image/jpeg' && file.size < 250000)) { done(file); return; }
+  var img = new Image();
+  var url = URL.createObjectURL(file);
+  img.onload = function () {
+    var MAX = 1024;
+    var w = img.naturalWidth, h = img.naturalHeight;
+    var scale = Math.min(1, MAX / Math.max(w, h));
+    var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+    var cv = document.createElement('canvas');
+    cv.width = cw; cv.height = ch;
+    cv.getContext('2d').drawImage(img, 0, 0, cw, ch);
+    URL.revokeObjectURL(url);
+    cv.toBlob(function (blob) { done(blob || file); }, 'image/jpeg', 0.72);
+  };
+  img.onerror = function () { URL.revokeObjectURL(url); done(file); };
+  img.src = url;
+}
 function confirmarFoto() {
   var c = pendingFotoCliente;
   var f = document.getElementById('fotoInput').files[0];
   if (!c) return;
   if (!f) { visitasMsg('Primero sacá la foto de la fachada.'); return; }
   closeFoto();
-  visitasMsg('Validando ubicación...');
-  var onDone = function (d) {
-    if (d.ok) {
-      visitasCache[c] = { cliente: c, razon: pdvNameCache[c] || c };
-      if (visitaSeq.indexOf(c) === -1) visitaSeq.push(c);
-      document.getElementById('visitaCount').textContent =
-        'PDV visitados hoy: ' + Object.keys(visitasCache).length;
-      renderRutaHoy();
-      renderMiRuteo();
-      updatePdvMarkers();
-      visitasMsg('');
-      showVisitaOk(pdvNameCache[c] || c);
+  visitasMsg('Comprimiendo foto...');
+  compressFoto(f, function (photoBlob) {
+    var onDone = function (d) {
+      if (d.ok) {
+        visitasCache[c] = { cliente: c, razon: pdvNameCache[c] || c };
+        if (visitaSeq.indexOf(c) === -1) visitaSeq.push(c);
+        document.getElementById('visitaCount').textContent =
+          'PDV visitados hoy: ' + Object.keys(visitasCache).length;
+        renderRutaHoy();
+        renderMiRuteo();
+        updatePdvMarkers();
+        visitasMsg('');
+        showVisitaOk(pdvNameCache[c] || c);
+      } else {
+        visitasMsg(d.error || 'No se pudo registrar la visita.');
+      }
+    };
+    var enviar = function (lat, lon, acc) {
+      var fd = new FormData();
+      fd.append('code', code);
+      fd.append('cliente', c);
+      fd.append('fecha', todayStr());
+      fd.append('razon', pdvNameCache[c] || c);
+      fd.append('validate', 'true');
+      fd.append('accuracy', acc || lastAcc || '0');
+      if (lat != null && lon != null) {
+        fd.append('lat', lat);
+        fd.append('lon', lon);
+      }
+      fd.append('foto', photoBlob, 'foto.jpg');
+      fetch(base + '/api/visitas', { method: 'POST', body: fd })
+        .then(function (r) { return r.json(); }).then(onDone)
+        .catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
+    };
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        var acc = Math.round(pos.coords.accuracy);
+        lastLat = pos.coords.latitude; lastLon = pos.coords.longitude; lastAcc = acc;
+        document.getElementById('acc').textContent = acc + ' m';
+        enviar(pos.coords.latitude, pos.coords.longitude, acc);
+      }, function () { enviar(lastLat, lastLon, lastAcc); },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 3000 });
     } else {
-      visitasMsg(d.error || 'No se pudo registrar la visita.');
+      enviar(lastLat, lastLon, lastAcc);
     }
-  };
-  var enviar = function (lat, lon, acc) {
-    var fd = new FormData();
-    fd.append('code', code);
-    fd.append('cliente', c);
-    fd.append('fecha', todayStr());
-    fd.append('razon', pdvNameCache[c] || c);
-    fd.append('validate', 'true');
-    fd.append('accuracy', acc || lastAcc || '0');
-    if (lat != null && lon != null) {
-      fd.append('lat', lat);
-      fd.append('lon', lon);
-    }
-    fd.append('foto', f);
-    fetch(base + '/api/visitas', { method: 'POST', body: fd })
-      .then(function (r) { return r.json(); }).then(onDone)
-      .catch(function () { visitasMsg('Error de conexión al registrar la visita.'); });
-  };
-  if ('geolocation' in navigator) {
-    navigator.geolocation.getCurrentPosition(function (pos) {
-      var acc = Math.round(pos.coords.accuracy);
-      lastLat = pos.coords.latitude; lastLon = pos.coords.longitude; lastAcc = acc;
-      document.getElementById('acc').textContent = acc + ' m';
-      enviar(pos.coords.latitude, pos.coords.longitude, acc);
-    }, function () { enviar(lastLat, lastLon, lastAcc); },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 3000 });
-  } else {
-    enviar(lastLat, lastLon, lastAcc);
-  }
+  });
 }
 
 // ---------------- Mapa de PDV ----------------

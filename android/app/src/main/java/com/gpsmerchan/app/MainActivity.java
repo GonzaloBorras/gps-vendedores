@@ -94,6 +94,8 @@ public class MainActivity extends Activity {
             }
         }
 
+        autoStartTracking();
+
         checkForUpdate();
         scheduleUpdateChecks();
     }
@@ -433,8 +435,33 @@ public class MainActivity extends Activity {
         if (requestCode == PERM_REQ_LOCATION) {
             if (!hasLocationPermission()) {
                 Toast.makeText(this, "Sin permiso de ubicación no se puede enviar la posición. Aceptá el permiso y probá de nuevo.", Toast.LENGTH_LONG).show();
+            } else {
+                autoStartTracking();
             }
         }
+    }
+
+    private void autoStartTracking() {
+        if (BuildConfig.IS_ADMIN) return;
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        String code = prefs.getString(KEY_CODE, "");
+        if (code.isEmpty()) return;
+        if (!hasLocationPermission()) {
+            requestLocationPermissions();
+            return;
+        }
+        String session = prefs.getString(KEY_SESSION, "");
+        if (session.isEmpty()) {
+            session = Long.toString(System.currentTimeMillis(), 36);
+            prefs.edit().putString(KEY_SESSION, session).apply();
+        }
+        Intent i = new Intent(this, LocationService.class);
+        i.setAction("START");
+        i.putExtra("code", code);
+        i.putExtra("session", session);
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(i);
+        else startService(i);
+        maybeAskBattery();
     }
 
     private void maybeAskBattery() {

@@ -321,7 +321,7 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
   <main id="mapWrap">
     <div id="mapa"></div>
     <div class="map-legend" id="mapaMsg">Cargando PDV...</div>
-    <div class="map-badge"><span style="color:#e11d48">●</span><span style="color:#059669">●</span><span style="color:#7c3aed">●</span> visitados (cada uno su color) · <span style="color:#9ca3af">●</span> pendiente</div>
+    <div class="map-badge"><span style="color:#1d4ed8">●</span> de tu ruta · <span style="color:#16a34a">●</span> visitado · <span style="color:#9ca3af">●</span> sin visita</div>
     <div class="map-fab">
       <button id="visitasBtn" onclick="openVisitas()">＋ Registrar PDV</button>
       <button id="addPdvBtn" onclick="openAddPdv()">＋ Cargar nuevo PDV</button>
@@ -834,6 +834,13 @@ var visitasCache = {};
 var RUTA_TODAY = { 1: 'LUNES', 2: 'MARTES', 3: 'MIERCOLES', 4: 'JUEVES', 5: 'VIERNES', 6: 'SABADO' }[new Date().getDay()] || '';
 var RUTA_DIA_NAME = { LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado' }[RUTA_TODAY] || 'hoy';
 var rutaHoy = [];
+var rutaSet = {};
+
+function pdvEstadoColor(c) {
+  if (visitasCache[c]) return '#16a34a';
+  if (rutaSet[c]) return '#1d4ed8';
+  return '#9ca3af';
+}
 
 function visitasMsg(msg) {
   var m = document.getElementById('visitasMsg');
@@ -882,21 +889,27 @@ function checkRutaUpdate(arr) {
 }
 
 function loadRutaHoy(cb) {
-  if (!RUTA_TODAY) { renderRutaHoy(); if (cb) cb(); return; }
+  if (!RUTA_TODAY) { rutaSet = {}; renderRutaHoy(); updatePdvMarkers(); if (cb) cb(); return; }
   fetch(base + '/api/rutas?merchan=' + encodeURIComponent(code))
     .then(function (r) { return r.json(); })
     .then(function (arr) {
       cacheRutas(arr);
       checkRutaUpdate(arr);
       rutaHoy = arr.filter(function (v) { return v.dia === RUTA_TODAY; });
+      rutaSet = {};
+      rutaHoy.forEach(function (v) { rutaSet[v.cliente] = 1; });
       renderRutaHoy();
+      updatePdvMarkers();
       if (cb) cb();
     }).catch(function () {
       var c = cachedRutas();
       if (c) {
         rutaHoy = c.filter(function (v) { return v.dia === RUTA_TODAY; });
+        rutaSet = {};
+        rutaHoy.forEach(function (v) { rutaSet[v.cliente] = 1; });
         renderRutaHoy();
       }
+      updatePdvMarkers();
       if (cb) cb();
     });
 }
@@ -1284,17 +1297,8 @@ function openMapa() {
   }
 }
 
-var PDV_PALETTE = ['#e11d48', '#7c3aed', '#059669', '#d97706', '#2563eb', '#db2777',
-  '#16a34a', '#9333ea', '#ea580c', '#0891b2', '#65a30d', '#c026d3',
-  '#4f46e5', '#ca8a04', '#0d9488', '#dc2626', '#7e22ce', '#15803d'];
-function pdvColor(c) {
-  var h = 0;
-  for (var i = 0; i < c.length; i++) h = (h * 31 + c.charCodeAt(i)) & 0xffffffff;
-  return PDV_PALETTE[Math.abs(h) % PDV_PALETTE.length];
-}
 function makePdvMarker(d) {
-  var vis = !!visitasCache[d.c];
-  var col = vis ? pdvColor(d.c) : '#9ca3af';
+  var col = pdvEstadoColor(d.c);
   var m = L.circleMarker([d.lat, d.lon], {
     radius: 6, color: col, weight: 1,
     fillColor: col, fillOpacity: 0.85
@@ -1341,8 +1345,7 @@ function updatePdvMarkers() {
   if (!mapa) return;
   Object.keys(pdvMarkers).forEach(function (c) {
     var m = pdvMarkers[c];
-    var vis = !!visitasCache[c];
-    var col = vis ? pdvColor(c) : '#9ca3af';
+    var col = pdvEstadoColor(c);
     m.setStyle({ color: col, fillColor: col });
   });
 }

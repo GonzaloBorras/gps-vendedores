@@ -22,7 +22,7 @@ RUTAS_FILE = os.path.join(BASE_DIR, 'rutas.json')
 OVERRIDES_FILE = os.path.join(BASE_DIR, 'overrides.json')
 
 APP_VERSION = '2.4'
-APP_VERSION_CODE = 7
+APP_VERSION_CODE = 8
 APK_URL = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-v1.0/GPS-Merchan.apk'
 APK_URL_ADMIN = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-admin/GPS-Admin.apk'
 

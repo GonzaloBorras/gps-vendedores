@@ -40,7 +40,7 @@
 
   <div class="overlay">
     <h1>Ruta vendedores</h1>
-    <div class="sub">Tucumán y Catamarca</div>
+    <div class="sub" id="provTitle">Tucumán y Catamarca</div>
     <div class="stats">
       <div class="stat"><b id="stTotal">0</b><span>PDV</span></div>
       <div class="stat"><b id="stTuc">0</b><span>Tucumán</span></div>
@@ -59,8 +59,8 @@
       <select id="fRuta" onchange="applyFilters()"></select>
     </div>
     <div class="legend">
-      <div class="li"><span class="sw" style="background:#1d4ed8"></span> Tucumán</div>
-      <div class="li"><span class="sw" style="background:#059669"></span> Catamarca</div>
+      <div class="li" id="legendTuc"><span class="sw" style="background:#1d4ed8"></span> Tucumán</div>
+      <div class="li" id="legendCat"><span class="sw" style="background:#059669"></span> Catamarca</div>
     </div>
   </div>
 
@@ -79,6 +79,21 @@
     var allPdv = [];
     var markers = [];
     var cluster = null;
+    var PROV_FIX = ('{{ prov }}').toUpperCase();
+    var didFit = false;
+
+    (function () {
+      if (!PROV_FIX) return;
+      var sel = document.getElementById('fProv');
+      sel.value = PROV_FIX;
+      sel.style.display = 'none';
+      var row = sel.closest('.ov-row');
+      if (row) row.style.display = 'none';
+      var name = PROV_FIX === 'TUCUMAN' ? 'Tucumán' : 'Catamarca';
+      document.getElementById('provTitle').textContent = name;
+      document.getElementById('legendCat').style.display = PROV_FIX === 'CATAMARCA' ? 'flex' : 'none';
+      document.getElementById('legendTuc').style.display = PROV_FIX === 'TUCUMAN' ? 'flex' : 'none';
+    })();
 
     function icono(p) {
       return L.circleMarker([p.lat, p.lon], {
@@ -140,7 +155,8 @@
       cluster = L.markerClusterGroup({ disableClusteringAtZoom: 15, maxClusterRadius: 50, showCoverageOnHover: false });
       cluster.addLayers(markers);
       map.addLayer(cluster);
-      if (vis.length && map.getZoom() < 7) {
+      if (vis.length && ((PROV_FIX && !didFit) || map.getZoom() < 7)) {
+        didFit = true;
         map.fitBounds(L.latLngBounds(vis.map(function (d) { return [d.lat, d.lon]; })), { padding: [30, 30] });
       }
     }

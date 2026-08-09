@@ -120,7 +120,10 @@
 
     function rutas() {
       var set = {};
-      allPdv.forEach(function (d) { if (d.vta) set[d.vta] = 1; });
+      allPdv.forEach(function (d) {
+        if (PROV_FIX && d.prov !== PROV_FIX) return;
+        if (d.vta) set[d.vta] = 1;
+      });
       return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'es'); });
     }
 

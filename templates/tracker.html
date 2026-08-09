@@ -1297,8 +1297,9 @@ function openMapa() {
 
 function makePdvMarker(d) {
   var col = pdvEstadoColor(d.c);
+  var rr = col === '#1d4ed8' ? 9 : 6;
   var m = L.circleMarker([d.lat, d.lon], {
-    radius: 6, color: col, weight: 1,
+    radius: rr, color: col, weight: 1.5,
     fillColor: col, fillOpacity: 0.85
   });
   var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
@@ -1344,7 +1345,8 @@ function updatePdvMarkers() {
   Object.keys(pdvMarkers).forEach(function (c) {
     var m = pdvMarkers[c];
     var col = pdvEstadoColor(c);
-    m.setStyle({ color: col, fillColor: col });
+    var rr = col === '#1d4ed8' ? 9 : 6;
+    m.setStyle({ color: col, fillColor: col, radius: rr });
   });
 }
 

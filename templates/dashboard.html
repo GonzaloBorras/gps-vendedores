@@ -52,7 +52,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
   font-size: 11px; font-weight: 700; line-height: 15px; text-align: center; border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,.5); }
 .pdv-dot { width: 9px; height: 9px; border-radius: 50%; background: #9ca3af; border: 1.5px solid #6b7280; }
-.pdv-ruta { width: 10px; height: 10px; border-radius: 50%; background: #1d4ed8; border: 1.5px solid #fff;
+.pdv-ruta { width: 14px; height: 14px; border-radius: 50%; background: #1d4ed8; border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,.5); }
 .foto-ok { color: #047857; font-weight: 700; }
 .foto-miss { color: #b91c1c; font-weight: 700; }
@@ -555,7 +555,7 @@ var pdvIconVis = L.divIcon({ className: '', html: '<div class="pdv-tick">✓</di
 var pdvIconNo = L.divIcon({ className: '', html: '<div class="pdv-dot"></div>',
   iconSize: [9, 9], iconAnchor: [4.5, 4.5] });
 var pdvIconRuta = L.divIcon({ className: '', html: '<div class="pdv-ruta"></div>',
-  iconSize: [10, 10], iconAnchor: [5, 5] });
+  iconSize: [14, 14], iconAnchor: [7, 7] });
 function pdvIconFor(c) {
   if (visitedPdvSet[String(c)]) return pdvIconVis;
   if (pdvRutaSet[String(c)]) return pdvIconRuta;

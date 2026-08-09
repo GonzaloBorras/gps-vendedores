@@ -92,9 +92,11 @@
       var name = PROV_FIX === 'TUCUMAN' ? 'Tucumán' : 'Catamarca';
       document.getElementById('provTitle').textContent = name;
       if (PROV_FIX === 'TUCUMAN') {
+        document.getElementById('stTotal').style.display = 'none';
         document.getElementById('stCat').style.display = 'none';
         document.getElementById('legendCat').style.display = 'none';
       } else {
+        document.getElementById('stTotal').style.display = 'none';
         document.getElementById('stTuc').style.display = 'none';
         document.getElementById('legendTuc').style.display = 'none';
       }

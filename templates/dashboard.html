@@ -1582,6 +1582,9 @@ function togglePDV() {
           ' &nbsp; <span style="color:#9ca3af;font-size:10px">' + esc(d.prov) + '</span></div>' +
         '<div>' + esc(dir) + '</div>' +
         (d.vta ? '<div class="ruta">' + esc(d.vta) + '</div>' : '') +
+        (d.telefono ? '<div style="margin-top:2px">📞 ' + esc(d.telefono) + '</div>' : '') +
+        (d.contacto ? '<div style="margin-top:2px">👤 ' + esc(d.contacto) + '</div>' : '') +
+        (d.notas ? '<div style="margin-top:2px;color:#6b7280">' + esc(d.notas) + '</div>' : '') +
         estado +
         '<a href="https://www.google.com/maps/search/?api=1&query=' + d.lat + ',' + d.lon +
         '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;border:0;border-radius:6px;padding:5px 10px;background:#eff6ff;color:#1d4ed8;font-weight:600;text-decoration:none">Google Maps</a>' +

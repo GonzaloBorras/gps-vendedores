@@ -91,8 +91,13 @@
       if (row) row.style.display = 'none';
       var name = PROV_FIX === 'TUCUMAN' ? 'Tucumán' : 'Catamarca';
       document.getElementById('provTitle').textContent = name;
-      document.getElementById('legendCat').style.display = PROV_FIX === 'CATAMARCA' ? 'flex' : 'none';
-      document.getElementById('legendTuc').style.display = PROV_FIX === 'TUCUMAN' ? 'flex' : 'none';
+      if (PROV_FIX === 'TUCUMAN') {
+        document.getElementById('stCat').style.display = 'none';
+        document.getElementById('legendCat').style.display = 'none';
+      } else {
+        document.getElementById('stTuc').style.display = 'none';
+        document.getElementById('legendTuc').style.display = 'none';
+      }
     })();
 
     function icono(p) {

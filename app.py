@@ -643,6 +643,12 @@ def gps_status():
     ts = int(time.time() * 1000)
     name = VENDOR_BY_CODE[code]['name']
     _upsert_device(db, code, body.get('app'), body.get('version'), body.get('versionCode'))
+    # Fuera del horario laboral: no se generan alertas ni notificaciones por GPS apagado.
+    win = _jornada_window(code)
+    if not win or ts < win[0] or ts >= win[1]:
+        _exec(db, 'DELETE FROM alerts WHERE code = ?', (code,))
+        db.commit()
+        return jsonify({'ok': True})
     if body.get('gps'):
         existed = _exec(db, 'SELECT 1 FROM alerts WHERE code = ?', (code,)).fetchone()
         _exec(db, 'DELETE FROM alerts WHERE code = ?', (code,))
@@ -653,7 +659,7 @@ def gps_status():
         existed = _exec(db, 'SELECT 1 FROM alerts WHERE code = ?', (code,)).fetchone()
         _exec(db,
               '''INSERT INTO alerts(code, tipo, ts, msj) VALUES (?, 'gps_off', ?, ?)
-                 ON CONFLICT(code) DO UPDATE SET ts = excluded.ts, msj = excluded.msj''',
+                 ON CONFLICT(code) DO NOTHING''',
               (code, ts, 'Ubicación apagada o sin señal GPS'))
         db.commit()
         if not existed:

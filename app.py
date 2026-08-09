@@ -187,7 +187,7 @@ def init_db():
             'CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, code TEXT NOT NULL, msj TEXT NOT NULL, ts BIGINT NOT NULL, visto INTEGER NOT NULL DEFAULT 0)',
             'CREATE INDEX IF NOT EXISTS idx_messages_code ON messages(code)',
             'CREATE TABLE IF NOT EXISTS pdv_radius (cliente TEXT PRIMARY KEY, radius_m INTEGER NOT NULL)',
-            'CREATE TABLE IF NOT EXISTS pdvs_extra (cliente TEXT PRIMARY KEY, razon TEXT NOT NULL, calle TEXT NOT NULL DEFAULT \'\', altura TEXT NOT NULL DEFAULT \'\', vta TEXT NOT NULL DEFAULT \'\', prov TEXT NOT NULL DEFAULT \'\', lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, creado_por TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL)',
+            'CREATE TABLE IF NOT EXISTS pdvs_extra (cliente TEXT PRIMARY KEY, razon TEXT NOT NULL, calle TEXT NOT NULL DEFAULT \'\', altura TEXT NOT NULL DEFAULT \'\', vta TEXT NOT NULL DEFAULT \'\', prov TEXT NOT NULL DEFAULT \'\', telefono TEXT NOT NULL DEFAULT \'\', contacto TEXT NOT NULL DEFAULT \'\', notas TEXT NOT NULL DEFAULT \'\', lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, creado_por TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL)',
             'CREATE TABLE IF NOT EXISTS geoevents (id SERIAL PRIMARY KEY, code TEXT NOT NULL, cliente TEXT NOT NULL DEFAULT \'\', razon TEXT NOT NULL DEFAULT \'\', tipo TEXT NOT NULL DEFAULT \'\', dist_m INTEGER, ts BIGINT NOT NULL)',
             'CREATE INDEX IF NOT EXISTS idx_geoevents_code_ts ON geoevents(code, ts)',
             'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)',
@@ -198,6 +198,9 @@ def init_db():
             cur.execute(s)
         cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto TEXT')
         cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto_ts BIGINT')
+        cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS telefono TEXT NOT NULL DEFAULT \'\'')
+        cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS contacto TEXT NOT NULL DEFAULT \'\'')
+        cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT \'\'')
         con.commit()
     else:
         con.executescript('''
@@ -265,6 +268,9 @@ def init_db():
                 altura     TEXT NOT NULL DEFAULT '',
                 vta        TEXT NOT NULL DEFAULT '',
                 prov       TEXT NOT NULL DEFAULT '',
+                telefono   TEXT NOT NULL DEFAULT '',
+                contacto   TEXT NOT NULL DEFAULT '',
+                notas      TEXT NOT NULL DEFAULT '',
                 lat        REAL NOT NULL,
                 lon        REAL NOT NULL,
                 creado_por TEXT NOT NULL DEFAULT '',
@@ -308,6 +314,13 @@ def init_db():
         vcols2 = [r[1] for r in con.execute('PRAGMA table_info(vendors)')]
         if 'grupo' not in vcols2:
             con.execute("ALTER TABLE vendors ADD COLUMN grupo TEXT NOT NULL DEFAULT 'rutas'")
+        pcols = [r[1] for r in con.execute('PRAGMA table_info(pdvs_extra)')]
+        if 'telefono' not in pcols:
+            con.execute("ALTER TABLE pdvs_extra ADD COLUMN telefono TEXT NOT NULL DEFAULT ''")
+        if 'contacto' not in pcols:
+            con.execute("ALTER TABLE pdvs_extra ADD COLUMN contacto TEXT NOT NULL DEFAULT ''")
+        if 'notas' not in pcols:
+            con.execute("ALTER TABLE pdvs_extra ADD COLUMN notas TEXT NOT NULL DEFAULT ''")
 
     _exec(con, 'DELETE FROM vendors')
     for v in VENDORS:
@@ -441,6 +454,17 @@ def maintenance():
         if request.args.get('status'):
             return jsonify({'ok': True, 'recompress_running': MAINT_STATE.get('running', False),
                             **MAINT_STATE})
+        delc = request.args.get('del_pdv', '').strip()
+        if delc:
+            db = get_db()
+            _exec(db, 'DELETE FROM pdvs_extra WHERE cliente = ?', (delc,))
+            db.commit()
+            PDV_BY_CODE.pop(delc, None)
+            for lst in (PDV, PDV_EXTRA):
+                for p in list(lst):
+                    if p.get('c') == delc:
+                        lst.remove(p)
+            info['del_pdv'] = delc
         if request.args.get('purge'):
             _cleanup_rolling()
             _cleanup_monthly()
@@ -525,11 +549,13 @@ def _load_pdv_extra():
     extra = []
     try:
         con = _raw_conn()
-        rows = _exec(con, 'SELECT cliente, razon, calle, altura, vta, prov, lat, lon FROM pdvs_extra').fetchall()
+        rows = _exec(con, 'SELECT cliente, razon, calle, altura, vta, prov, telefono, contacto, notas, lat, lon FROM pdvs_extra').fetchall()
         con.close()
         for r in rows:
             extra.append({'c': r['cliente'], 'r': r['razon'], 'calle': r['calle'], 'altura': r['altura'],
-                          'vta': r['vta'], 'prov': r['prov'], 'lat': r['lat'], 'lon': r['lon']})
+                          'vta': r['vta'], 'prov': r['prov'], 'telefono': r['telefono'],
+                          'contacto': r['contacto'], 'notas': r['notas'],
+                          'lat': r['lat'], 'lon': r['lon']})
     except Exception:
         pass
     return extra
@@ -972,13 +998,19 @@ def pdv_post():
     calle = str(body.get('calle', '')).strip()
     altura = str(body.get('altura', '')).strip()
     vta = str(body.get('vta', '')).strip()
+    prov = str(body.get('prov', '')).strip().upper()
+    if prov not in ('TUCUMAN', 'CATAMARCA'):
+        prov = v.get('prov', '')
+    telefono = str(body.get('telefono', '')).strip()
+    contacto = str(body.get('contacto', '')).strip()
+    notas = str(body.get('notas', '')).strip()
     cliente = 'M' + str(int(time.time() * 1000))
     db = get_db()
-    _exec(db, 'INSERT INTO pdvs_extra(cliente, razon, calle, altura, vta, prov, lat, lon, creado_por, ts) VALUES (?,?,?,?,?,?,?,?,?,?)',
-          (cliente, razon, calle, altura, vta, v.get('prov', ''), lat, lon, code, int(time.time() * 1000)))
+    _exec(db, 'INSERT INTO pdvs_extra(cliente, razon, calle, altura, vta, prov, telefono, contacto, notas, lat, lon, creado_por, ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+          (cliente, razon, calle, altura, vta, prov, telefono, contacto, notas, lat, lon, code, int(time.time() * 1000)))
     db.commit()
-    nuevo = {'c': cliente, 'r': razon, 'calle': calle, 'altura': altura, 'vta': vta,
-             'prov': v.get('prov', ''), 'lat': lat, 'lon': lon}
+    nuevo = {'c': cliente, 'r': razon, 'calle': calle, 'altura': altura, 'vta': vta, 'prov': prov,
+             'telefono': telefono, 'contacto': contacto, 'notas': notas, 'lat': lat, 'lon': lon}
     PDV.append(nuevo)
     PDV_BY_CODE[cliente] = nuevo
     PDV_EXTRA.append(nuevo)
@@ -1351,12 +1383,12 @@ def visitas_post():
             g_lat = g_lon = None
         if g_lat is not None and g_lon is not None and -90 <= g_lat <= 90 and -180 <= g_lon <= 180:
             nprov = v.get('prov', '')
-            _exec(db, '''INSERT INTO pdvs_extra(cliente, razon, calle, altura, vta, prov, lat, lon, creado_por, ts)
-                         VALUES (?,?,?,?,?,?,?,?,?,?)
+            _exec(db, '''INSERT INTO pdvs_extra(cliente, razon, calle, altura, vta, prov, telefono, contacto, notas, lat, lon, creado_por, ts)
+                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
                          ON CONFLICT(cliente) DO UPDATE SET
                            razon=excluded.razon, calle=excluded.calle, altura=excluded.altura, vta=excluded.vta,
                            prov=excluded.prov, lat=excluded.lat, lon=excluded.lon, ts=excluded.ts''',
-                  (cliente, razon, calle, altura, vta, nprov, g_lat, g_lon, code, int(time.time() * 1000)))
+                  (cliente, razon, calle, altura, vta, nprov, '', '', '', g_lat, g_lon, code, int(time.time() * 1000)))
             db.commit()
             nuevo = {'c': cliente, 'r': razon, 'calle': calle, 'altura': altura, 'vta': vta,
                      'prov': nprov, 'lat': g_lat, 'lon': g_lon}

@@ -129,6 +129,7 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .addpdv-sub { font-size: 12px; color: #8b93a7; margin-bottom: 8px; }
 .addpdv-box label { display: block; font-size: 11px; color: #8b93a7; margin: 10px 0 4px; }
 .addpdv-box input[type=text] { width: 100%; padding: 9px 10px; border: 1px solid #334155; border-radius: 8px; background: #0f1420; color: #fff; font-size: 14px; }
+.addpdv-box select { width: 100%; padding: 9px 10px; border: 1px solid #334155; border-radius: 8px; background: #0f1420; color: #fff; font-size: 14px; }
 .addpdv-box .row { display: flex; gap: 8px; }
 .addpdv-box .row > div { flex: 1; }
 .addpdv-coords { font-size: 12px; color: #22c55e; margin-top: 10px; }
@@ -391,6 +392,24 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
     </div>
     <label>Zona / venta</label>
     <input type="text" id="addPdvVta" placeholder="Opcional">
+    <div class="row">
+      <div>
+        <label>Provincia</label>
+        <select id="addPdvProv">
+          <option value="">{{ vendor.prov }}</option>
+          <option value="TUCUMAN">Tucumán</option>
+          <option value="CATAMARCA">Catamarca</option>
+        </select>
+      </div>
+      <div>
+        <label>Teléfono</label>
+        <input type="text" id="addPdvTelefono" placeholder="Opcional">
+      </div>
+    </div>
+    <label>Contacto (persona)</label>
+    <input type="text" id="addPdvContacto" placeholder="Opcional">
+    <label>Observaciones</label>
+    <input type="text" id="addPdvNotas" placeholder="Opcional">
     <div class="addpdv-coords" id="addPdvCoords"></div>
     <div class="addpdv-msg" id="addPdvMsg"></div>
     <button class="btn-addpdv-save" id="addPdvSave" onclick="guardarPdv()">Guardar PDV</button>
@@ -1308,6 +1327,9 @@ function makePdvMarker(d) {
     '<div class="mp-name">' + esc(d.r) + '</div>' +
     '<div class="mp-det">Cliente: ' + esc(d.c) + (dir ? ' · ' + esc(dir) : '') + '</div>' +
     (d.vta ? '<div class="mp-vta">' + esc(d.vta) + '</div>' : '') +
+    (d.telefono ? '<div class="mp-det">📞 ' + esc(d.telefono) + '</div>' : '') +
+    (d.contacto ? '<div class="mp-det">👤 ' + esc(d.contacto) + '</div>' : '') +
+    (d.notas ? '<div class="mp-det">' + esc(d.notas) + '</div>' : '') +
     (dm !== null ? '<div class="mp-dist">Estás a ' + fmtDist(dm) + '</div>' : '') +
     '<button onclick="mapaMarcarVisita(\'' + d.c + '\',\'' + esc(d.r) + '\')">Registrar visita</button>' +
     '</div>');
@@ -1358,6 +1380,10 @@ function openAddPdv() {
   document.getElementById('addPdvCalle').value = '';
   document.getElementById('addPdvAltura').value = '';
   document.getElementById('addPdvVta').value = '';
+  document.getElementById('addPdvProv').value = '';
+  document.getElementById('addPdvTelefono').value = '';
+  document.getElementById('addPdvContacto').value = '';
+  document.getElementById('addPdvNotas').value = '';
   document.getElementById('addPdvSave').disabled = true;
   addPdvLat = null; addPdvLon = null;
   var c = document.getElementById('addPdvCoords');
@@ -1389,15 +1415,21 @@ function guardarPdv() {
   var calle = document.getElementById('addPdvCalle').value.trim();
   var altura = document.getElementById('addPdvAltura').value.trim();
   var vta = document.getElementById('addPdvVta').value.trim();
+  var prov = document.getElementById('addPdvProv').value;
+  var telefono = document.getElementById('addPdvTelefono').value.trim();
+  var contacto = document.getElementById('addPdvContacto').value.trim();
+  var notas = document.getElementById('addPdvNotas').value.trim();
   msg.textContent = 'Guardando...';
   fetch(base + '/api/pdv', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: code, lat: addPdvLat, lon: addPdvLon, razon: razon, calle: calle, altura: altura, vta: vta })
+    body: JSON.stringify({ code: code, lat: addPdvLat, lon: addPdvLon, razon: razon, calle: calle,
+      altura: altura, vta: vta, prov: prov, telefono: telefono, contacto: contacto, notas: notas })
   }).then(function (r) { return r.json(); }).then(function (d) {
     if (d.ok) {
       msg.textContent = '';
       document.getElementById('addpdvOverlay').classList.remove('open');
-      var n = { c: d.cliente, r: d.razon, calle: calle, altura: altura, vta: vta, prov: '', lat: d.lat, lon: d.lon };
+      var n = { c: d.cliente, r: d.razon, calle: calle, altura: altura, vta: vta, prov: prov,
+        telefono: telefono, contacto: contacto, notas: notas, lat: d.lat, lon: d.lon };
       pdvAll.push(n);
       var m = makePdvMarker(n);
       pdvMarkers[n.c] = m;

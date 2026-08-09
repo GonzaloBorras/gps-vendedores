@@ -40,12 +40,19 @@
 
   <div class="overlay">
     <h1>Ruta vendedores</h1>
-    <div class="sub" id="provTitle">Tucumán y Catamarca</div>
+    <div class="sub">{% if prov == 'TUCUMAN' %}Tucumán{% elif prov == 'CATAMARCA' %}Catamarca{% else %}Tucumán y Catamarca{% endif %}</div>
     <div class="stats">
+      {% if prov == 'TUCUMAN' %}
+      <div class="stat"><b id="stTuc">0</b><span>Tucumán</span></div>
+      {% elif prov == 'CATAMARCA' %}
+      <div class="stat"><b id="stCat">0</b><span>Catamarca</span></div>
+      {% else %}
       <div class="stat"><b id="stTotal">0</b><span>PDV</span></div>
       <div class="stat"><b id="stTuc">0</b><span>Tucumán</span></div>
       <div class="stat"><b id="stCat">0</b><span>Catamarca</span></div>
+      {% endif %}
     </div>
+    {% if not prov %}
     <div class="ov-row">
       <label>Provincia</label>
       <select id="fProv" onchange="applyFilters()">
@@ -54,13 +61,18 @@
         <option value="CATAMARCA">Catamarca</option>
       </select>
     </div>
+    {% endif %}
     <div class="ov-row">
       <label>Ruta</label>
       <select id="fRuta" onchange="applyFilters()"></select>
     </div>
     <div class="legend">
+      {% if not prov or prov == 'TUCUMAN' %}
       <div class="li" id="legendTuc"><span class="sw" style="background:#1d4ed8"></span> Tucumán</div>
+      {% endif %}
+      {% if not prov or prov == 'CATAMARCA' %}
       <div class="li" id="legendCat"><span class="sw" style="background:#059669"></span> Catamarca</div>
+      {% endif %}
     </div>
   </div>
 
@@ -81,26 +93,6 @@
     var cluster = null;
     var PROV_FIX = ('{{ prov }}').toUpperCase();
     var didFit = false;
-
-    (function () {
-      if (!PROV_FIX) return;
-      var sel = document.getElementById('fProv');
-      sel.value = PROV_FIX;
-      sel.style.display = 'none';
-      var row = sel.closest('.ov-row');
-      if (row) row.style.display = 'none';
-      var name = PROV_FIX === 'TUCUMAN' ? 'Tucumán' : 'Catamarca';
-      document.getElementById('provTitle').textContent = name;
-      if (PROV_FIX === 'TUCUMAN') {
-        document.getElementById('stTotal').style.display = 'none';
-        document.getElementById('stCat').style.display = 'none';
-        document.getElementById('legendCat').style.display = 'none';
-      } else {
-        document.getElementById('stTotal').style.display = 'none';
-        document.getElementById('stTuc').style.display = 'none';
-        document.getElementById('legendTuc').style.display = 'none';
-      }
-    })();
 
     function icono(p) {
       return L.circleMarker([p.lat, p.lon], {
@@ -146,7 +138,8 @@
     }
 
     function applyFilters() {
-      var p = document.getElementById('fProv').value;
+      var f = document.getElementById('fProv');
+      var p = f ? f.value : PROV_FIX;
       var r = document.getElementById('fRuta').value;
       var vis = allPdv.filter(function (d) {
         if (p && d.prov !== p) return false;
@@ -172,9 +165,13 @@
       allPdv = arr.filter(function (d) {
         return typeof d.lat === 'number' && typeof d.lon === 'number' && d.lat !== 0 && d.lon !== 0;
       });
-      document.getElementById('stTotal').textContent = allPdv.length;
-      document.getElementById('stTuc').textContent = allPdv.filter(function (d) { return d.prov === 'TUCUMAN'; }).length;
-      document.getElementById('stCat').textContent = allPdv.filter(function (d) { return d.prov === 'CATAMARCA'; }).length;
+      var el;
+      el = document.getElementById('stTotal');
+      if (el) el.textContent = allPdv.length;
+      el = document.getElementById('stTuc');
+      if (el) el.textContent = allPdv.filter(function (d) { return d.prov === 'TUCUMAN'; }).length;
+      el = document.getElementById('stCat');
+      if (el) el.textContent = allPdv.filter(function (d) { return d.prov === 'CATAMARCA'; }).length;
       rebuildSelect();
       applyFilters();
     }).catch(function () {});

@@ -1856,7 +1856,18 @@ def tracker(code):
 
 @app.route('/mapa-pdv')
 def mapa_pdv():
-    return render_template('mapa_pdv.html')
+    prov = request.args.get('prov', '').strip().upper()
+    return render_template('mapa_pdv.html', prov=prov if prov in ('TUCUMAN', 'CATAMARCA') else '')
+
+
+@app.route('/mapa-pdv-tucuman')
+def mapa_pdv_tucuman():
+    return redirect('/mapa-pdv?prov=TUCUMAN')
+
+
+@app.route('/mapa-pdv-catamarca')
+def mapa_pdv_catamarca():
+    return redirect('/mapa-pdv?prov=CATAMARCA')
 
 
 @app.route('/', methods=['GET', 'POST'])

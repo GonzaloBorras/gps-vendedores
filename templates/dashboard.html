@@ -446,6 +446,20 @@ body.dark .meta-bar { background: #2a3450; }
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
+function _panelErr(msg, src, line) {
+  try {
+    var bar = document.getElementById('alertbar');
+    if (!bar) return;
+    bar.innerHTML = '<b style="color:#b91c1c">⚠ Error de la app:</b> ' + String(msg).slice(0, 200) +
+      (src ? ' <small>(' + src.split('/').pop() + ':' + line + ')</small>' : '');
+    bar.style.display = 'block';
+  } catch (e) {}
+}
+window.addEventListener('error', function (e) { _panelErr(e.message, e.filename, e.lineno); });
+window.addEventListener('unhandledrejection', function (e) {
+  var r = e.reason && e.reason.message ? e.reason.message : String(e.reason || 'promesa');
+  _panelErr('promesa: ' + r);
+});
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
 }

@@ -558,8 +558,27 @@ function flushOffline() {
   next(0);
 }
 
+var lastSendLat = null, lastSendLon = null, lastSendTs = 0;
+function distM(aLat, aLon, bLat, bLon) {
+  var R = 6371000;
+  var dLat = (bLat - aLat) * Math.PI / 180;
+  var dLon = (bLon - aLon) * Math.PI / 180;
+  var x = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(aLat * Math.PI / 180) * Math.cos(bLat * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.asin(Math.sqrt(x));
+}
+function maybeSend() {
+  if (lastLat === null) return;
+  if (lastSendLat === null || Date.now() - lastSendTs >= 60000 ||
+      distM(lastSendLat, lastSendLon, lastLat, lastLon) >= 25) {
+    send();
+  }
+}
 function send() {
   if (lastLat === null) return;
+  lastSendTs = Date.now();
+  lastSendLat = lastLat; lastSendLon = lastLon;
   fetch(base + '/api/track', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -659,9 +678,9 @@ function stopWorker() {
 function startMainThread() {
   if (!('geolocation' in navigator)) { showErr('Tu navegador no soporta geolocalización.'); return; }
   watchId = navigator.geolocation.watchPosition(onPos, onErr, {
-    enableHighAccuracy: true, timeout: 20000, maximumAge: 5000
+    enableHighAccuracy: true, timeout: 20000, maximumAge: 10000
   });
-  window._int = setInterval(send, 10000);
+  window._int = setInterval(maybeSend, 10000);
 }
 
 function fmtRemaining(ms) {
@@ -697,7 +716,7 @@ function updateJornadaChip() {
     el.innerHTML = '🕐 Cargando jornada…';
   }
 }
-setInterval(updateJornadaChip, 1000);
+setInterval(updateJornadaChip, 30000);
 function lastVisitedRazon() {
   for (var i = visitaSeq.length - 1; i >= 0; i--) {
     var v = visitasCache[visitaSeq[i]];

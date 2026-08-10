@@ -755,6 +755,10 @@ function beginLive() {
   if (!startWorker()) startMainThread();
   requestWakeLock();
   window._gpsInt = setInterval(reportGps, 30000);
+  window._wakeInt = setInterval(function () {
+    if (running && document.visibilityState !== 'hidden' && !window._wake) requestWakeLock();
+  }, 15000);
+  showNote('Consejo para no perder señal: mantené esta app abierta en primer plano y desactivá la optimización de batería de Chrome (Ajustes → Batería → Sin restricciones). Con la app en pantalla, la pantalla no se apaga sola.');
   loadRutaHoy(function () {
     primerPDV = rutaHoy[0] || null;
     if (primerPDV) localStorage.setItem('gps_primer_pdv', primerPDV.razon);
@@ -796,6 +800,7 @@ function stopTracking() {
   watchId = null;
   clearInterval(window._int);
   clearInterval(window._gpsInt);
+  clearInterval(window._wakeInt);
   clearTimeout(shiftTimer);
   clearInterval(shiftCount);
   if (window._wake) window._wake.release().catch(function () {});
@@ -834,8 +839,20 @@ document.addEventListener('visibilitychange', function () {
   if (document.hidden) return;
   if (running) {
     flushOffline();
-    send();
     requestWakeLock();
+    if (watchId === null && !worker) { if (!startWorker()) startMainThread(); }
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      lastLat = pos.coords.latitude;
+      lastLon = pos.coords.longitude;
+      lastAcc = Math.round(pos.coords.accuracy);
+      document.getElementById('lat').textContent = lastLat.toFixed(6);
+      document.getElementById('lon').textContent = lastLon.toFixed(6);
+      document.getElementById('acc').textContent = lastAcc + ' m';
+      gpsOk = true;
+      hideErr();
+      updateMyPosition();
+      send();
+    }, function () {}, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
   }
 });
 window.addEventListener('online', function () {

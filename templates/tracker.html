@@ -974,7 +974,7 @@ function renderRutaHoy() {
         (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
         (sinUb
           ? '<small class="sinub-hint">Sin ubicación: registrá la visita con foto y queda cargado con GPS.</small>'
-          : (vis ? '<small>registrado · tocá para quitar</small>' : '<small>tocá para marcar como visitado</small>')) +
+          : (vis ? '<small>✓ registrado</small>' : '<small>tocá para marcar como visitado</small>')) +
         '</div>';
     }).join('');
   renderProximo();
@@ -1078,7 +1078,7 @@ function renderMiRuteo() {
       '<div class="r">' + esc(v.razon) + '</div>' +
       '<div class="d">Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(v) + (v.dia ? ' · ' + esc(v.dia) : '') + '</div>' +
       (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
-      (vis ? '<small>registrado · tocá para quitar</small>' : '<small>tocá para marcar como visitado</small>') +
+      (vis ? '<small>✓ registrado</small>' : '<small>tocá para marcar como visitado</small>') +
       '</div>';
   }).join('');
 }
@@ -1123,11 +1123,11 @@ function renderVisitas() {
   } else {
     html = keys.map(function (c) {
       var v = visitasCache[c];
-      return '<div class="pdv-item visited" onclick="quitarVisita(\'' + c + '\')">' +
+      return '<div class="pdv-item visited">' +
         '<div class="r">' + esc(v.razon) + '</div>' +
         '<div class="d">Cliente: ' + esc(c) + (v.calle ? ' · ' + esc(v.calle) : '') + '</div>' +
         (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
-        '<small>tocá para quitar</small></div>';
+        '<small>✓ registrado</small></div>';
     }).join('');
   }
   if (box) box.innerHTML = html;
@@ -1181,7 +1181,7 @@ function buscarPDV() {
           '<div class="r">' + esc(d.r) + fueraBadge + '</div>' +
           '<div class="d">Cliente: ' + esc(d.c) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(d) + '</div>' +
           (d.vta ? '<div class="vta">' + esc(d.vta) + '</div>' : '') +
-          (vis ? '<small>ya registrado · tocá para quitar</small>' : '<small>tocá para registrar</small>') +
+          (vis ? '<small>✓ ya registrado</small>' : '<small>tocá para registrar</small>') +
           '</div>';
       }).join('') || '<div class="empty">Sin resultados.</div>';
     }).catch(function () { box.innerHTML = '<div class="empty">Error al buscar.</div>'; });
@@ -1190,7 +1190,7 @@ function buscarPDV() {
 var pendingFotoCliente = null;
 var pdvNameCache = {};
 function marcarVisita(c, nombre) {
-  if (visitasCache[c]) { quitarVisita(c); return; }
+  if (visitasCache[c]) { showNote('Este PDV ya está registrado como visitado.'); return; }
   if (nombre) pdvNameCache[c] = nombre;
   pendingFotoCliente = c;
   document.getElementById('fotoPdvName').textContent = pdvNameCache[c] || c;

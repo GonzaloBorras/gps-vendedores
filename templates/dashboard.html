@@ -821,7 +821,7 @@ function refresh() {
       if (p.lat == null) return;
       if (!markers[p.code]) {
         var v = vendorsData.find(function (x) { return x.code === p.code; });
-        var m = merchanIcon(v ? v.name : p.code);
+        var m = L.marker([p.lat, p.lon], { icon: merchanIcon(v ? v.name : p.code) });
         m.bindPopup('', { maxWidth: 260 });
         m._pos = p;
         m.on('click', function () { m.setPopupContent(makePopup(p, p)); });

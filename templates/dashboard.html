@@ -530,7 +530,7 @@ function loadRutasCache() {
     });
     refreshPDVColors();
     if (currentList.length) renderSidebar(currentList);
-  }).catch(function () {});
+  }).catch(function (e) { _panelErr('rutas: ' + (e && e.message ? e.message : e)); });
 }
 
 function rutaHoyCount(code) {
@@ -751,7 +751,7 @@ function renderMerchanMeta() {
 function updateCardData() {
   fetch('/api/merchan-pdv').then(function (r) { return r.json(); })
     .then(function (d) { merchanNear = d || {}; renderMerchanMeta(); })
-    .catch(function () {});
+    .catch(function (e) { _panelErr('merchan-pdv: ' + (e && e.message ? e.message : e)); });
   fetch('/api/visitas/resumen?fecha=' + fechaSel).then(function (r) { return r.json(); })
     .then(function (d) {
       visitasToday = d || {};
@@ -765,13 +765,13 @@ function updateCardData() {
       refreshPDVColors();
       renderMerchanMeta();
     })
-    .catch(function () {});
+    .catch(function (e) { _panelErr('visitas/resumen: ' + (e && e.message ? e.message : e)); });
   fetch('/api/resumen?fecha=' + fechaSel).then(function (r) { return r.json(); })
     .then(function (d) { resumenData = d || {}; renderMerchanMeta(); })
-    .catch(function () {});
+    .catch(function (e) { _panelErr('resumen: ' + (e && e.message ? e.message : e)); });
   fetch('/api/jornadas').then(function (r) { return r.json(); })
     .then(function (d) { jornadasData = d || {}; renderMerchanMeta(); })
-    .catch(function () {});
+    .catch(function (e) { _panelErr('jornadas: ' + (e && e.message ? e.message : e)); });
 }
 
 function updateSidebarStatus(list) {
@@ -816,6 +816,7 @@ function updateSidebarStatus(list) {
 
 function refresh() {
   fetch('/api/positions').then(function (r) { return r.json(); }).then(function (arr) {
+    try {
     arr.forEach(function (p) {
       if (p.lat == null) return;
       if (!markers[p.code]) {
@@ -833,7 +834,8 @@ function refresh() {
     });
     renderAlerts(arr);
     applyFilters();
-  }).catch(function () {});
+    } catch (err) { _panelErr('refresh.then: ' + (err && err.message ? err.message : err)); }
+  }).catch(function (e) { _panelErr('refresh.fetch: ' + (e && e.message ? e.message : e)); });
 }
 
 var currentAlerts = {};

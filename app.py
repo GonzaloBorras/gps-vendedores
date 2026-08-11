@@ -198,6 +198,7 @@ def init_db():
             cur.execute(s)
         cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto TEXT')
         cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto_ts BIGINT')
+        cur.execute('ALTER TABLE positions ADD COLUMN IF NOT EXISTS battery INTEGER')
         cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS telefono TEXT NOT NULL DEFAULT \'\'')
         cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS contacto TEXT NOT NULL DEFAULT \'\'')
         cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT \'\'')
@@ -321,6 +322,9 @@ def init_db():
             con.execute("ALTER TABLE pdvs_extra ADD COLUMN contacto TEXT NOT NULL DEFAULT ''")
         if 'notas' not in pcols:
             con.execute("ALTER TABLE pdvs_extra ADD COLUMN notas TEXT NOT NULL DEFAULT ''")
+        pcolsb = [r[1] for r in con.execute('PRAGMA table_info(positions)')]
+        if 'battery' not in pcolsb:
+            con.execute('ALTER TABLE positions ADD COLUMN battery INTEGER')
 
     _exec(con, 'DELETE FROM vendors')
     for v in VENDORS:
@@ -651,8 +655,13 @@ def track():
         _exec(db, 'DELETE FROM alerts WHERE code = ?', (code,))
         db.commit()
         return jsonify({'ok': True, 'ts': ts, 'jornada_fin': True}), 200
-    _exec(db, 'INSERT INTO positions(code, name, lat, lon, session, ts) VALUES (?,?,?,?,?,?)',
-          (code, vendor['name'], lat, lon, str(body.get('session'))[:64], ts))
+    batt = body.get('battery')
+    try:
+        batt = int(batt) if batt is not None else None
+    except (TypeError, ValueError):
+        batt = None
+    _exec(db, 'INSERT INTO positions(code, name, lat, lon, session, ts, battery) VALUES (?,?,?,?,?,?,?)',
+          (code, vendor['name'], lat, lon, str(body.get('session'))[:64], ts, batt))
     _exec(db, 'DELETE FROM alerts WHERE code = ?', (code,))
     check_geofence(db, code, lat, lon, ts)
     db.commit()
@@ -841,7 +850,7 @@ def positions():
     db = get_db()
     now = int(time.time() * 1000)
     rows = _exec(db, '''
-        SELECT p.code, p.name, p.lat, p.lon, p.ts, v.prov, v.color, v.grupo,
+        SELECT p.code, p.name, p.lat, p.lon, p.ts, p.battery, v.prov, v.color, v.grupo,
                d.app, d.app_version, d.version_code
         FROM positions p
         JOIN (SELECT code, MAX(ts) AS mts FROM positions GROUP BY code) mx
@@ -866,6 +875,7 @@ def positions():
             'last': now - r['ts'],
             'gpsAlert': r['code'] in alerts,
             'gpsAlertTs': alerts.get(r['code']),
+            'battery': r['battery'],
             'app': r['app'] if r['app'] else 'web',
             'appVersion': r['app_version'] if r['app_version'] else '',
             'appVersionCode': r['version_code'] if r['version_code'] else 0,
@@ -889,6 +899,7 @@ def positions():
             'last': None,
             'gpsAlert': True,
             'gpsAlertTs': a_ts,
+            'battery': None,
             'app': (devs.get(code) or {}).get('app') or 'web',
             'appVersion': (devs.get(code) or {}).get('app_version') or '',
             'appVersionCode': (devs.get(code) or {}).get('version_code') or 0,

@@ -5,12 +5,14 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -252,9 +254,18 @@ public class LocationService extends Service implements LocationListener {
         }
     }
 
+    private int batteryPct() {
+        try {
+            BatteryManager bm = (BatteryManager) getSystemService(Context.BATTERY_SERVICE);
+            int p = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+            return (p >= 0 && p <= 100) ? p : -1;
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
     private void sendPosition(final Location loc) {
-        if (code.isEmpty() || loc == null) return;
-        final double lat = loc.getLatitude();
+        if (code.isEmpty() || loc == null) return;        final double lat = loc.getLatitude();
         final double lon = loc.getLongitude();
         new Thread(new Runnable() {
             @Override
@@ -270,7 +281,8 @@ public class LocationService extends Service implements LocationListener {
                     conn.setRequestProperty("Content-Type", "application/json");
                     String body = "{\"code\":\"" + code + "\",\"lat\":" + lat + ",\"lon\":" + lon +
                             ",\"session\":\"" + session + "\",\"app\":\"android\",\"version\":\"" +
-                            BuildConfig.VERSION_NAME + "\",\"versionCode\":" + BuildConfig.VERSION_CODE + "}";
+                            BuildConfig.VERSION_NAME + "\",\"versionCode\":" + BuildConfig.VERSION_CODE +
+                            ",\"battery\":" + batteryPct() + "}";
                     OutputStream os = conn.getOutputStream();
                     os.write(body.getBytes(StandardCharsets.UTF_8));
                     os.close();

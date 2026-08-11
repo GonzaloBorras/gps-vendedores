@@ -2,10 +2,13 @@ package com.gpsmerchan.app;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -511,6 +514,28 @@ public class MainActivity extends Activity {
             try {
                 MainActivity.this.stopService(new Intent(MainActivity.this, LocationService.class));
             } catch (Exception ignored) {
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        public String getBattery() {
+            try {
+                BatteryManager bm = (BatteryManager) getSystemService(Context.BATTERY_SERVICE);
+                int p = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+                boolean charging = false;
+                try {
+                    IntentFilter f = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                    Intent b = registerReceiver(null, f);
+                    if (b != null) {
+                        int st = b.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+                        charging = st == BatteryManager.BATTERY_STATUS_CHARGING
+                                || st == BatteryManager.BATTERY_STATUS_FULL;
+                    }
+                } catch (Exception ignored) {
+                }
+                return "{\"p\":" + p + ",\"c\":" + charging + "}";
+            } catch (Exception e) {
+                return "";
             }
         }
     }

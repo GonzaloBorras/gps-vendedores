@@ -13,12 +13,14 @@ if (!self.navigator || !self.navigator.geolocation) {
 self.onmessage = function (e) {
   var d = e.data;
   if (d.action === 'start') {
-    cfg = { code: d.code, session: d.session, base: d.base };
+    cfg = { code: d.code, session: d.session, base: d.base, batt: null };
     if (watchId !== null) self.navigator.geolocation.clearWatch(watchId);
     watchId = self.navigator.geolocation.watchPosition(onPos, onErr, {
       enableHighAccuracy: true, timeout: 20000, maximumAge: 10000
     });
     setInterval(maybeSend, 10000);
+  } else if (d.action === 'batt') {
+    if (cfg) cfg.batt = d.value || null;
   } else if (d.action === 'stop') {
     if (watchId !== null) self.navigator.geolocation.clearWatch(watchId);
     watchId = null;
@@ -63,10 +65,11 @@ function send() {
   lastSendTs = Date.now();
   lastSendLat = lastLat;
   lastSendLon = lastLon;
+  var batt = cfg.batt && cfg.batt.p != null ? cfg.batt.p : null;
   fetch(cfg.base + '/api/track', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: cfg.code, lat: lastLat, lon: lastLon, session: cfg.session })
+    body: JSON.stringify({ code: cfg.code, lat: lastLat, lon: lastLon, session: cfg.session, battery: batt })
   }).then(function (r) { return r.json(); }).then(function (d) {
     self.postMessage({
       type: 'sent',

@@ -592,6 +592,8 @@ function makePopup(v, pos) {
   }
   var horaTxt = (pos.last != null && pos.last > 60 * 60000) || pos.last == null
     ? ' <span style="color:#b91c1c;font-weight:700">SIN SEÑAL</span>' : '';
+  var battTxt = (pos.battery != null)
+    ? '<div class="ruta">Batería: <b>' + pos.battery + '%</b></div>' : '';
   var visTxt = '';
   if (v.grupo === 'merchan') {
     var vi = visitasToday[v.code];
@@ -608,6 +610,7 @@ function makePopup(v, pos) {
     '<div class="name">' + esc(v.name) + ' <span style="color:#9ca3af;font-size:10px">' + esc(v.prov) + '</span></div>' +
     '<div>Código: ' + esc(v.code) + '</div>' +
     '<div class="ruta">Última señal: hace ' + when + ' (' + fmtHora(pos.ts) + ')</div>' +
+    battTxt +
     hoy +
     visTxt +
     '<div style="margin-top:4px">' +
@@ -632,6 +635,10 @@ function renderSidebar(list) {
       : Math.round(pos.last / 60000) + ' min')) : 'Sin señal';
     if (pos && pos.last != null && pos.last > 10 * 60000) lastTxt += ' <span class="sin-badge">SIN SEÑAL</span>';
     else if (!pos) lastTxt += ' <span class="sin-badge">SIN SEÑAL</span>';
+    if (pos && pos.battery != null) {
+      var bc = pos.battery <= 20 ? '#dc2626' : (pos.battery <= 50 ? '#f59e0b' : '#16a34a');
+      lastTxt += ' · <b style="color:' + bc + '">🔋 ' + pos.battery + '%</b>';
+    }
     var meta = '';
     if (v.grupo === 'merchan') {
       var totalHoy = rutaHoyCount(v.code);
@@ -802,6 +809,10 @@ function updateSidebarStatus(list) {
         : 'Sin señal';
       if (pos && pos.last != null && pos.last > 10 * 60000) txt += ' <span class="sin-badge">SIN SEÑAL</span>';
       else if (!pos) txt += ' <span class="sin-badge">SIN SEÑAL</span>';
+      if (pos && pos.battery != null) {
+        var bc = pos.battery <= 20 ? '#dc2626' : (pos.battery <= 50 ? '#f59e0b' : '#16a34a');
+        txt += ' · <b style="color:' + bc + '">🔋 ' + pos.battery + '%</b>';
+      }
       last.innerHTML = txt;
     }
   }

@@ -550,7 +550,10 @@ function flushOffline() {
     fetch(base + '/api/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code, lat: pts[i].lat, lon: pts[i].lon, session: sessionId })
+      body: JSON.stringify({
+        code: code, lat: pts[i].lat, lon: pts[i].lon, session: sessionId,
+        battery: window._batt && window._batt.p != null ? window._batt.p : null
+      })
     }).then(function (r) { return r.json(); })
       .then(function (d) { if (!d.ok) retry.push(pts[i]); next(i + 1); })
       .catch(function () { retry.push(pts[i]); next(i + 1); });
@@ -579,10 +582,11 @@ function send() {
   if (lastLat === null) return;
   lastSendTs = Date.now();
   lastSendLat = lastLat; lastSendLon = lastLon;
+  var batt = window._batt && window._batt.p != null ? window._batt.p : null;
   fetch(base + '/api/track', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: code, lat: lastLat, lon: lastLon, session: sessionId })
+    body: JSON.stringify({ code: code, lat: lastLat, lon: lastLon, session: sessionId, battery: batt })
   }).then(function (r) { return r.json(); })
     .then(function (d) {
       if (d.jornada_fin) { finishShift(); return; }
@@ -750,6 +754,32 @@ function requestWakeLock() {
     });
   }).catch(function () {});
 }
+function readBattery(cb) {
+  try {
+    if (window.AndroidBridge && window.AndroidBridge.getBattery) {
+      var raw = window.AndroidBridge.getBattery();
+      if (raw) {
+        var o = JSON.parse(raw);
+        if (o && o.p != null) { cb({ p: o.p, c: !!o.c }); return; }
+      }
+    }
+  } catch (e) {}
+  try {
+    if (navigator.getBattery) {
+      navigator.getBattery().then(function (b) {
+        cb({ p: Math.round(b.level * 100), c: b.charging });
+      }).catch(function () { cb(null); });
+      return;
+    }
+  } catch (e) {}
+  cb(null);
+}
+function refreshBattery() {
+  readBattery(function (b) {
+    window._batt = b;
+    if (worker) worker.postMessage({ action: 'batt', value: b });
+  });
+}
 function resetBtn() {
   running = false;
   setState('Envío detenido', false);
@@ -774,6 +804,8 @@ function beginLive() {
   if (!startWorker()) startMainThread();
   requestWakeLock();
   window._gpsInt = setInterval(reportGps, 30000);
+  window._battInt = setInterval(refreshBattery, 60000);
+  refreshBattery();
   window._wakeInt = setInterval(function () {
     if (running && document.visibilityState !== 'hidden' && !window._wake) requestWakeLock();
   }, 15000);
@@ -819,6 +851,7 @@ function stopTracking() {
   watchId = null;
   clearInterval(window._int);
   clearInterval(window._gpsInt);
+  clearInterval(window._battInt);
   clearInterval(window._wakeInt);
   clearTimeout(shiftTimer);
   clearInterval(shiftCount);

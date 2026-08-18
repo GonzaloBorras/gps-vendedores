@@ -8,6 +8,7 @@ import re
 import sqlite3
 import threading
 import time
+import threading as _threading
 from datetime import date, datetime, timezone, timedelta
 
 from flask import Flask, g, jsonify, redirect, render_template, request, Response, session
@@ -21,8 +22,8 @@ PDV_FILE = os.path.join(BASE_DIR, 'pdv.json')
 RUTAS_FILE = os.path.join(BASE_DIR, 'rutas.json')
 OVERRIDES_FILE = os.path.join(BASE_DIR, 'overrides.json')
 
-APP_VERSION = '2.8'
-APP_VERSION_CODE = 10
+APP_VERSION = '2.9'
+APP_VERSION_CODE = 11
 APK_URL = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-v1.0/GPS-Merchan.apk'
 APK_URL_ADMIN = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-admin/GPS-Admin.apk'
 
@@ -49,6 +50,12 @@ if os.path.exists(PDV_FILE):
         PDV = json.load(f)
 
 PDV_BY_CODE = {p['c']: p for p in PDV}
+
+_PDV_LOCK = _threading.Lock()
+
+def _pdv_snapshot():
+    with _PDV_LOCK:
+        return list(PDV)
 
 RUTAS = {}
 if os.path.exists(RUTAS_FILE):
@@ -464,10 +471,11 @@ def maintenance():
             _exec(db, 'DELETE FROM pdvs_extra WHERE cliente = ?', (delc,))
             db.commit()
             PDV_BY_CODE.pop(delc, None)
-            for lst in (PDV, PDV_EXTRA):
-                for p in list(lst):
-                    if p.get('c') == delc:
-                        lst.remove(p)
+            with _PDV_LOCK:
+                for lst in (PDV, PDV_EXTRA):
+                    for p in list(lst):
+                        if p.get('c') == delc:
+                            lst.remove(p)
             info['del_pdv'] = delc
         if request.args.get('purge'):
             _cleanup_rolling()
@@ -566,8 +574,9 @@ def _load_pdv_extra():
 
 
 PDV_EXTRA = _load_pdv_extra()
-PDV.extend(PDV_EXTRA)
-PDV_BY_CODE.update({p['c']: p for p in PDV_EXTRA})
+with _PDV_LOCK:
+    PDV.extend(PDV_EXTRA)
+    PDV_BY_CODE.update({p['c']: p for p in PDV_EXTRA})
 
 
 # ---------------- Geocercas ----------------
@@ -741,7 +750,7 @@ def start_check():
     if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
         return jsonify({'ok': False, 'error': 'coordenadas fuera de rango'}), 400
     best = None
-    for p in PDV:
+    for p in _pdv_snapshot():
         pl, po = p.get('lat'), p.get('lon')
         if pl and po and (pl != 0 or po != 0):
             d = _haversine(lat, lon, pl, po)
@@ -911,7 +920,10 @@ def positions():
 def history():
     code = request.args.get('code', '').strip().upper()
     fecha = request.args.get('fecha', '').strip()
-    days = max(1, min(int(request.args.get('days', 1)), 14))
+    try:
+        days = max(1, min(int(request.args.get('days', 1)), 14))
+    except (TypeError, ValueError):
+        days = 1
     if fecha:
         s, e = _day_range(fecha)
         rows = _exec(get_db(), _q(
@@ -1015,16 +1027,18 @@ def pdv_post():
     telefono = str(body.get('telefono', '')).strip()
     contacto = str(body.get('contacto', '')).strip()
     notas = str(body.get('notas', '')).strip()
-    cliente = 'M' + str(int(time.time() * 1000))
+    ts = int(time.time() * 1000)
+    cliente = 'M' + str(ts)
     db = get_db()
     _exec(db, 'INSERT INTO pdvs_extra(cliente, razon, calle, altura, vta, prov, telefono, contacto, notas, lat, lon, creado_por, ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-          (cliente, razon, calle, altura, vta, prov, telefono, contacto, notas, lat, lon, code, int(time.time() * 1000)))
+          (cliente, razon, calle, altura, vta, prov, telefono, contacto, notas, lat, lon, code, ts))
     db.commit()
     nuevo = {'c': cliente, 'r': razon, 'calle': calle, 'altura': altura, 'vta': vta, 'prov': prov,
              'telefono': telefono, 'contacto': contacto, 'notas': notas, 'lat': lat, 'lon': lon}
-    PDV.append(nuevo)
-    PDV_BY_CODE[cliente] = nuevo
-    PDV_EXTRA.append(nuevo)
+    with _PDV_LOCK:
+        PDV.append(nuevo)
+        PDV_BY_CODE[cliente] = nuevo
+        PDV_EXTRA.append(nuevo)
     return jsonify({'ok': True, 'cliente': cliente, 'razon': razon, 'lat': lat, 'lon': lon})
 
 
@@ -1162,7 +1176,7 @@ def nearest_pdv():
         return jsonify({'ok': False, 'error': 'sin posicion reciente (el vendedor no inició el envío en vivo)'}), 404
     lat, lon = row['lat'], row['lon']
     best = None
-    for p in PDV:
+    for p in _pdv_snapshot():
         pl, po = p.get('lat'), p.get('lon')
         if pl and po and (pl != 0 or po != 0):
             d = _haversine(lat, lon, pl, po)
@@ -1250,7 +1264,7 @@ def visitas_foto_img():
 
 @app.route('/api/visitas/resumen')
 def visitas_resumen():
-    fecha = request.args.get('fecha', '').strip() or date.today().isoformat()
+    fecha = request.args.get('fecha', '').strip() or _today_str()
     rows = _exec(get_db(),
                  'SELECT code, cliente, foto_ts FROM visitas WHERE fecha = ? ORDER BY ts', (fecha,)).fetchall()
     out = {}
@@ -1278,7 +1292,7 @@ def merchan_pdv():
     for r in rows:
         lat, lon = r['lat'], r['lon']
         best = None
-        for p in PDV:
+        for p in _pdv_snapshot():
             pl, po = p.get('lat'), p.get('lon')
             if pl and po and (pl != 0 or po != 0):
                 d = _haversine(lat, lon, pl, po)
@@ -1308,7 +1322,10 @@ def merchan_pdv():
 @app.route('/api/geoevents')
 def geoevents():
     code = request.args.get('code', '').strip().upper()
-    limit = max(1, min(int(request.args.get('limit', 20)), 200))
+    try:
+        limit = max(1, min(int(request.args.get('limit', 20)), 200))
+    except (TypeError, ValueError):
+        limit = 20
     db = get_db()
     if code:
         rows = _exec(db, 'SELECT code, cliente, razon, tipo, dist_m, ts FROM geoevents WHERE code=? ORDER BY ts DESC LIMIT ?',
@@ -1341,7 +1358,7 @@ def visitas_post():
     fecha = str(body.get('fecha', '')).strip() or _today_str()
     if len(fecha) != 10:
         return jsonify({'ok': False, 'error': 'fecha invalida'}), 400
-    pdv = next((p for p in PDV if p.get('c') == cliente), None)
+    pdv = PDV_BY_CODE.get(cliente)
     razon = pdv.get('r', '') if pdv else str(body.get('razon', '')).strip()
     calle = pdv.get('calle', '') if pdv else str(body.get('calle', '')).strip()
     altura = pdv.get('altura', '') if pdv else str(body.get('altura', '')).strip()
@@ -1404,10 +1421,12 @@ def visitas_post():
             nuevo = {'c': cliente, 'r': razon, 'calle': calle, 'altura': altura, 'vta': vta,
                      'prov': nprov, 'lat': g_lat, 'lon': g_lon}
             if not PDV_BY_CODE.get(cliente):
-                PDV.append(nuevo)
+                with _PDV_LOCK:
+                    PDV.append(nuevo)
             PDV_BY_CODE[cliente] = nuevo
             if not any(p.get('c') == cliente for p in PDV_EXTRA):
-                PDV_EXTRA.append(nuevo)
+                with _PDV_LOCK:
+                    PDV_EXTRA.append(nuevo)
     ts = int(time.time() * 1000)
     if PG:
         _exec(db, '''INSERT INTO visitas(fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts)
@@ -1842,6 +1861,8 @@ def export_visitas_csv():
 def export_recorrido_csv():
     code = request.args.get('code', '').strip().upper()
     fecha = request.args.get('fecha', '').strip()
+    if not code or not fecha or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', fecha):
+        return jsonify({'ok': False, 'error': 'code y fecha requeridos'}), 400
     s, e = _day_range(fecha)
     rows = _exec(get_db(),
                  'SELECT lat, lon, ts FROM positions WHERE code=? AND ts>=? AND ts<? ORDER BY ts',

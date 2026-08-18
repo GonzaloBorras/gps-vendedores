@@ -729,15 +729,20 @@ function renderMerchanMeta() {
   document.querySelectorAll('.vendor .card-meta').forEach(function (el) {
     var code = el.id.replace('meta-', '');
     var vi = visitasToday[code] || { n: 0, clientes: [] };
+    const tieneCarga = vi.n > 0;
     var n = merchanNear[code];
     var rs = resumenData[code] || {};
     var j = jornadasData[code];
-    var html = 'Visitas: ' + vi.n +
-      ' · PDV: ' + (n && n.razon
+    var html = 'Visitas: ' + vi.n;
+    if (tieneCarga) {
+      html += ' · PDV: ' + (n && n.razon
         ? esc(n.razon) + ' (' + (n.dist_m < 1000 ? n.dist_m + ' m' : (n.dist_m / 1000).toFixed(1) + ' km') + ')'
         : '—');
-    if (n && n.pendiente) html += ' <span class="hoy-badge" style="background:#dc2626">🎯 PDV pendiente</span>';
-    else if (n && n.dentro) html += ' <span class="hoy-badge" style="background:#059669">✔ en PDV</span>';
+      if (n && n.pendiente) html += ' <span class="hoy-badge" style="background:#dc2626">🎯 PDV pendiente</span>';
+      else if (n && n.dentro) html += ' <span class="hoy-badge" style="background:#059669">✔ en PDV</span>';
+    } else {
+      html += ' · <span style="color:#9ca3af">sin carga</span>';
+    }
     if (j) {
       if (!j.jornada_hoy) html += ' <span class="hoy-badge" style="background:#6b7280">Descanso</span>';
       else if (j.dentro) html += ' <span class="hoy-badge" style="background:#1d4ed8">Jornada activa</span>';
@@ -1008,6 +1013,8 @@ function clearPDVFocus() {
 }
 
 function showMerchanPDV(code) {
+    const vi = (visitasToday[code] || {}).n || 0;
+    if (vi === 0) { toast('esperando carga para mostrar el PDV más cercano'); return; }
   var m = markers[code];
   if (!m) { toast('Sin posición registrada para ' + code); return; }
   fetch('/api/nearest-pdv?code=' + encodeURIComponent(code))

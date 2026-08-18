@@ -738,8 +738,10 @@ function renderMerchanMeta() {
       html += ' · PDV: ' + (n && n.razon
         ? esc(n.razon) + ' (' + (n.dist_m < 1000 ? n.dist_m + ' m' : (n.dist_m / 1000).toFixed(1) + ' km') + ')'
         : '—');
+      var cliVis = (vi.clientes || []);
+      var enPdvRegistrado = n && n.cliente && cliVis.indexOf(n.cliente) !== -1;
       if (n && n.pendiente) html += ' <span class="hoy-badge" style="background:#dc2626">🎯 PDV pendiente</span>';
-      else if (n && n.dentro) html += ' <span class="hoy-badge" style="background:#059669">✔ en PDV</span>';
+      else if (enPdvRegistrado) html += ' <span class="hoy-badge" style="background:#059669">✔ en PDV</span>';
     } else {
       html += ' · <span style="color:#9ca3af">sin carga</span>';
     }

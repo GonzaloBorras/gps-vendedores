@@ -1357,9 +1357,6 @@ function initMapa() {
     myMarker = L.circleMarker([lastLat, lastLon], {
       radius: 8, color: '#1d4ed8', weight: 2, fillColor: '#1d4ed8', fillOpacity: 0.4
     }).addTo(mapa);
-    myCircle = L.circle([lastLat, lastLon], {
-      radius: 150, color: '#1d4ed8', opacity: 0.2, fillOpacity: 0.05
-    }).addTo(mapa);
   }
   mapa.on('zoomend', syncPdvZoomM);
   mapa.on('moveend', syncPdvZoomM);
@@ -1370,12 +1367,8 @@ function updateMyPosition() {
     myMarker = L.circleMarker([lastLat, lastLon], {
       radius: 8, color: '#1d4ed8', weight: 2, fillColor: '#1d4ed8', fillOpacity: 0.4
     }).addTo(mapa);
-    myCircle = L.circle([lastLat, lastLon], {
-      radius: 150, color: '#1d4ed8', opacity: 0.2, fillOpacity: 0.05
-    }).addTo(mapa);
   }
   myMarker.setLatLng([lastLat, lastLon]);
-  myCircle.setLatLng([lastLat, lastLon]);
   if (mapa && !window._centered) { window._centered = true; mapa.setView([lastLat, lastLon], 15); }
 }
 function openMapa() {

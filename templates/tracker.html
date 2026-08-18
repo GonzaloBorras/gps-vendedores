@@ -1351,19 +1351,29 @@ var mapa = null;
 
 function initMapa() {
   if (mapa) return;
-  mapa = L.map('mapa').setView([lastLat || -33, lastLon || -64], lastLat ? 15 : 5);
+  mapa = L.map('mapa').setView([lastLat || -34.6, lastLon || -58.4], lastLat ? 15 : 5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(mapa);
-  myMarker = L.circleMarker([lastLat || -33, lastLon || -64], {
-    radius: 8, color: '#1d4ed8', weight: 2, fillColor: '#1d4ed8', fillOpacity: 0.4
-  }).addTo(mapa);
-  myCircle = L.circle([lastLat || -33, lastLon || -64], {
-    radius: 150, color: '#1d4ed8', opacity: 0.2, fillOpacity: 0.05
-  }).addTo(mapa);
+  if (lastLat && lastLon) {
+    myMarker = L.circleMarker([lastLat, lastLon], {
+      radius: 8, color: '#1d4ed8', weight: 2, fillColor: '#1d4ed8', fillOpacity: 0.4
+    }).addTo(mapa);
+    myCircle = L.circle([lastLat, lastLon], {
+      radius: 150, color: '#1d4ed8', opacity: 0.2, fillOpacity: 0.05
+    }).addTo(mapa);
+  }
   mapa.on('zoomend', syncPdvZoomM);
   mapa.on('moveend', syncPdvZoomM);
 }
 function updateMyPosition() {
-  if (lastLat === null || !myMarker || !myCircle) return;
+  if (lastLat === null || !mapa) return;
+  if (!myMarker) {
+    myMarker = L.circleMarker([lastLat, lastLon], {
+      radius: 8, color: '#1d4ed8', weight: 2, fillColor: '#1d4ed8', fillOpacity: 0.4
+    }).addTo(mapa);
+    myCircle = L.circle([lastLat, lastLon], {
+      radius: 150, color: '#1d4ed8', opacity: 0.2, fillOpacity: 0.05
+    }).addTo(mapa);
+  }
   myMarker.setLatLng([lastLat, lastLon]);
   myCircle.setLatLng([lastLat, lastLon]);
   if (mapa && !window._centered) { window._centered = true; mapa.setView([lastLat, lastLon], 15); }

@@ -132,12 +132,14 @@ body.sidebar-hidden .sidebar { display: none; }
   .map-tools button { width: 48px; height: 48px; font-size: 20px; border-radius: 14px;
     box-shadow: 0 3px 10px rgba(0,0,0,.3); }
   .tab { min-height: 44px; font-size: 13px; }
-  .filtros { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px; }
-  .filtros > #search { grid-column: 1 / -1; }
-  .filtros .toggle-row { grid-column: 1 / -1; }
-  .filtros input[type=text], .filtros select, .filtros input[type=date] { min-height: 44px; font-size: 16px; }
-  .filtros .toggle-row { min-height: 44px; font-size: 13px; }
-  .chk-row { gap: 18px; }
+  .filtros { display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+  .filtros > #search { width: 100%; }
+  .filtros .date-row { display: flex; gap: 6px; align-items: center; }
+  .filtros .date-row > span { flex: none; font-size: 12px; color: #374151; }
+  .filtros .date-row input[type=date] { flex: 1; min-height: 36px; font-size: 14px; }
+  .filtros .chk-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .filtros .toggle-row { min-height: 32px; font-size: 12px; }
+  .filtros input[type=text], .filtros select { min-height: 36px; font-size: 14px; }
   .vendor button, .card-actions .dots { min-height: 44px; min-width: 44px; padding: 6px 10px; font-size: 12px; }
   .vendor .name { font-size: 13px; }
   .vendor .code, .vendor .last, .vendor .card-meta { font-size: 11px; }
@@ -322,10 +324,10 @@ body.dark .skeleton-line { background: linear-gradient(90deg, #2a3450 25%, #3540
   </div>
   <div class="filtros">
     <input type="text" id="search" placeholder="Buscar merchan...">
-    <label class="toggle-row">
-      <span style="flex:none">Día:</span>
-      <input type="date" id="fecha-select" onchange="onFechaChange()" style="margin:0;flex:1;padding:2px 6px">
-    </label>
+    <div class="date-row">
+      <span>Día:</span>
+      <input type="date" id="fecha-select" onchange="onFechaChange()" style="margin:0;padding:2px 6px">
+    </div>
     <div class="chk-row">
       <label class="toggle-row">
         <input type="checkbox" id="solo-sin" onchange="applyFilters()">

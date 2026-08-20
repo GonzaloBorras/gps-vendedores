@@ -442,6 +442,7 @@ body.dark .skeleton-line.w80 { width: 80%; margin-top: 6px; }
 </div>
 <div class="map-tools">
   <button id="refreshBtn" title="Refrescar panel" onclick="location.reload()">⟳</button>
+  <button id="fitBtn" title="Centrar en vendedores" onclick="fitMerchans()">◎</button>
   <button id="darkBtn" title="Modo oscuro" onclick="toggleDark()">🌙</button>
   <button id="sidebarBtn" title="Mostrar / ocultar lista" onclick="toggleSidebar()">◧</button>
 </div>
@@ -571,7 +572,6 @@ body.dark .skeleton-line.w80 { width: 80%; margin-top: 6px; }
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 function _panelErr(msg, src, line) {
   try {
@@ -685,9 +685,10 @@ function initials(name) {
   return (w[0][0] + w[1][0]).toUpperCase();
 }
 function merchanIcon(name) {
+  var sz = window.innerWidth <= 720 ? 34 : 28;
   return L.divIcon({
-    html: '<div class="mch-ic">' + esc(initials(name)) + '</div>',
-    className: '', iconSize: [28, 28], iconAnchor: [14, 14]
+    html: '<div class="mch-ic" style="width:' + sz + 'px;height:' + sz + 'px;font-size:' + Math.round(sz * 0.36) + 'px">' + esc(initials(name)) + '</div>',
+    className: '', iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2]
   });
 }
 
@@ -1758,27 +1759,35 @@ window.addEventListener('resize', function () {
 });
 
 var heatLayer = null;
+var geocercaLayer = L.layerGroup();
 
 function toggleHeat() {
   var on = document.getElementById('heat-toggle') && document.getElementById('heat-toggle').checked;
   if (!on && heatLayer) { map.removeLayer(heatLayer); heatLayer = null; return; }
   if (!on) return;
-  fetch('/api/visitas/resumen?fecha=' + fechaSel).then(function(r) { return r.json(); }).then(function(d) {
-    var points = [];
-    Object.keys(d).forEach(function(code) {
-      var vi = d[code];
-      if (!vi || !vi.clientes) return;
-      var pos = null;
-      markers[code] && markers[code]._pos && (pos = markers[code]._pos);
-      if (!pos || pos.lat == null) return;
-      var count = vi.n || 0;
-      for (var i = 0; i < count; i++) {
-        points.push([pos.lat + (Math.random() - 0.5) * 0.002, pos.lon + (Math.random() - 0.5) * 0.002, 0.5]);
-      }
+  function doHeat() {
+    fetch('/api/visitas/resumen?fecha=' + fechaSel).then(function(r) { return r.json(); }).then(function(d) {
+      var points = [];
+      Object.keys(d).forEach(function(code) {
+        var vi = d[code];
+        if (!vi || !vi.clientes) return;
+        var pos = null;
+        markers[code] && markers[code]._pos && (pos = markers[code]._pos);
+        if (!pos || pos.lat == null) return;
+        var count = vi.n || 0;
+        for (var i = 0; i < count; i++) {
+          points.push([pos.lat + (Math.random() - 0.5) * 0.002, pos.lon + (Math.random() - 0.5) * 0.002, 0.5]);
+        }
+      });
+      if (heatLayer) map.removeLayer(heatLayer);
+      heatLayer = L.heatLayer(points, { radius: 25, blur: 15, maxZoom: 17, max: 1.0, gradient: {0.2: '#22c55e', 0.5: '#eab308', 1: '#ef4444'} }).addTo(map);
     });
-    if (heatLayer) map.removeLayer(heatLayer);
-    heatLayer = L.heatLayer(points, { radius: 25, blur: 15, maxZoom: 17, max: 1.0, gradient: {0.2: '#22c55e', 0.5: '#eab308', 1: '#ef4444'} }).addTo(map);
-  });
+  }
+  if (typeof L.heatLayer === 'function') { doHeat(); return; }
+  var s = document.createElement('script');
+  s.src = 'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js';
+  s.onload = doHeat;
+  document.head.appendChild(s);
 }
 
 function togglePDV() {
@@ -1827,6 +1836,14 @@ function togglePDV() {
     pdvCluster.addLayers(pts);
     pdvPlain = L.layerGroup(pts);
     if (map.getZoom() >= 16) map.addLayer(pdvPlain); else map.addLayer(pdvCluster);
+    geocercaLayer.clearLayers();
+    arr.forEach(function (d) {
+      if (d.lat == null || d.lon == null) return;
+      var r = d.radius || 150;
+      L.circle([d.lat, d.lon], { radius: r, color: '#1d4ed8', fillColor: '#1d4ed8',
+        fillOpacity: 0.06, weight: 1, opacity: 0.25, dashArray: '4 4' }).addTo(geocercaLayer);
+    });
+    geocercaLayer.addTo(map);
     document.getElementById('statusbar').textContent = 'PDV cargados: ' + arr.length;
   }).catch(function () {});
 }
@@ -1886,8 +1903,6 @@ function applyFilters() {
   renderAlerts();
 }
 
-document.getElementById('search').addEventListener('input', applyFilters);
-
 function onFechaChange() {
   var d = document.getElementById('fecha-select').value;
   if (!d) { d = todayStr(); document.getElementById('fecha-select').value = d; }
@@ -1912,6 +1927,62 @@ refresh();
 setInterval(refresh, 5000);
 setInterval(updateCardData, 30000);
 togglePDV();
+
+function fitMerchans() {
+  var pts = [];
+  currentList.forEach(function (v) {
+    var m = markers[v.code];
+    if (m && m._pos && m._pos.lat != null) pts.push([m._pos.lat, m._pos.lon]);
+  });
+  if (!pts.length) { toast('Sin vendedores con ubicación'); return; }
+  map.fitBounds(L.latLngBounds(pts).pad(0.15), { maxZoom: 15 });
+}
+
+var _searchTimer = null;
+document.getElementById('search').removeEventListener('input', applyFilters);
+document.getElementById('search').addEventListener('input', function () {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(applyFilters, 250);
+});
+
+if (window.matchMedia) {
+  var mql = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+  function onOrientation(e) {
+    if (e.matches && window.innerWidth <= 720 && document.body.classList.contains('sidebar-hidden')) {
+      closeSidebar();
+    }
+  }
+  if (mql.addEventListener) mql.addEventListener('change', onOrientation);
+  else if (mql.addListener) mql.addListener(onOrientation);
+}
+
+(function () {
+  var listEl = document.querySelector('.list');
+  if (!listEl) return;
+  var startY = 0, pulling = false;
+  var indicator = document.createElement('div');
+  indicator.style.cssText = 'position:sticky;top:0;left:0;right:0;height:44px;display:flex;align-items:center;justify-content:center;background:#1d4ed8;color:#fff;font-size:12px;font-weight:600;border-radius:8px;margin:0 0 4px;transform:translateY(-110%);transition:transform .2s;z-index:10;flex-shrink:0';
+  indicator.textContent = '↻ Actualizando...';
+  listEl.insertBefore(indicator, listEl.firstChild);
+  listEl.addEventListener('touchstart', function (e) {
+    if (listEl.scrollTop <= 0 && e.touches.length === 1) { startY = e.touches[0].clientY; pulling = true; }
+  }, { passive: true });
+  listEl.addEventListener('touchmove', function (e) {
+    if (!pulling) return;
+    var dy = e.touches[0].clientY - startY;
+    if (dy > 60) { indicator.style.transform = 'translateY(0)'; }
+  }, { passive: true });
+  listEl.addEventListener('touchend', function () {
+    if (indicator.style.transform === 'translateY(0)') {
+      refresh();
+      updateCardData();
+      toast('Actualizando...');
+      setTimeout(function () { indicator.style.transform = 'translateY(-110%)'; }, 1200);
+    }
+    pulling = false;
+  }, { passive: true });
+})();
+
 {% endif %}
 </script>
 </body>

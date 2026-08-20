@@ -270,6 +270,14 @@ body.dark .config .vlist { background: #0f1420; border-color: #2a3450; color: #f
 body.dark .config .cfg-tab { background: #0f1420; color: #9ca3af; }
 body.dark .config .cfg-tab.active { background: #1d4ed8; color: #fff; }
 body.dark .meta-bar { background: #2a3450; }
+.skeleton-card { border-radius: 8px; padding: 10px 12px; margin-bottom: 4px; border: 1px solid #e5e7eb; background: #fff; }
+.skeleton-line { height: 10px; border-radius: 4px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+.skeleton-line.w60 { width: 60%; }
+.skeleton-line.w40 { width: 40%; height: 8px; margin-top: 4px; }
+.skeleton-line.w80 { width: 80%; margin-top: 6px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+body.dark .skeleton-card { background: #1a2234; border-color: #2a3450; }
+body.dark .skeleton-line { background: linear-gradient(90deg, #2a3450 25%, #354060 50%, #2a3450 75%); background-size: 200% 100%; }
 </style>
 </head>
 <body>
@@ -307,6 +315,7 @@ body.dark .meta-bar { background: #2a3450; }
         <input type="checkbox" id="pdv-toggle" onchange="togglePDV()" checked>
         <span>Mostrar PDV</span>
       </label>
+      <label class="toggle-row"><input type="checkbox" id="heat-toggle" onchange="toggleHeat()"> <span>Heat map visitas</span></label>
     </div>
   </div>
   <div class="list" id="list"></div>
@@ -445,6 +454,7 @@ body.dark .meta-bar { background: #2a3450; }
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 function _panelErr(msg, src, line) {
   try {
@@ -623,7 +633,16 @@ function makePopup(v, pos) {
 }
 
 function renderSidebar(list) {
-  var box = document.getElementById('list');
+  var listEl = document.getElementById('list');
+  if (!listEl.children.length) {
+    var sk = '';
+    for (var si = 0; si < 6; si++) {
+      sk += '<div class="skeleton-card"><div class="skeleton-line w60"></div>' +
+            '<div class="skeleton-line w40"></div><div class="skeleton-line w80"></div></div>';
+    }
+    listEl.innerHTML = sk;
+  }
+  var box = listEl;
   box.innerHTML = '';
   list.forEach(function (v) {
     var pos = markers[v.code] && markers[v.code]._pos;
@@ -1584,6 +1603,30 @@ function closeSidebar() {
   document.body.classList.remove('sidebar-hidden');
   var btn = document.getElementById('sidebarBtn');
   if (btn) btn.classList.remove('active');
+}
+
+var heatLayer = null;
+
+function toggleHeat() {
+  var on = document.getElementById('heat-toggle') && document.getElementById('heat-toggle').checked;
+  if (!on && heatLayer) { map.removeLayer(heatLayer); heatLayer = null; return; }
+  if (!on) return;
+  fetch('/api/visitas/resumen?fecha=' + fechaSel).then(function(r) { return r.json(); }).then(function(d) {
+    var points = [];
+    Object.keys(d).forEach(function(code) {
+      var vi = d[code];
+      if (!vi || !vi.clientes) return;
+      var pos = null;
+      markers[code] && markers[code]._pos && (pos = markers[code]._pos);
+      if (!pos || pos.lat == null) return;
+      var count = vi.n || 0;
+      for (var i = 0; i < count; i++) {
+        points.push([pos.lat + (Math.random() - 0.5) * 0.002, pos.lon + (Math.random() - 0.5) * 0.002, 0.5]);
+      }
+    });
+    if (heatLayer) map.removeLayer(heatLayer);
+    heatLayer = L.heatLayer(points, { radius: 25, blur: 15, maxZoom: 17, max: 1.0, gradient: {0.2: '#22c55e', 0.5: '#eab308', 1: '#ef4444'} }).addTo(map);
+  });
 }
 
 function togglePDV() {

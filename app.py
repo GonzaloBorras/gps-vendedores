@@ -12,6 +12,13 @@ import threading as _threading
 from datetime import date, datetime, timezone, timedelta
 
 from flask import Flask, g, jsonify, redirect, render_template, request, Response, session
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get('DB_PATH', os.path.join(BASE_DIR, 'gps.db'))
@@ -22,8 +29,8 @@ PDV_FILE = os.path.join(BASE_DIR, 'pdv.json')
 RUTAS_FILE = os.path.join(BASE_DIR, 'rutas.json')
 OVERRIDES_FILE = os.path.join(BASE_DIR, 'overrides.json')
 
-APP_VERSION = '2.9'
-APP_VERSION_CODE = 10
+APP_VERSION = '3.0'
+APP_VERSION_CODE = 11
 APK_URL = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-v1.0/GPS-Merchan.apk'
 APK_URL_ADMIN = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-admin/GPS-Admin.apk'
 
@@ -36,6 +43,7 @@ if os.path.exists(OVERRIDES_FILE):
         with open(OVERRIDES_FILE, encoding='utf-8') as f:
             OVERRIDES = json.load(f)
     except Exception:
+        logging.getLogger(__name__).error('Failed to load overrides file')
         OVERRIDES = {}
 
 for v in VENDORS:
@@ -67,6 +75,24 @@ VENDOR_BY_CODE = {v['code'].upper(): v for v in VENDORS}
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'cambiar-esta-clave-por-una-segura')
 DASH_PIN = os.environ.get('DASH_PIN', '1234')
+
+class _RateLimiter:
+    def __init__(self):
+        self._hits = {}
+        self._lock = _threading.Lock()
+    
+    def check(self, key, limit, window_s=60):
+        now = time.time()
+        with self._lock:
+            hits = self._hits.get(key, [])
+            hits = [t for t in hits if now - t < window_s]
+            if len(hits) >= limit:
+                return False
+            hits.append(now)
+            self._hits[key] = hits
+            return True
+
+_rate_limiter = _RateLimiter()
 
 ACTIVE_MS = 120000  # 2 minutos: se considera activo si mandó posición hace menos que esto
 VISIT_RADIUS_M = 150  # radio por defecto para validar que el merchan está en el PDV
@@ -352,6 +378,7 @@ def _refresh_pdv_radius():
         _PDV_RADIUS = {r['cliente']: r['radius_m'] for r in _exec(con, 'SELECT cliente, radius_m FROM pdv_radius')}
         con.close()
     except Exception:
+        logging.getLogger(__name__).error('Failed to refresh PDV radius')
         _PDV_RADIUS = {}
 
 
@@ -414,7 +441,7 @@ def _cleanup_loop():
             _cleanup_rolling()
             _cleanup_monthly()
         except Exception:
-            pass
+            logging.getLogger(__name__).error('Cleanup loop error')
         time.sleep(CLEANUP_INTERVAL_S)
 
 
@@ -496,9 +523,40 @@ def maintenance():
         out.update(info)
         if MAINT_STATE:
             out['maint'] = {k: v for k, v in MAINT_STATE.items()}
+        out['backup_url'] = '/api/maintenance/backup?pin=' + DASH_PIN
         return jsonify(out)
     except Exception as e:
+        app.logger.error('Maintenance error: %s', e)
         return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/maintenance/backup')
+def backup_db():
+    if not session.get('auth'):
+        pin = request.args.get('pin', '').strip()
+        if pin != DASH_PIN:
+            return jsonify({'ok': False, 'error': 'auth required'}), 401
+    import io, gzip
+    db = get_db()
+    tables = ['visitas', 'pdvs_extra', 'pdv_radius', 'geoevents', 'shifts', 'absence', 'messages', 'push_subs', 'devices', 'settings']
+    backup = {}
+    for t in tables:
+        try:
+            rows = _exec(db, 'SELECT * FROM ' + t).fetchall()
+            backup[t] = [dict(r) for r in rows]
+        except Exception as e:
+            backup[t] = {'error': str(e)}
+    backup['_meta'] = {'fecha': _today_str(), 'ts': int(time.time() * 1000), 'tables': len(backup)}
+    raw = json.dumps(backup, ensure_ascii=False, default=str).encode('utf-8')
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode='wb') as gz:
+        gz.write(raw)
+    compressed = buf.getvalue()
+    return Response(compressed, mimetype='application/gzip',
+                    headers={
+                        'Content-Disposition': 'attachment; filename=backup_%s.json.gz' % _today_str(),
+                        'Content-Length': str(len(compressed))
+                    })
 
 
 def _recompress_bg():
@@ -515,6 +573,7 @@ def _recompress_bg():
             try:
                 raw = base64.b64decode(r['foto'])
             except Exception:
+                logging.getLogger(__name__).error('Failed to decode photo')
                 skipped += 1
                 continue
             MAINT_STATE['bytes_antes'] += len(raw)
@@ -538,17 +597,19 @@ def _recompress_bg():
                 total_after += len(new_b64.encode('ascii'))
                 done += 1
             except Exception:
+                logging.getLogger(__name__).error('Failed to recompress photo')
                 total_after += len(raw)
                 skipped += 1
             MAINT_STATE['done'] = done + skipped
         con.commit()
     except Exception as e:
+        logging.getLogger(__name__).error('Recompress error: %s', e)
         MAINT_STATE['error'] = str(e)
     finally:
         try:
             con.close()
         except Exception:
-            pass
+            logging.getLogger(__name__).error('Failed to close DB connection')
         MAINT_STATE['running'] = False
         MAINT_STATE['fotos'] = done
         MAINT_STATE['sin_cambios'] = skipped
@@ -569,7 +630,7 @@ def _load_pdv_extra():
                           'contacto': r['contacto'], 'notas': r['notas'],
                           'lat': r['lat'], 'lon': r['lon']})
     except Exception:
-        pass
+        logging.getLogger(__name__).error('Failed to load PDV extras')
     return extra
 
 
@@ -633,7 +694,9 @@ def app_version():
     kind = request.args.get('app', 'merchan')
     return jsonify({
         'version': APP_VERSION,
-        'versionCode': APP_VERSION_CODE,
+        'versionCode': 10,
+        'latestVersion': APP_VERSION,
+        'latestVersionCode': APP_VERSION_CODE,
         'apkUrl': APK_URL_ADMIN if kind == 'admin' else APK_URL,
         'notes': ''
     })
@@ -643,9 +706,13 @@ def app_version():
 def track():
     body = request.get_json(force=True, silent=True) or {}
     code = str(body.get('code', '')).strip().upper()
+    rate_code = code or 'anon'
+    if not _rate_limiter.check('track:' + rate_code, 30):
+        return jsonify({'ok': False, 'error': 'rate limit'}), 429
     vendor = VENDOR_BY_CODE.get(code)
     if not vendor:
         return jsonify({'ok': False, 'error': 'codigo invalido'}), 403
+    app.logger.info('track: %s at %s,%s', code, body.get('lat'), body.get('lon'))
     try:
         lat = float(body.get('lat'))
         lon = float(body.get('lon'))
@@ -970,7 +1037,7 @@ def config_vendor():
         with open(OVERRIDES_FILE, 'w', encoding='utf-8') as f:
             json.dump(OVERRIDES, f, ensure_ascii=False, indent=2)
     except Exception:
-        pass
+        app.logger.error('Failed to save overrides')
 
     db = get_db()
     _exec(db, 'UPDATE vendors SET name=?, color=? WHERE code=?', (v['name'], v['color'], code))
@@ -1005,6 +1072,9 @@ def pdv_api():
 def pdv_post():
     body = request.get_json(force=True, silent=True) or {}
     code = str(body.get('code', '')).strip().upper()
+    rate_code = code or 'anon'
+    if not _rate_limiter.check('pdv:' + rate_code, 5):
+        return jsonify({'ok': False, 'error': 'rate limit'}), 429
     v = VENDOR_BY_CODE.get(code)
     if not v:
         return jsonify({'ok': False, 'error': 'codigo de merchan invalido'}), 403
@@ -1018,6 +1088,7 @@ def pdv_post():
     razon = str(body.get('razon', '')).strip()
     if not razon:
         return jsonify({'ok': False, 'error': 'falta la razon social'}), 400
+    app.logger.info('new PDV: %s by %s', razon, code)
     calle = str(body.get('calle', '')).strip()
     altura = str(body.get('altura', '')).strip()
     vta = str(body.get('vta', '')).strip()
@@ -1349,12 +1420,16 @@ def visitas_post():
     else:
         body = request.get_json(force=True, silent=True) or {}
     code = str(body.get('code', '')).strip().upper()
+    rate_code = code or 'anon'
+    if not _rate_limiter.check('visita:' + rate_code, 10):
+        return jsonify({'ok': False, 'error': 'rate limit'}), 429
     v = VENDOR_BY_CODE.get(code)
     if not v:
         return jsonify({'ok': False, 'error': 'codigo invalido'}), 403
     cliente = str(body.get('cliente', '')).strip()
     if not cliente:
         return jsonify({'ok': False, 'error': 'falta cliente'}), 400
+    app.logger.info('visita: %s -> %s', code, cliente)
     fecha = str(body.get('fecha', '')).strip() or _today_str()
     if len(fecha) != 10:
         return jsonify({'ok': False, 'error': 'fecha invalida'}), 400
@@ -1439,6 +1514,15 @@ def visitas_post():
         _exec(db, 'INSERT OR REPLACE INTO visitas(fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts) VALUES (?,?,?,?,?,?,?,?,?)',
               (fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts))
     db.commit()
+    try:
+        admin_subs = _exec(db, "SELECT endpoint, p256dh, auth FROM push_subs WHERE code = 'ADMIN'").fetchall()
+        if admin_subs:
+            vendor_name = v.get('name', code) if v else code
+            payload = json.dumps({'title': 'Visita registrada', 'body': vendor_name + ' → ' + str(razon)})
+            for s in admin_subs:
+                _send_push_to(s['endpoint'], s['p256dh'], s['auth'], payload)
+    except Exception:
+        pass
     return jsonify({'ok': True, 'ts': ts, 'has_foto': 1 if foto else 0})
 
 
@@ -1486,6 +1570,7 @@ def _send_push_to(code, msj):
     try:
         from pywebpush import webpush
     except Exception:
+        logging.getLogger(__name__).error('Failed to import pywebpush')
         return
     keys = _vapid_keys()
     db = get_db()
@@ -1500,7 +1585,7 @@ def _send_push_to(code, msj):
                 vapid_claims={'sub': VAPID_MAILTO},
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).error('Failed to send push notification')
 
 
 @app.route('/api/comunicar', methods=['POST'])

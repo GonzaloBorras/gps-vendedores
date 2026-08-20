@@ -166,7 +166,13 @@ body.sidebar-hidden .sidebar { display: none; }
   #statusbar { padding-bottom: env(safe-area-inset-bottom, 0); bottom: 20px; }
   .config-overlay { padding-bottom: env(safe-area-inset-bottom, 0); }
   .leyenda { z-index: 3001; top: auto; bottom: 80px; left: 10px; right: auto; transform: none;
-    font-size: 11px; padding: 6px 10px; line-height: 1.6; border-radius: 10px; max-width: calc(100vw - 24px); }
+    font-size: 11px; padding: 0; line-height: 1.6; border-radius: 10px; max-width: 44px; overflow: hidden;
+    transition: max-width .2s ease, padding .2s ease; cursor: pointer; }
+  .leyenda .leyenda-btn { display: flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; font-size: 18px; }
+  .leyenda .leyenda-text { display: none; padding: 0 10px 8px; }
+  .leyenda.open { max-width: 260px; padding: 0; }
+  .leyenda.open .leyenda-text { display: block; }
   .vendor .prov { font-size: 10px; }
   .appver { font-size: 10px; }
   .vendor .card-meta .hoy-badge { font-size: 10px; }
@@ -345,7 +351,10 @@ body.dark .skeleton-line { background: linear-gradient(90deg, #2a3450 25%, #3540
 <div class="statusbar" id="statusbar"></div>
 <div class="alertbar" id="alertbar"></div>
 <div class="toast" id="toast"></div>
-<div class="leyenda">🟢 Punto verde: merchan (siempre verde)<br>🔴 Rojo: PDV más cercano al seleccionar un merchan<br><span style="color:#1d4ed8">●</span> PDV de ruteo · <span style="color:#16a34a">●</span> visitado · <span style="color:#9ca3af">●</span> sin visita</div>
+<div class="leyenda" id="leyenda" onclick="this.classList.toggle('open')">
+  <span class="leyenda-btn">ℹ</span>
+  <span class="leyenda-text">🟢 Merchan activo<br>🔴 PDV más cercano<br><span style="color:#1d4ed8">●</span> PDV ruteo · <span style="color:#16a34a">●</span> visitado · <span style="color:#9ca3af">●</span> sin visita</span>
+</div>
 <div class="map-tools">
   <button id="refreshBtn" title="Refrescar panel" onclick="location.reload()">⟳</button>
   <button id="darkBtn" title="Modo oscuro" onclick="toggleDark()">🌙</button>

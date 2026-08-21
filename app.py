@@ -29,8 +29,8 @@ PDV_FILE = os.path.join(BASE_DIR, 'pdv.json')
 RUTAS_FILE = os.path.join(BASE_DIR, 'rutas.json')
 OVERRIDES_FILE = os.path.join(BASE_DIR, 'overrides.json')
 
-APP_VERSION = '3.0'
-APP_VERSION_CODE = 11
+APP_VERSION = '3.1'
+APP_VERSION_CODE = 12
 APK_URL = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-v1.0/GPS-Merchan.apk'
 APK_URL_ADMIN = 'https://github.com/GonzaloBorras/gps-vendedores/releases/download/apk-admin/GPS-Admin.apk'
 
@@ -212,7 +212,7 @@ def init_db():
             'CREATE TABLE IF NOT EXISTS vendors (code TEXT PRIMARY KEY, name TEXT NOT NULL, prov TEXT NOT NULL, color TEXT NOT NULL, grupo TEXT NOT NULL DEFAULT \'rutas\')',
             'CREATE TABLE IF NOT EXISTS positions (id SERIAL PRIMARY KEY, code TEXT NOT NULL, name TEXT NOT NULL, lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, session TEXT, ts BIGINT NOT NULL)',
             'CREATE INDEX IF NOT EXISTS idx_positions_code_ts ON positions(code, ts)',
-            'CREATE TABLE IF NOT EXISTS visitas (fecha TEXT NOT NULL, code TEXT NOT NULL, cliente TEXT NOT NULL, razon TEXT NOT NULL DEFAULT \'\', calle TEXT NOT NULL DEFAULT \'\', vta TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL, foto TEXT, foto_ts BIGINT, PRIMARY KEY (fecha, code, cliente))',
+            'CREATE TABLE IF NOT EXISTS visitas (fecha TEXT NOT NULL, code TEXT NOT NULL, cliente TEXT NOT NULL, razon TEXT NOT NULL DEFAULT \'\', calle TEXT NOT NULL DEFAULT \'\', vta TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL, foto TEXT, foto_ts BIGINT, foto_salida_ts BIGINT, PRIMARY KEY (fecha, code, cliente))',
             'CREATE INDEX IF NOT EXISTS idx_visitas_fecha_code ON visitas(fecha, code)',
             'CREATE TABLE IF NOT EXISTS alerts (code TEXT PRIMARY KEY, tipo TEXT NOT NULL DEFAULT \'gps_off\', ts BIGINT NOT NULL, msj TEXT NOT NULL DEFAULT \'\')',
             'CREATE TABLE IF NOT EXISTS shifts (code TEXT PRIMARY KEY, shift_ms BIGINT NOT NULL)',
@@ -231,6 +231,7 @@ def init_db():
             cur.execute(s)
         cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto TEXT')
         cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto_ts BIGINT')
+        cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto_salida_ts BIGINT')
         cur.execute('ALTER TABLE positions ADD COLUMN IF NOT EXISTS battery INTEGER')
         cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS telefono TEXT NOT NULL DEFAULT \'\'')
         cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS contacto TEXT NOT NULL DEFAULT \'\'')
@@ -263,6 +264,9 @@ def init_db():
                 calle   TEXT NOT NULL DEFAULT '',
                 vta     TEXT NOT NULL DEFAULT '',
                 ts      INTEGER NOT NULL,
+                foto    TEXT,
+                foto_ts INTEGER,
+                foto_salida_ts INTEGER,
                 PRIMARY KEY (fecha, code, cliente)
             );
             CREATE INDEX IF NOT EXISTS idx_visitas_fecha_code ON visitas(fecha, code);
@@ -345,6 +349,8 @@ def init_db():
             con.execute('ALTER TABLE visitas ADD COLUMN foto TEXT')
         if 'foto_ts' not in vcols:
             con.execute('ALTER TABLE visitas ADD COLUMN foto_ts INTEGER')
+        if 'foto_salida_ts' not in vcols:
+            con.execute('ALTER TABLE visitas ADD COLUMN foto_salida_ts INTEGER')
         vcols2 = [r[1] for r in con.execute('PRAGMA table_info(vendors)')]
         if 'grupo' not in vcols2:
             con.execute("ALTER TABLE vendors ADD COLUMN grupo TEXT NOT NULL DEFAULT 'rutas'")
@@ -1275,7 +1281,7 @@ def nearest_pdv():
 def visitas_get():
     code = request.args.get('code', '').strip().upper()
     fecha = request.args.get('fecha', '').strip()
-    sql = 'SELECT fecha, code, cliente, razon, calle, vta, ts, foto_ts FROM visitas'
+    sql = 'SELECT fecha, code, cliente, razon, calle, vta, ts, foto_ts, foto_salida_ts FROM visitas'
     conds, params = [], []
     if code:
         conds.append('code = ?')
@@ -1291,7 +1297,9 @@ def visitas_get():
     for r in rows:
         d = dict(r)
         d['has_foto'] = 1 if (d.get('foto_ts') and d['foto_ts'] > 0) else 0
+        d['finalizada'] = 1 if (d.get('foto_salida_ts') and d['foto_salida_ts'] > 0) else 0
         d.pop('foto_ts', None)
+        d.pop('foto_salida_ts', None)
         out.append(d)
     return jsonify(out)
 
@@ -1504,14 +1512,14 @@ def visitas_post():
                     PDV_EXTRA.append(nuevo)
     ts = int(time.time() * 1000)
     if PG:
-        _exec(db, '''INSERT INTO visitas(fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts)
-                     VALUES (?,?,?,?,?,?,?,?,?)
+        _exec(db, '''INSERT INTO visitas(fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts, foto_salida_ts)
+                     VALUES (?,?,?,?,?,?,?,?,?,NULL)
                      ON CONFLICT(fecha, code, cliente) DO UPDATE SET
                        razon=excluded.razon, calle=excluded.calle, vta=excluded.vta,
-                       ts=excluded.ts, foto=excluded.foto, foto_ts=excluded.foto_ts''',
+                       ts=excluded.ts, foto=excluded.foto, foto_ts=excluded.foto_ts, foto_salida_ts=NULL''',
               (fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts))
     else:
-        _exec(db, 'INSERT OR REPLACE INTO visitas(fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts) VALUES (?,?,?,?,?,?,?,?,?)',
+        _exec(db, 'INSERT OR REPLACE INTO visitas(fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts, foto_salida_ts) VALUES (?,?,?,?,?,?,?,?,?,NULL)',
               (fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts))
     db.commit()
     try:
@@ -1537,6 +1545,29 @@ def visitas_delete():
           (code, cliente, fecha))
     db.commit()
     return jsonify({'ok': True})
+
+
+@app.route('/api/visitas/finalizar', methods=['POST'])
+def visitas_finalizar():
+    body = request.get_json(force=True, silent=True) or {}
+    code = str(body.get('code', '')).strip().upper()
+    cliente = str(body.get('cliente', '')).strip()
+    fecha = str(body.get('fecha', '')).strip() or _today_str()
+    v = VENDOR_BY_CODE.get(code)
+    if not v:
+        return jsonify({'ok': False, 'error': 'codigo invalido'}), 403
+    if not cliente:
+        return jsonify({'ok': False, 'error': 'falta cliente'}), 400
+    db = get_db()
+    row = _exec(db, 'SELECT cliente FROM visitas WHERE fecha = ? AND code = ? AND cliente = ?',
+                (fecha, code, cliente)).fetchone()
+    if not row:
+        return jsonify({'ok': False, 'error': 'No hay visita registrada para ese PDV hoy.'}), 404
+    ts_salida = int(time.time() * 1000)
+    _exec(db, 'UPDATE visitas SET foto_salida_ts = ? WHERE fecha = ? AND code = ? AND cliente = ?',
+          (ts_salida, fecha, code, cliente))
+    db.commit()
+    return jsonify({'ok': True, 'foto_salida_ts': ts_salida})
 
 
 # ---------------- Mensajes panel -> merchan ----------------
@@ -1907,13 +1938,13 @@ def reporte():
     return jsonify(data)
 
 
-@app.route('/api/export/visitas.csv')
-def export_visitas_csv():
+@app.route('/api/export/visitas.xlsx')
+def export_visitas_xlsx():
     desde = request.args.get('desde', '').strip()
     hasta = request.args.get('hasta', '').strip()
     code = request.args.get('code', '').strip().upper()
     db = get_db()
-    sql = 'SELECT fecha, code, cliente, razon, calle, vta, ts, foto_ts FROM visitas'
+    sql = 'SELECT fecha, code, cliente, razon, calle, vta, ts, foto_ts, foto_salida_ts FROM visitas'
     conds, params = [], []
     if code:
         conds.append('code = ?')
@@ -1928,22 +1959,47 @@ def export_visitas_csv():
         sql += ' WHERE ' + ' AND '.join(conds)
     sql += ' ORDER BY fecha, code, ts'
     rows = _exec(db, sql, params).fetchall()
-    lines = ['fecha;code;colaborador;cliente;razon_social;calle;ruta;hora;con_foto']
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from io import BytesIO
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'el generador de Excel no está instalado'}), 500
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Visitas'
+    headers = ['Fecha', 'Codigo', 'Colaborador', 'Cliente', 'Razon social', 'Calle', 'Ruta',
+               'Hora entrada', 'Hora salida', 'Con foto']
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill('solid', fgColor='E5E7EB')
+        cell.alignment = Alignment(horizontal='center')
+    ws.freeze_panes = 'A2'
     for r in rows:
         v = VENDOR_BY_CODE.get(r['code'])
         ts = r['ts']
         hora = (datetime.fromtimestamp(ts / 1000, timezone.utc) - timedelta(hours=3)).strftime('%H:%M:%S') if ts else ''
-        cf = 'si' if (r['foto_ts'] and r['foto_ts'] > 0) else 'no'
-        vals = [r['fecha'], r['code'], (v.get('name', '') if v else ''), r['cliente'],
-                r['razon'], r['calle'], r['vta'], hora, cf]
-        lines.append(';'.join(str(x).replace('\n', ' ').replace(';', ',') for x in vals))
-    csv_text = '\r\n'.join(lines) + '\r\n'
-    return Response(csv_text, mimetype='text/csv; charset=utf-8',
-                    headers={'Content-Disposition': 'attachment; filename=visitas.csv'})
+        hora_salida = ''
+        if r['foto_salida_ts'] and r['foto_salida_ts'] > 0:
+            hora_salida = (datetime.fromtimestamp(r['foto_salida_ts'] / 1000, timezone.utc) - timedelta(hours=3)).strftime('%H:%M:%S')
+        cf = 'Si' if (r['foto_ts'] and r['foto_ts'] > 0) else 'No'
+        ws.append([r['fecha'], r['code'], (v.get('name', '') if v else ''), r['cliente'],
+                    r['razon'], r['calle'], r['vta'] or '', hora, hora_salida, cf])
+    widths = [12, 8, 20, 10, 34, 24, 12, 12, 12, 10]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    safe = re.sub(r'[^A-Za-z0-9_-]', '_', code or 'todos')
+    fname = 'visitas_%s_%s_%s.xlsx' % (safe, desde or 'inicio', hasta or 'fin')
+    return Response(buf.read(), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    headers={'Content-Disposition': 'attachment; filename=' + fname})
 
 
-@app.route('/api/export/recorrido.csv')
-def export_recorrido_csv():
+@app.route('/api/export/recorrido.xlsx')
+def export_recorrido_xlsx():
     code = request.args.get('code', '').strip().upper()
     fecha = request.args.get('fecha', '').strip()
     if not code or not fecha or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', fecha):
@@ -1952,13 +2008,35 @@ def export_recorrido_csv():
     rows = _exec(get_db(),
                  'SELECT lat, lon, ts FROM positions WHERE code=? AND ts>=? AND ts<? ORDER BY ts',
                  (code, s, e)).fetchall()
-    lines = ['fecha;hora;lat;lon']
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from io import BytesIO
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'el generador de Excel no está instalado'}), 500
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Recorrido'
+    headers = ['Fecha', 'Hora', 'Latitud', 'Longitud']
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill('solid', fgColor='E5E7EB')
+        cell.alignment = Alignment(horizontal='center')
+    ws.freeze_panes = 'A2'
     for r in rows:
         dt = datetime.fromtimestamp(r['ts'] / 1000, timezone.utc) - timedelta(hours=3)
-        lines.append('%s;%s;%.6f;%.6f' % (fecha, dt.strftime('%H:%M:%S'), r['lat'], r['lon']))
-    csv_text = '\r\n'.join(lines) + '\r\n'
-    return Response(csv_text, mimetype='text/csv; charset=utf-8',
-                    headers={'Content-Disposition': 'attachment; filename=recorrido_%s_%s.csv' % (code, fecha)})
+        ws.append([fecha, dt.strftime('%H:%M:%S'), r['lat'], r['lon']])
+    widths = [12, 10, 14, 14]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    safe = re.sub(r'[^A-Za-z0-9_-]', '_', code)
+    fname = 'recorrido_%s_%s.xlsx' % (safe, fecha)
+    return Response(buf.read(), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    headers={'Content-Disposition': 'attachment; filename=' + fname})
 
 
 # ---------------- Páginas ----------------

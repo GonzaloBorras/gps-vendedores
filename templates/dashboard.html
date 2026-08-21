@@ -156,10 +156,6 @@ body.sidebar-hidden .sidebar { display: none; }
     box-shadow: 0 3px 12px rgba(0,0,0,.2); }
   .tab { min-height: 44px; font-size: 13px; }
   .filtros { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
-  .filtros > #search { width: 100%; }
-  .filtros .date-row { display: flex; gap: 6px; align-items: center; }
-  .filtros .date-row > span { flex: none; font-size: 12px; color: #475569; font-weight: 500; }
-  .filtros .date-row input[type=date] { flex: 1; min-height: 40px; font-size: 14px; }
   .filtros .chk-row { display: flex; gap: 12px; flex-wrap: wrap; }
   .filtros .toggle-row { min-height: 36px; font-size: 12px; }
   .filtros input[type=text], .filtros select { min-height: 40px; font-size: 15px; }
@@ -410,15 +406,10 @@ body.dark .skeleton-line.w80 { width: 80%; margin-top: 6px; }
 <div class="sidebar">
   <div class="head">
     <h1>GPS Merchan</h1>
-    <div class="sub">Tucumán &amp; Catamarca — <span id="activos">0</span> activos · <span id="sinCount">0 sin señal</span></div>
+    <div class="sub">Tucumán &amp; Catamarca — <span id="activos">0</span> activos · <span id="sinCount">0 sin señal</span> · Hoy</div>
     <button class="gear" onclick="openConfig()" title="Configuración">⚙</button>
   </div>
   <div class="filtros">
-    <input type="text" id="search" placeholder="Buscar merchan...">
-    <div class="date-row">
-      <span>Día:</span>
-      <input type="date" id="fecha-select" onchange="onFechaChange()" style="margin:0;padding:2px 6px">
-    </div>
     <div class="chk-row">
       <label class="toggle-row">
         <input type="checkbox" id="solo-sin" onchange="applyFilters()">
@@ -555,13 +546,13 @@ body.dark .skeleton-line.w80 { width: 80%; margin-top: 6px; }
       </div>
       <button class="btn-block refresh" onclick="loadReporte()">Generar reporte</button>
       <div id="rep-lista"></div>
-      <a class="exp-link" id="exp-visitas" target="_blank" rel="noopener">Exportar visitas (CSV)</a>
-      <a class="exp-link" id="exp-recorrido" target="_blank" rel="noopener">Exportar recorrido (CSV)</a>
+      <a class="exp-link" id="exp-visitas" target="_blank" rel="noopener">Exportar visitas (Excel)</a>
+      <a class="exp-link" id="exp-recorrido" target="_blank" rel="noopener">Exportar recorrido (Excel)</a>
       <div style="margin-top:16px">
         <h3>Tiempo en cada PDV</h3>
         <button class="btn-block refresh" onclick="loadEstadias()">Calcular tiempos</button>
         <div id="est-lista"></div>
-        <a class="exp-link" id="exp-estadias" target="_blank" rel="noopener">Descargar Excel</a>
+        <a class="exp-link" id="exp-estadias" target="_blank" rel="noopener">Exportar estadías (Excel)</a>
       </div>
     </div>
     <button class="btn-block close" onclick="closeConfig()">Cerrar</button>
@@ -801,7 +792,7 @@ function renderSidebar(list) {
       '<div class="acts">' +
       '<button class="btn-copy" onclick="copyLink(\'' + esc(v.code) + '\')">Copiar link</button>' +
       '<button class="btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Recorrido</button>' +
-      (v.grupo === 'merchan' ? '<a class="btn btn-copy" href="/api/export/visitas.csv?desde=' + fechaSel + '&hasta=' + fechaSel + '&code=' + esc(v.code) + '" target="_blank" rel="noopener">CSV día</a>' : '') +
+      (v.grupo === 'merchan' ? '<a class="btn btn-copy" href="/api/export/visitas.xlsx?desde=' + fechaSel + '&hasta=' + fechaSel + '&code=' + esc(v.code) + '" target="_blank" rel="noopener">Excel día</a>' : '') +
       '</div></div>';
     el.querySelector('.row1').addEventListener('click', function () {
       if (v.grupo === 'merchan') { showMerchanPDV(v.code); } else { flyTo(v.code); }
@@ -1315,10 +1306,11 @@ function loadVisitasPanel() {
         var fotoHtml = v.has_foto
           ? '<a class="vi-foto-link" target="_blank" rel="noopener" href="' + href + '" title="Abrir foto"><img class="vi-foto" src="' + href + '" alt="Fachada" loading="lazy"></a>'
           : '<span class="foto-miss">✗ Sin foto</span>';
+        var estadoBadge = v.finalizada ? '<span style="display:inline-block;margin-left:6px;background:#f59e0b;color:#422006;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700">finalizada</span>' : '';
         return '<div class="vitem">' +
           fotoHtml +
           '<div style="flex:1">' +
-            '<div class="vi-name">' + esc(v.razon) + '</div>' +
+            '<div class="vi-name">' + esc(v.razon) + estadoBadge + '</div>' +
             '<div class="vi-det">Cliente: ' + esc(v.cliente) + (v.calle ? ' · ' + esc(v.calle) : '') + '</div>' +
             '<div class="vi-det">🕒 Hora: ' + esc(fmtHora(v.ts)) + '</div>' +
             (v.vta ? '<div class="vi-vta">' + esc(v.vta) + '</div>' : '') +
@@ -1657,8 +1649,8 @@ function loadReporte() {
   var box = document.getElementById('rep-lista');
   var ev = document.getElementById('exp-visitas');
   var er = document.getElementById('exp-recorrido');
-  ev.href = '/api/export/visitas.csv?desde=' + (desde || '2020-01-01') + '&hasta=' + (hasta || '2099-12-31') + '&code=' + code;
-  er.href = code ? '/api/export/recorrido.csv?code=' + code + '&fecha=' + (desde || todayStr()) : '#';
+  ev.href = '/api/export/visitas.xlsx?desde=' + (desde || '2020-01-01') + '&hasta=' + (hasta || '2099-12-31') + '&code=' + code;
+  er.href = code ? '/api/export/recorrido.xlsx?code=' + code + '&fecha=' + (desde || todayStr()) : '#';
   if (!code || !desde || !hasta) { box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Elegí colaborador y rango de fechas.</div>'; return; }
   box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Cargando...</div>';
   fetch('/api/reporte?code=' + encodeURIComponent(code) + '&desde=' + desde + '&hasta=' + hasta)
@@ -1873,10 +1865,8 @@ function esc(s) {
 }
 
 function applyFilters() {
-  var q = document.getElementById('search').value.trim().toLowerCase();
   var list = vendorsData.filter(function (v) {
     if (v.grupo !== currentGroup) return false;
-    if (q && !(v.name + ' ' + v.code + ' ' + v.prov).toLowerCase().includes(q)) return false;
     return true;
   });
   if (document.getElementById('solo-sin') && document.getElementById('solo-sin').checked) {
@@ -1903,14 +1893,6 @@ function applyFilters() {
   renderAlerts();
 }
 
-function onFechaChange() {
-  var d = document.getElementById('fecha-select').value;
-  if (!d) { d = todayStr(); document.getElementById('fecha-select').value = d; }
-  fechaSel = d;
-  toast('Mostrando datos del ' + fechaSel);
-  updateCardData();
-  applyFilters();
-}
 function toggleDark() {
   var on = document.body.classList.toggle('dark');
   var b = document.getElementById('darkBtn');
@@ -1918,7 +1900,6 @@ function toggleDark() {
   try { localStorage.setItem('gps_dark', on ? '1' : '0'); } catch (e) {}
 }
 try { if (localStorage.getItem('gps_dark') === '1') { document.body.classList.add('dark'); } } catch (e) {}
-document.getElementById('fecha-select').value = todayStr();
 
 map.setView([-27.8, -65.6], 9);
 loadRutasCache();
@@ -1937,13 +1918,6 @@ function fitMerchans() {
   if (!pts.length) { toast('Sin vendedores con ubicación'); return; }
   map.fitBounds(L.latLngBounds(pts).pad(0.15), { maxZoom: 15 });
 }
-
-var _searchTimer = null;
-document.getElementById('search').removeEventListener('input', applyFilters);
-document.getElementById('search').addEventListener('input', function () {
-  clearTimeout(_searchTimer);
-  _searchTimer = setTimeout(applyFilters, 250);
-});
 
 if (window.matchMedia) {
   var mql = window.matchMedia('(orientation: landscape) and (max-height: 500px)');

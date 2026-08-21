@@ -128,6 +128,6 @@ def test_nearest_pdv_no_position(client):
     assert resp.status_code in (404, 400)
 
 
-def test_export_csv_no_params(client):
-    resp = client.get('/api/export/recorrido.csv')
+def test_export_xlsx_no_params(client):
+    resp = client.get('/api/export/recorrido.xlsx')
     assert resp.status_code == 400

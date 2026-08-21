@@ -98,6 +98,13 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .foto-box .row { display: flex; gap: 8px; }
 .foto-box .row button { flex: 1; padding: 10px; border: 0; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; }
 .btn-foto { background: #22c55e; color: #07120a; }
+.btn-finalizar { display: block; width: 100%; margin-top: 10px; padding: 12px; border: 0;
+  border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer;
+  background: #f59e0b; color: #422006; animation: pulseBtn 2s infinite; }
+@keyframes pulseBtn { 0%,100% { box-shadow: 0 0 0 0 rgba(245,158,11,.4); } 50% { box-shadow: 0 0 0 8px rgba(245,158,11,0); } }
+.btn-finalizar:disabled { opacity: .5; animation: none; }
+.visita-activa { border-color: #f59e0b !important; background: rgba(245,158,11,.10) !important; }
+.visita-activa .r::after { content: ' ◀ activa'; color: #f59e0b; font-size: 10px; font-weight: 700; }
 .btn-no-foto { width: 100%; margin-top: 8px; padding: 10px; border: 0; border-radius: 8px; background: #334155; color: #fff; font-weight: 600; cursor: pointer; font-size: 13px; }
 .btn-foto-cancel { width: 100%; margin-top: 6px; padding: 9px; border: 0; border-radius: 8px; background: transparent; color: #8b93a7; font-weight: 600; cursor: pointer; font-size: 12px; }
 .btn.mapa { background: #7c3aed; color: #fff; margin-top: 10px; }
@@ -293,6 +300,11 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
     <div class="ruta-banner" id="rutaUpdateBanner">🔄 Tu ruteo de hoy se actualizó.<br><button onclick="location.reload()">Recargar para ver los cambios</button></div>
     <div class="ruta-progress" id="rutaProgress"></div>
     <div class="prox" id="proxPdv"></div>
+    <div id="finalizarWrap" style="display:none;padding:0 14px;">
+      <button class="btn-finalizar" id="finalizarBtn" onclick="finalizarVisita()">
+        Finalizar visita actual
+      </button>
+    </div>
     <div class="tabs">
       <button class="tab active" data-tab="ruta" onclick="switchPane('ruta')">Ruta</button>
       <button class="tab" data-tab="visitas" onclick="switchPane('visitas')">Visitados</button>
@@ -322,7 +334,7 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
   <main id="mapWrap">
     <div id="mapa"></div>
     <div class="map-legend" id="mapaMsg">Cargando PDV...</div>
-    <div class="map-badge"><span style="color:#1d4ed8">●</span> de ruteo · <span style="color:#16a34a">●</span> visitado · <span style="color:#9ca3af">●</span> sin visita</div>
+    <div class="map-badge"><span style="color:#1d4ed8">●</span> de ruteo · <span style="color:#f59e0b">●</span> en PDV · <span style="color:#16a34a">●</span> finalizada · <span style="color:#9ca3af">●</span> sin visita</div>
     <div class="map-fab">
       <button id="visitasBtn" onclick="openVisitas()">＋ Registrar PDV</button>
       <button id="addPdvBtn" onclick="openAddPdv()">＋ Cargar nuevo PDV</button>
@@ -341,7 +353,8 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
     <ul>
       <li><b>Dejá la app abierta</b> con el GPS del celular activado: tu ubicación se envía sola mientras estés en horario de trabajo.</li>
       <li><b>Jornada automática:</b> de lunes a viernes 08:00 a 16:00 y los sábados hasta las 13:00. Los domingos es descanso.</li>
-      <li>Cuando llegás a un cliente, tocá <b>Registro de PDV</b>, elegí el comercio y <b>sacá la foto</b> de la fachada.</li>
+      <li>Cuando llegás a un cliente, tocá <b>Registro de PDV</b>, elegí el comercio y <b>sacá la foto</b> de la fachada (ingreso).</li>
+      <li>Cuando te vas del PDV, tocá <b>Finalizar visita</b> para registrar la salida.</li>
       <li>Si te quedás sin señal o sin internet, las posiciones se guardan y se envían cuando vuelva la conexión.</li>
     </ul>
     <button class="btn" onclick="closeOnboard()">¡Entendido, empezar!</button>
@@ -948,7 +961,7 @@ var rutaHoy = [];
 var rutaSet = {};
 
 function pdvEstadoColor(c) {
-  if (visitasCache[c]) return '#16a34a';
+  if (visitasCache[c]) return visitasCache[c].finalizada ? '#16a34a' : '#f59e0b';
   if (rutaSet[c]) return '#1d4ed8';
   return '#9ca3af';
 }
@@ -1041,15 +1054,17 @@ function renderRutaHoy() {
   if (box) box.innerHTML = rutaHoy.map(function (v) {
       var dir = (v.calle || '') + (v.altura ? ' ' + v.altura : '');
       var vis = visitasCache[v.cliente];
+      var esActual = (v.cliente === visitaActual && vis && !vis.finalizada);
+      var visClass = esActual ? 'visita-activa' : (vis ? 'visited' : '');
       var d = pdvDistM(v);
       var sinUb = !vis && (v.lat == null || v.lon == null);
-      return '<div class="pdv-item ' + (vis ? 'visited' : '') + (d !== null && d > (v.radius || 150) ? ' pdv-far' : '') + '" data-cliente="' + v.cliente + '" onclick="marcarVisita(\'' + v.cliente + '\',\'' + esc(v.razon) + '\')">' +
+      return '<div class="pdv-item ' + visClass + (d !== null && d > (v.radius || 150) ? ' pdv-far' : '') + '" data-cliente="' + v.cliente + '" onclick="marcarVisita(\'' + v.cliente + '\',\'' + esc(v.razon) + '\')">' +
         '<div class="r">' + esc(v.razon) + (sinUb ? '<span class="sinub-badge">sin ubicación</span>' : '') + '</div>' +
         '<div class="d">Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(v) + '</div>' +
         (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
         (sinUb
           ? '<small class="sinub-hint">Sin ubicación: registrá la visita con foto y queda cargado con GPS.</small>'
-          : (vis ? '<small>✓ registrado</small>' : '<small>tocá para marcar como visitado</small>')) +
+          : (vis ? (vis.finalizada ? '<small style="color:#f59e0b">✔ finalizada</small>' : '<small>✓ registrado</small>') : '<small>tocá para marcar como visitado</small>')) +
         '</div>';
     }).join('');
   renderProximo();
@@ -1148,12 +1163,14 @@ function renderMiRuteo() {
   box.innerHTML = miRuteo.map(function (v) {
     var dir = (v.calle || '') + (v.altura ? ' ' + v.altura : '');
     var vis = visitasCache[v.cliente];
+    var esActual = (v.cliente === visitaActual && vis && !vis.finalizada);
+    var visClass = esActual ? 'visita-activa' : (vis ? 'visited' : '');
     var d = pdvDistM(v);
-    return '<div class="pdv-item ' + (vis ? 'visited' : '') + (d !== null && d > (v.radius || 150) ? ' pdv-far' : '') + '" onclick="marcarVisita(\'' + v.cliente + '\',\'' + esc(v.razon) + '\')">' +
+    return '<div class="pdv-item ' + visClass + (d !== null && d > (v.radius || 150) ? ' pdv-far' : '') + '" onclick="marcarVisita(\'' + v.cliente + '\',\'' + esc(v.razon) + '\')">' +
       '<div class="r">' + esc(v.razon) + '</div>' +
       '<div class="d">Cliente: ' + esc(v.cliente) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(v) + (v.dia ? ' · ' + esc(v.dia) : '') + '</div>' +
       (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
-      (vis ? '<small>✓ registrado</small>' : '<small>tocá para marcar como visitado</small>') +
+      (vis ? (vis.finalizada ? '<small style="color:#f59e0b">✔ finalizada</small>' : '<small>✓ registrado</small>') : '<small>tocá para marcar como visitado</small>') +
       '</div>';
   }).join('');
 }
@@ -1178,12 +1195,17 @@ function loadVisitas() {
       arr.forEach(function (v) { visitasCache[v.cliente] = v; });
       visitaSeq = visitaSeq.filter(function (c) { return !!visitasCache[c]; });
       arr.forEach(function (v) { if (visitaSeq.indexOf(v.cliente) === -1) visitaSeq.push(v.cliente); });
+      if (visitaActual && visitasCache[visitaActual] && visitasCache[visitaActual].finalizada) {
+        visitaActual = null;
+        try { localStorage.removeItem('gps_visita_actual'); } catch (e) {}
+      }
       document.getElementById('visitaCount').textContent =
         'PDV visitados hoy: ' + Object.keys(visitasCache).length;
       renderVisitas();
       renderRutaHoy();
       renderMiRuteo();
       updatePdvMarkers();
+      updateFinalizarBtn();
       restoreJornadaBanner();
     }).catch(function () {});
 }
@@ -1198,15 +1220,21 @@ function renderVisitas() {
   } else {
     html = keys.map(function (c) {
       var v = visitasCache[c];
-      return '<div class="pdv-item visited">' +
+      var esActual = (c === visitaActual);
+      var cls = esActual ? 'visita-activa' : 'visited';
+      var finalBtn = (esActual && !v.finalizada) ?
+        '<button class="btn-finalizar" style="margin-top:6px;padding:8px;font-size:12px;min-height:auto;" onclick="event.stopPropagation();finalizarVisita()">Finalizar visita</button>' : '';
+      var estado = v.finalizada ? '<small style="color:#f59e0b">✔ finalizada</small>' : '<small>✓ registrado</small>';
+      return '<div class="pdv-item ' + cls + '">' +
         '<div class="r">' + esc(v.razon) + '</div>' +
         '<div class="d">Cliente: ' + esc(c) + (v.calle ? ' · ' + esc(v.calle) : '') + '</div>' +
         (v.vta ? '<div class="vta">' + esc(v.vta) + '</div>' : '') +
-        '<small>✓ registrado</small></div>';
+        estado + finalBtn + '</div>';
     }).join('');
   }
   if (box) box.innerHTML = html;
   if (side) side.innerHTML = html;
+  updateFinalizarBtn();
 }
 
 function quitarVisita(c) {
@@ -1249,14 +1277,19 @@ function buscarPDV() {
       box.innerHTML = arr.map(function (d) {
         var dir = (d.calle || '') + (d.altura ? ' ' + d.altura : '');
         var vis = visitasCache[d.c];
+        var esActual = (d.c === visitaActual && vis && !vis.finalizada);
+        var visClass = esActual ? 'visita-activa' : (vis ? 'visited' : '');
         var dm = pdvDistM(d);
         var fuera = !!(RUTA_TODAY && !rutaHoy.some(function (v) { return v.cliente === d.c; }));
         var fueraBadge = fuera ? '<span class="fuera-badge">otro día</span>' : '';
-        return '<div class="pdv-item ' + (vis ? 'visited' : '') + (dm !== null && dm > (d.radius || 150) ? ' pdv-far' : '') + '" onclick="marcarVisita(\'' + d.c + '\',\'' + esc(d.r) + '\')">' +
+        var finalBtn = esActual ? '<button class="btn-finalizar" style="margin-top:6px;padding:7px;font-size:11px;min-height:auto;" onclick="event.stopPropagation();finalizarVisita()">Finalizar</button>' : '';
+        var clickAction = vis && !vis.finalizada ? '' : 'marcarVisita(\'' + d.c + '\',\'' + esc(d.r) + '\')';
+        return '<div class="pdv-item ' + visClass + (dm !== null && dm > (d.radius || 150) ? ' pdv-far' : '') + '" onclick="' + clickAction + '">' +
           '<div class="r">' + esc(d.r) + fueraBadge + '</div>' +
           '<div class="d">Cliente: ' + esc(d.c) + (dir ? ' · ' + esc(dir) : '') + pdvDistTxt(d) + '</div>' +
           (d.vta ? '<div class="vta">' + esc(d.vta) + '</div>' : '') +
-          (vis ? '<small>✓ ya registrado</small>' : '<small>tocá para registrar</small>') +
+          (vis ? (vis.finalizada ? '<small style="color:#f59e0b">✔ finalizada</small>' : '<small>✓ registrado</small>') : '<small>tocá para registrar</small>') +
+          finalBtn +
           '</div>';
       }).join('') || '<div class="empty">Sin resultados.</div>';
     }).catch(function () { box.innerHTML = '<div class="empty">Error al buscar.</div>'; });
@@ -1264,8 +1297,21 @@ function buscarPDV() {
 
 var pendingFotoCliente = null;
 var pdvNameCache = {};
+var visitaActual = localStorage.getItem('gps_visita_actual') || null;
 function marcarVisita(c, nombre) {
-  if (visitasCache[c]) { showNote('Este PDV ya está registrado como visitado.'); return; }
+  if (visitasCache[c] && !visitasCache[c].finalizada) {
+    showNote('Este PDV ya está registrado como visitado. Finalizalo primero.');
+    return;
+  }
+  if (visitaActual && visitasCache[visitaActual] && !visitasCache[visitaActual].finalizada) {
+    fetch(base + '/api/visitas/finalizar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, cliente: visitaActual, fecha: todayStr() })
+    }).then(function (r) { return r.json(); }).then(function () {
+      if (visitasCache[visitaActual]) visitasCache[visitaActual].finalizada = 1;
+      renderVisitas();
+    }).catch(function () {});
+  }
   if (nombre) pdvNameCache[c] = nombre;
   pendingFotoCliente = c;
   document.getElementById('fotoPdvName').textContent = pdvNameCache[c] || c;
@@ -1321,11 +1367,14 @@ function confirmarFoto() {
       if (d.ok) {
         visitasCache[c] = { cliente: c, razon: pdvNameCache[c] || c };
         if (visitaSeq.indexOf(c) === -1) visitaSeq.push(c);
+        visitaActual = c;
+        try { localStorage.setItem('gps_visita_actual', c); } catch (e) {}
         document.getElementById('visitaCount').textContent =
           'PDV visitados hoy: ' + Object.keys(visitasCache).length;
         renderRutaHoy();
         renderMiRuteo();
         updatePdvMarkers();
+        updateFinalizarBtn();
         visitasMsg('');
         showVisitaOk(pdvNameCache[c] || c);
         flushVisitasOffline();
@@ -1663,6 +1712,47 @@ function showVisitaOk(nombre) {
   t.classList.add('show');
   clearTimeout(showVisitaOk._t);
   showVisitaOk._t = setTimeout(function () { t.classList.remove('show'); }, 1600);
+}
+
+function updateFinalizarBtn() {
+  var wrap = document.getElementById('finalizarWrap');
+  if (visitaActual && visitasCache[visitaActual] && !visitasCache[visitaActual].finalizada) {
+    wrap.style.display = 'block';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+function finalizarVisita() {
+  if (!visitaActual) return;
+  var btn = document.getElementById('finalizarBtn');
+  btn.disabled = true;
+  btn.textContent = 'Finalizando...';
+  fetch(base + '/api/visitas/finalizar', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, cliente: visitaActual, fecha: todayStr() })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.ok) {
+      if (visitasCache[visitaActual]) visitasCache[visitaActual].finalizada = 1;
+      var nombre = pdvNameCache[visitaActual] || (visitasCache[visitaActual] ? visitasCache[visitaActual].razon : visitaActual);
+      var t = document.getElementById('toastOk');
+      t.innerHTML = '<div class="big">✔</div>Visita finalizada<span class="sub">' + esc(nombre) + '</span>';
+      t.classList.add('show');
+      setTimeout(function () { t.classList.remove('show'); }, 1600);
+      renderVisitas();
+      renderRutaHoy();
+      renderMiRuteo();
+      updateFinalizarBtn();
+    } else {
+      showNote(d.error || 'No se pudo finalizar la visita.');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Finalizar visita actual';
+  }).catch(function () {
+    showNote('Error de conexión al finalizar la visita.');
+    btn.disabled = false;
+    btn.textContent = 'Finalizar visita actual';
+  });
 }
 
 function maybeOnboard() {

@@ -39,10 +39,11 @@ html, body { height: 100%; font-family: 'Inter', system-ui, -apple-system, 'Sego
 .chk-row .toggle-row { flex: none; padding: 0; margin: 0; }
 .toggle-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569;
   padding: 2px 0; cursor: pointer; }
-.toggle-row input { width: auto; margin: 0; accent-color: #1d4ed8; }
+.toggle-row input { width: auto; margin: 0; accent-color: #1d4ed8; padding: 0; }
 .sidebar input, .sidebar select { width: 100%; padding: 8px 10px; margin-bottom: 6px;
   border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px;
   transition: border-color .15s, box-shadow .15s; background: #fff; color: #1e293b; }
+.sidebar input[type=checkbox] { width: auto; padding: 0; border: none; background: none; min-height: auto; }
 .sidebar input:focus, .sidebar select:focus { outline: none; border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
 .list { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 8px; }
@@ -72,8 +73,9 @@ html, body { height: 100%; font-family: 'Inter', system-ui, -apple-system, 'Sego
 .foto-link { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 600;
   color: #1d4ed8; text-decoration: none; }
 .vendor .actions { display: flex; gap: 6px; margin-top: 8px; }
-.vendor button { border: 0; border-radius: 8px; padding: 6px 10px; font-size: 12px;
-  font-weight: 600; cursor: pointer; transition: filter .15s, transform .1s; }
+.vendor button, .vendor .btn-copy { border: 0; border-radius: 8px; padding: 6px 10px; font-size: 12px;
+  font-weight: 600; cursor: pointer; transition: filter .15s, transform .1s; display: inline-block;
+  text-decoration: none; }
 .vendor button:active { transform: scale(.97); }
 .btn-route { background: #eef2ff; color: #4338ca; }
 .btn-route:hover { filter: brightness(1.06); }
@@ -173,7 +175,7 @@ body.sidebar-hidden .sidebar { display: none; }
   #statusbar { bottom: 20px; left: 50%; transform: translateX(-50%); white-space: nowrap;
     max-width: calc(100vw - 24px); overflow: hidden; text-overflow: ellipsis;
     padding-bottom: env(safe-area-inset-bottom, 0); }
-  .leyenda { z-index: 3001; top: auto; bottom: 70px; right: 12px; left: auto; transform: none;
+  .leyenda { z-index: 3001; top: 12px; right: 70px; left: auto; bottom: auto; transform: none;
     font-size: 11px; padding: 0; line-height: 1.6; border-radius: 12px; max-width: 0; overflow: hidden;
     opacity: 0; pointer-events: none; transition: max-width .2s ease, opacity .2s ease, padding .2s ease;
     box-shadow: 0 2px 8px rgba(0,0,0,.12); }
@@ -793,7 +795,7 @@ function renderSidebar(list) {
       '<div class="acts">' +
       '<button class="btn-copy" onclick="copyLink(\'' + esc(v.code) + '\')">Copiar link</button>' +
       '<button class="btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Recorrido</button>' +
-      (v.grupo === 'merchan' ? '<a class="btn btn-copy" href="/api/export/visitas.xlsx?desde=' + fechaSel + '&hasta=' + fechaSel + '&code=' + esc(v.code) + '" target="_blank" rel="noopener">Excel día</a>' : '') +
+      (v.grupo === 'merchan' ? '<a class="btn-copy" href="/api/export/visitas.xlsx?desde=' + fechaSel + '&hasta=' + fechaSel + '&code=' + esc(v.code) + '" target="_blank" rel="noopener">Excel día</a>' : '') +
       '</div></div>';
     el.querySelector('.row1').addEventListener('click', function () {
       if (v.grupo === 'merchan') { showMerchanPDV(v.code); } else { flyTo(v.code); }

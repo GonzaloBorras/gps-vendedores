@@ -700,7 +700,7 @@ def app_version():
     kind = request.args.get('app', 'merchan')
     return jsonify({
         'version': APP_VERSION,
-        'versionCode': 10,
+        'versionCode': APP_VERSION_CODE,
         'latestVersion': APP_VERSION,
         'latestVersionCode': APP_VERSION_CODE,
         'apkUrl': APK_URL_ADMIN if kind == 'admin' else APK_URL,
@@ -1943,6 +1943,10 @@ def export_visitas_xlsx():
     desde = request.args.get('desde', '').strip()
     hasta = request.args.get('hasta', '').strip()
     code = request.args.get('code', '').strip().upper()
+    if desde and not re.fullmatch(r'\d{4}-\d{2}-\d{2}', desde):
+        desde = ''
+    if hasta and not re.fullmatch(r'\d{4}-\d{2}-\d{2}', hasta):
+        hasta = ''
     db = get_db()
     sql = 'SELECT fecha, code, cliente, razon, calle, vta, ts, foto_ts, foto_salida_ts FROM visitas'
     conds, params = [], []

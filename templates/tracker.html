@@ -578,6 +578,7 @@ function flushVisitasOffline() {
   var queue = JSON.parse(localStorage.getItem('gps_visitas_queue') || '[]');
   if (!queue.length) return;
   var remaining = [];
+  var done = 0;
   queue.forEach(function(v) {
     var fd = new FormData();
     fd.append('code', v.code);
@@ -586,11 +587,17 @@ function flushVisitasOffline() {
     fd.append('razon', v.razon);
     fd.append('lat', v.lat);
     fd.append('lon', v.lon);
-    fetch(base + '/api/visitas', { method: 'POST', body: fd }).catch(function() {
-      remaining.push(v);
-    });
+    fetch(base + '/api/visitas', { method: 'POST', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { if (!d.ok) remaining.push(v); })
+      .catch(function() { remaining.push(v); })
+      .then(function() {
+        done++;
+        if (done === queue.length) {
+          localStorage.setItem('gps_visitas_queue', remaining.length ? JSON.stringify(remaining) : '[]');
+        }
+      });
   });
-  localStorage.setItem('gps_visitas_queue', remaining.length ? JSON.stringify(remaining) : '');
 }
 
 var lastSendLat = null, lastSendLon = null, lastSendTs = 0;
@@ -1220,7 +1227,7 @@ function renderVisitas() {
   } else {
     html = keys.map(function (c) {
       var v = visitasCache[c];
-      var esActual = (c === visitaActual);
+      var esActual = (c === visitaActual && !v.finalizada);
       var cls = esActual ? 'visita-activa' : 'visited';
       var finalBtn = (esActual && !v.finalizada) ?
         '<button class="btn-finalizar" style="margin-top:6px;padding:8px;font-size:12px;min-height:auto;" onclick="event.stopPropagation();finalizarVisita()">Finalizar visita</button>' : '';
@@ -1297,18 +1304,20 @@ function buscarPDV() {
 
 var pendingFotoCliente = null;
 var pdvNameCache = {};
-var visitaActual = localStorage.getItem('gps_visita_actual') || null;
+var visitaActual = null;
+try { visitaActual = localStorage.getItem('gps_visita_actual') || null; } catch (e) {}
 function marcarVisita(c, nombre) {
   if (visitasCache[c] && !visitasCache[c].finalizada) {
     showNote('Este PDV ya está registrado como visitado. Finalizalo primero.');
     return;
   }
   if (visitaActual && visitasCache[visitaActual] && !visitasCache[visitaActual].finalizada) {
+    var prev = visitaActual;
     fetch(base + '/api/visitas/finalizar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code, cliente: visitaActual, fecha: todayStr() })
+      body: JSON.stringify({ code: code, cliente: prev, fecha: todayStr() })
     }).then(function (r) { return r.json(); }).then(function () {
-      if (visitasCache[visitaActual]) visitasCache[visitaActual].finalizada = 1;
+      if (visitasCache[prev]) visitasCache[prev].finalizada = 1;
       renderVisitas();
     }).catch(function () {});
   }
@@ -1401,9 +1410,9 @@ function confirmarFoto() {
           var queue = JSON.parse(localStorage.getItem('gps_visitas_queue') || '[]');
           var offlineVisit = {
             code: code,
-            cliente: pendingFotoCliente,
-            fecha: fechaSel || todayStr(),
-            razon: razon,
+            cliente: c,
+            fecha: todayStr(),
+            razon: pdvNameCache[c] || c,
             lat: lat,
             lon: lon,
             ts: Date.now()
@@ -1412,7 +1421,7 @@ function confirmarFoto() {
           if (queue.length > 20) queue = queue.slice(-20);
           localStorage.setItem('gps_visitas_queue', JSON.stringify(queue));
           showNote('Sin conexión. Visita guardada localmente, se enviará cuando haya red.');
-          showVisitaOk(razon);
+          showVisitaOk(pdvNameCache[c] || c);
           closeFoto();
         });
     };
@@ -1723,18 +1732,20 @@ function updateFinalizarBtn() {
   }
 }
 
+var _finalizando = false;
 function finalizarVisita() {
-  if (!visitaActual) return;
-  var btn = document.getElementById('finalizarBtn');
-  btn.disabled = true;
-  btn.textContent = 'Finalizando...';
+  if (!visitaActual || _finalizando) return;
+  _finalizando = true;
+  var cliente = visitaActual;
+  document.querySelectorAll('.btn-finalizar').forEach(function(b){ b.disabled = true; b.textContent = 'Finalizando...'; });
   fetch(base + '/api/visitas/finalizar', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: code, cliente: visitaActual, fecha: todayStr() })
+    body: JSON.stringify({ code: code, cliente: cliente, fecha: todayStr() })
   }).then(function (r) { return r.json(); }).then(function (d) {
     if (d.ok) {
-      if (visitasCache[visitaActual]) visitasCache[visitaActual].finalizada = 1;
-      var nombre = pdvNameCache[visitaActual] || (visitasCache[visitaActual] ? visitasCache[visitaActual].razon : visitaActual);
+      if (visitasCache[cliente]) visitasCache[cliente].finalizada = 1;
+      if (visitaActual === cliente) { visitaActual = null; try { localStorage.removeItem('gps_visita_actual'); } catch (e) {} }
+      var nombre = pdvNameCache[cliente] || (visitasCache[cliente] ? visitasCache[cliente].razon : cliente);
       var t = document.getElementById('toastOk');
       t.innerHTML = '<div class="big">✔</div>Visita finalizada<span class="sub">' + esc(nombre) + '</span>';
       t.classList.add('show');
@@ -1742,16 +1753,17 @@ function finalizarVisita() {
       renderVisitas();
       renderRutaHoy();
       renderMiRuteo();
-      updateFinalizarBtn();
     } else {
       showNote(d.error || 'No se pudo finalizar la visita.');
     }
-    btn.disabled = false;
-    btn.textContent = 'Finalizar visita actual';
+    _finalizando = false;
+    document.querySelectorAll('.btn-finalizar').forEach(function(b){ b.disabled = false; b.textContent = 'Finalizar visita'; });
+    updateFinalizarBtn();
   }).catch(function () {
     showNote('Error de conexión al finalizar la visita.');
-    btn.disabled = false;
-    btn.textContent = 'Finalizar visita actual';
+    _finalizando = false;
+    document.querySelectorAll('.btn-finalizar').forEach(function(b){ b.disabled = false; b.textContent = 'Finalizar visita'; });
+    updateFinalizarBtn();
   });
 }
 

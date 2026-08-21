@@ -238,14 +238,11 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
 .metrics .metric { padding: 9px 12px; }
 #side .error, #side .note-ok, #side .gps-warn, #side .aviso, #side .msg-banner, #side .ruta-banner,
 #side .ruta-progress, #side .prox { margin: 8px 14px 0; }
-.map-locate { position: absolute; left: 12px; bottom: 52px; z-index: 800; width: 42px; height: 42px; border: 0; border-radius: 50%;
-  background: #fff; color: #1d4ed8; font-size: 20px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.4);
-  display: flex; align-items: center; justify-content: center; }
-.map-locate:active { transform: scale(.92); }
-body.dark .map-locate { background: #1a2234; color: #60a5fa; }
 .map-fab { position: absolute; right: 12px; bottom: 12px; z-index: 800; display: flex; flex-direction: column; gap: 8px; }
 .map-fab button { padding: 12px 16px; border: 0; border-radius: 12px; font-size: 14px;
   font-weight: 800; cursor: pointer; min-height: 44px; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+.map-fab #locateFab { padding: 0; width: 44px; min-height: 44px; border-radius: 50%; font-size: 20px; background: #fff; color: #1d4ed8; display: flex; align-items: center; justify-content: center; }
+body.dark .map-fab #locateFab { background: #1a2234; color: #60a5fa; }
 .map-fab #visitasBtn { background: #1d4ed8; color: #fff; }
 .map-fab #addPdvBtn { background: #22c55e; color: #07120a; }
 .map-watermark { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); z-index: 400;
@@ -339,9 +336,9 @@ body.dark .map-locate { background: #1a2234; color: #60a5fa; }
   <main id="mapWrap">
     <div id="mapa"></div>
     <div class="map-legend" id="mapaMsg">Cargando PDV...</div>
-    <button class="map-locate" onclick="locateMe()" title="Ubicarme">⊕</button>
     <div class="map-badge"><span style="color:#1d4ed8">●</span> de ruteo · <span style="color:#f59e0b">●</span> en PDV · <span style="color:#16a34a">●</span> finalizada · <span style="color:#9ca3af">●</span> sin visita</div>
     <div class="map-fab">
+      <button id="locateFab" onclick="locateMe()" title="Ubicarme">⊕</button>
       <button id="visitasBtn" onclick="openVisitas()">＋ Registrar PDV</button>
       <button id="addPdvBtn" onclick="openAddPdv()">＋ Cargar nuevo PDV</button>
     </div>
@@ -445,6 +442,7 @@ if ('serviceWorker' in navigator) {
 </script>
 <script>
 var code = {{ vendor.code|tojson }};
+var vendorName = {{ vendor.name|tojson }};
 var base = location.origin;
 var running = false;
 var sessionId = localStorage.getItem('gps_session');
@@ -1454,14 +1452,33 @@ var myMarker = null;
 var myCircle = null;
 var mapa = null;
 
+function initials(name) {
+  var w = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return '?';
+  if (w.length === 1) return w[0].slice(0, 2).toUpperCase();
+  return (w[0][0] + w[1][0]).toUpperCase();
+}
+var MERCHAN_COLORS = ['#ef4444','#f59e0b','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316'];
+function merchanColor(name) {
+  var h = 0;
+  for (var i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return MERCHAN_COLORS[Math.abs(h) % MERCHAN_COLORS.length];
+}
+function merchanIcon(name) {
+  var sz = 36;
+  var col = merchanColor(name);
+  return L.divIcon({
+    html: '<div style="width:' + sz + 'px;height:' + sz + 'px;font-size:13px;font-weight:800;border-radius:50%;background:' + col + ';color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4);border:2px solid #fff">' + esc(initials(name)) + '</div>',
+    className: '', iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2]
+  });
+}
+
 function initMapa() {
   if (mapa) return;
   mapa = L.map('mapa').setView([lastLat || -34.6, lastLon || -58.4], lastLat ? 15 : 5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(mapa);
   if (lastLat && lastLon) {
-    myMarker = L.circleMarker([lastLat, lastLon], {
-      radius: 8, color: '#1d4ed8', weight: 2, fillColor: '#1d4ed8', fillOpacity: 0.4
-    }).addTo(mapa);
+    myMarker = L.marker([lastLat, lastLon], { icon: merchanIcon(vendorName) }).addTo(mapa);
   }
   mapa.on('zoomend', syncPdvZoomM);
   mapa.on('moveend', syncPdvZoomM);
@@ -1469,9 +1486,7 @@ function initMapa() {
 function updateMyPosition() {
   if (lastLat === null || !mapa) return;
   if (!myMarker) {
-    myMarker = L.circleMarker([lastLat, lastLon], {
-      radius: 8, color: '#1d4ed8', weight: 2, fillColor: '#1d4ed8', fillOpacity: 0.4
-    }).addTo(mapa);
+    myMarker = L.marker([lastLat, lastLon], { icon: merchanIcon(vendorName) }).addTo(mapa);
   }
   myMarker.setLatLng([lastLat, lastLon]);
   if (mapa && !window._centered) { window._centered = true; mapa.setView([lastLat, lastLon], 15); }

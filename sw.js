@@ -1,4 +1,4 @@
-const CACHE = 'gps-pdv-v8';
+const CACHE = 'gps-pdv-v9';
 const PRECACHE = [
   '/',
   '/manifest.json',

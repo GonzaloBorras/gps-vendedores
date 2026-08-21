@@ -510,6 +510,37 @@ def maintenance():
                         if p.get('c') == delc:
                             lst.remove(p)
             info['del_pdv'] = delc
+        fix_code = request.args.get('fix_pdv', '').strip()
+        fix_lat = request.args.get('lat')
+        fix_lon = request.args.get('lon')
+        fix_calle = request.args.get('calle', '').strip()
+        fix_altura = request.args.get('altura', '').strip()
+        if fix_code and fix_lat and fix_lon:
+            db = get_db()
+            _exec(db, 'UPDATE pdvs_extra SET lat=?, lon=? WHERE cliente=?',
+                  (float(fix_lat), float(fix_lon), fix_code))
+            if fix_calle:
+                _exec(db, 'UPDATE pdvs_extra SET calle=? WHERE cliente=?',
+                      (fix_calle, fix_code))
+            if fix_altura:
+                _exec(db, 'UPDATE pdvs_extra SET altura=? WHERE cliente=?',
+                      (fix_altura, fix_code))
+            db.commit()
+            PDV_BY_CODE.pop(fix_code, None)
+            with _PDV_LOCK:
+                for lst in (PDV, PDV_EXTRA):
+                    for p in list(lst):
+                        if p.get('c') == fix_code:
+                            lst.remove(p)
+            row = _exec(db, 'SELECT cliente, razon, calle, altura, vta, prov, telefono, contacto, notas, lat, lon FROM pdvs_extra WHERE cliente=?', (fix_code,)).fetchone()
+            if row:
+                n = dict(row)
+                n['c'] = n.pop('cliente')
+                n['r'] = n.pop('razon')
+                PDV.append(n)
+                PDV_BY_CODE[fix_code] = n
+                PDV_EXTRA.append(n)
+            info['fix_pdv'] = fix_code
         if request.args.get('purge'):
             _cleanup_rolling()
             _cleanup_monthly()

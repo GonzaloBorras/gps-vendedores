@@ -125,9 +125,11 @@ html, body { height: 100%; font-family: 'Inter', system-ui, -apple-system, 'Sego
   transition: background .15s; }
 .login button:hover { background: #1e40af; }
 .wrong { color: #dc2626; font-size: 12px; margin-top: 8px; }
-.leyenda { position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: #fff;
-  border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.12); padding: 8px 12px; font-size: 12px; color: #475569;
-  line-height: 1.6; }
+.leyenda { position: absolute; top: 60px; right: 10px; z-index: 1300; background: #fff;
+  border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.12); padding: 0; font-size: 12px; color: #475569;
+  line-height: 1.6; max-width: 0; overflow: hidden; opacity: 0; pointer-events: none;
+  transition: max-width .2s ease, opacity .2s ease, padding .2s ease; }
+.leyenda.open { max-width: 280px; opacity: 1; padding: 8px 12px; pointer-events: auto; }
 .mch-ic { background: #22c55e; color: #fff; border-radius: 50%; width: 28px; height: 28px;
   display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
   border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
@@ -171,14 +173,13 @@ body.sidebar-hidden .sidebar { display: none; }
   #statusbar { bottom: 20px; left: 50%; transform: translateX(-50%); white-space: nowrap;
     max-width: calc(100vw - 24px); overflow: hidden; text-overflow: ellipsis;
     padding-bottom: env(safe-area-inset-bottom, 0); }
-  .leyenda { z-index: 3001; top: auto; bottom: 80px; left: 10px; right: auto; transform: none;
-    font-size: 11px; padding: 0; line-height: 1.6; border-radius: 12px; max-width: 44px; overflow: hidden;
-    transition: max-width .2s ease; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
-  .leyenda .leyenda-btn { display: flex; align-items: center; justify-content: center;
-    width: 44px; height: 44px; font-size: 18px; }
-  .leyenda .leyenda-text { display: none; padding: 0 10px 8px; }
-  .leyenda.open { max-width: 260px; }
-  .leyenda.open .leyenda-text { display: block; }
+  .leyenda { z-index: 3001; top: auto; bottom: 70px; right: 12px; left: auto; transform: none;
+    font-size: 11px; padding: 0; line-height: 1.6; border-radius: 12px; max-width: 0; overflow: hidden;
+    opacity: 0; pointer-events: none; transition: max-width .2s ease, opacity .2s ease, padding .2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+  .leyenda .leyenda-btn { display: none; }
+  .leyenda .leyenda-text { padding: 8px 12px; }
+  .leyenda.open { max-width: 260px; opacity: 1; padding: 0; pointer-events: auto; }
   #toast { bottom: 90px; }
   .alertbar { padding-top: env(safe-area-inset-top, 0); }
   .config-overlay { align-items: flex-end; padding: 0;
@@ -427,15 +428,15 @@ body.dark .skeleton-line.w80 { width: 80%; margin-top: 6px; }
 <div class="statusbar" id="statusbar"></div>
 <div class="alertbar" id="alertbar"></div>
 <div class="toast" id="toast"></div>
-<div class="leyenda" id="leyenda" onclick="this.classList.toggle('open')">
+<div class="leyenda" id="leyenda">
   <span class="leyenda-btn">ℹ</span>
   <span class="leyenda-text">🟢 Merchan activo<br>🔴 PDV más cercano<br><span style="color:#1d4ed8">●</span> PDV ruteo · <span style="color:#16a34a">●</span> visitado · <span style="color:#9ca3af">●</span> sin visita</span>
 </div>
 <div class="map-tools">
   <button id="refreshBtn" title="Refrescar panel" onclick="location.reload()">⟳</button>
-  <button id="fitBtn" title="Centrar en vendedores" onclick="fitMerchans()">◎</button>
   <button id="darkBtn" title="Modo oscuro" onclick="toggleDark()">🌙</button>
   <button id="sidebarBtn" title="Mostrar / ocultar lista" onclick="toggleSidebar()">◧</button>
+  <button id="infoBtn" title="Leyenda" onclick="document.getElementById('leyenda').classList.toggle('open')">ℹ</button>
 </div>
 <div class="map-watermark" id="mapWatermark"></div>
 <div class="scrim" id="scrim" onclick="closeSidebar()"></div>
@@ -1848,7 +1849,11 @@ function syncPDVZoom() {
 }
 map.on('zoomend', syncPDVZoom);
 map.on('moveend', syncPDVZoom);
-map.on('click', function () { if (window.innerWidth <= 720) closeSidebar(); });
+map.on('click', function () {
+  if (window.innerWidth <= 720) closeSidebar();
+  var lg = document.getElementById('leyenda');
+  if (lg) lg.classList.remove('open');
+});
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

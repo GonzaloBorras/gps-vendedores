@@ -1882,8 +1882,8 @@ setInterval(renderProximo, 15000);
     var h = now.getHours(), m = now.getMinutes(), sec = now.getSeconds();
     var mins = h * 60 + m;
     if (day === 0) return null;
-    if (day === 6) return mins >= 480 && mins < 780 ? { start: 480, end: 780 } : null;
-    return mins >= 480 && mins < 960 ? { start: 480, end: 960 } : null;
+    if (day === 6) return mins >= 450 && mins < 780 ? { start: 450, end: 780 } : null;
+    return mins >= 450 && mins < 960 ? { start: 450, end: 960 } : null;
   }
   function msUntil(targetMin) {
     var now = getNowAR();
@@ -1896,7 +1896,7 @@ setInterval(renderProximo, 15000);
     var sch = getSchedule();
     if (sch && !running) {
       start();
-      document.getElementById('note').textContent = '🟢 Jornada auto-iniciada (' + Math.floor(sch.start / 60) + ':' + String(sch.start % 60).padStart(2, '0') + '–' + Math.floor(sch.end / 60) + ':' + String(sch.end % 60).padStart(2, '0') + ')';
+      document.getElementById('note').textContent = '🟢 Jornada auto-iniciada';
       document.getElementById('note').style.display = 'block';
     } else if (!sch && running) {
       stop();

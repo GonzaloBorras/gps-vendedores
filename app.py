@@ -227,6 +227,7 @@ def init_db():
             'CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, code TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, ts BIGINT NOT NULL)',
             'CREATE INDEX IF NOT EXISTS idx_push_subs_code ON push_subs(code)',
             'CREATE TABLE IF NOT EXISTS devices (code TEXT PRIMARY KEY, app TEXT NOT NULL DEFAULT \'web\', app_version TEXT NOT NULL DEFAULT \'\', version_code INTEGER NOT NULL DEFAULT 0, updated_at BIGINT NOT NULL)',
+            'CREATE TABLE IF NOT EXISTS merchan_homes (code TEXT PRIMARY KEY, lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, ts BIGINT NOT NULL)',
         ]:
             cur.execute(s)
         cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto TEXT')
@@ -342,6 +343,12 @@ def init_db():
                 app_version TEXT NOT NULL DEFAULT '',
                 version_code INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS merchan_homes (
+                code TEXT PRIMARY KEY,
+                lat REAL NOT NULL,
+                lon REAL NOT NULL,
+                ts INTEGER NOT NULL
             );
         ''')
         vcols = [r[1] for r in con.execute('PRAGMA table_info(visitas)')]
@@ -575,7 +582,7 @@ def backup_db():
             return jsonify({'ok': False, 'error': 'auth required'}), 401
     import io, gzip
     db = get_db()
-    tables = ['visitas', 'pdvs_extra', 'pdv_radius', 'geoevents', 'shifts', 'absence', 'messages', 'push_subs', 'devices', 'settings']
+    tables = ['visitas', 'pdvs_extra', 'pdv_radius', 'geoevents', 'shifts', 'absence', 'messages', 'push_subs', 'devices', 'settings', 'merchan_homes']
     backup = {}
     for t in tables:
         try:
@@ -777,6 +784,14 @@ def track():
           (code, vendor['name'], lat, lon, str(body.get('session'))[:64], ts, batt))
     _exec(db, 'DELETE FROM alerts WHERE code = ?', (code,))
     check_geofence(db, code, lat, lon, ts)
+    _check_home_arrival(db, code, lat, lon, ts)
+    home = _get_home(db, code)
+    if not home:
+        import datetime
+        ar_hour = (datetime.datetime.utcnow() + datetime.timedelta(hours=-3)).hour
+        if 5 <= ar_hour <= 8:
+            _save_home(db, code, lat, lon)
+            _HOME_NOTIFICATIONS[code] = True
     db.commit()
     return jsonify({'ok': True, 'ts': ts})
 
@@ -812,6 +827,62 @@ def gps_status():
         db.commit()
         if not existed:
             _send_push_to('ADMIN', '⚠ ' + name + ' (' + code + ') apagó la ubicación. Revisá el panel.')
+    return jsonify({'ok': True})
+
+
+# ---------------- HOME DETECTION ----------------
+
+_HOME_RADIUS_M = 150
+_HOME_NOTIFICATIONS = {}
+
+def _haversine_m(lat1, lon1, lat2, lon2):
+    import math
+    R = 6371000
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _get_home(db, code):
+    return _exec(db, 'SELECT lat, lon FROM merchan_homes WHERE code=?', (code,)).fetchone()
+
+
+def _save_home(db, code, lat, lon):
+    ts = int(time.time() * 1000)
+    _exec(db, '''INSERT INTO merchan_homes(code, lat, lon, ts) VALUES (?,?,?,?)
+        ON CONFLICT(code) DO UPDATE SET lat=?, lon=?, ts=?''',
+          (code, lat, lon, ts, lat, lon, ts))
+
+
+def _check_home_arrival(db, code, lat, lon, ts):
+    home = _get_home(db, code)
+    if not home:
+        return
+    dist = _haversine_m(lat, lon, home['lat'], home['lon'])
+    was_home = _HOME_NOTIFICATIONS.get(code, False)
+    now_home = dist <= _HOME_RADIUS_M
+    if now_home and not was_home:
+        name = VENDOR_BY_CODE.get(code, {}).get('name', code)
+        _send_push_to('ADMIN', '🏠 ' + name + ' llegó a su casa')
+    _HOME_NOTIFICATIONS[code] = now_home
+
+
+@app.route('/api/merchan/home', methods=['POST'])
+def merchan_home():
+    body = request.get_json(force=True, silent=True) or {}
+    code = str(body.get('code', '')).strip().upper()
+    if code not in VENDOR_BY_CODE:
+        return jsonify({'ok': False, 'error': 'codigo invalido'}), 403
+    try:
+        lat = float(body.get('lat'))
+        lon = float(body.get('lon'))
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'coordenadas invalidas'}), 400
+    db = get_db()
+    _save_home(db, code, lat, lon)
+    db.commit()
     return jsonify({'ok': True})
 
 

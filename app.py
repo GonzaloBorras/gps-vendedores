@@ -1804,29 +1804,6 @@ def visitas_semanal():
     return jsonify({'days': days, 'merchans': out})
 
 
-@app.route('/api/visitas/heatmap')
-def visitas_heatmap():
-    if not (session.get('auth') or request.args.get('pin') == DASH_PIN):
-        return jsonify({'ok': False, 'error': 'no autorizado'}), 401
-    fecha = request.args.get('fecha', '').strip()
-    db = get_db()
-    sql = _q('SELECT v.cliente, v.razon, p.lat, p.lon FROM visitas v '
-             'JOIN positions p ON p.code = v.code AND ABS(p.ts - v.ts) < 300000')
-    conds, params = [], []
-    if fecha:
-        conds.append(_q('v.fecha = %s') if PG else 'v.fecha = ?')
-        params.append(fecha)
-    if conds:
-        sql += ' WHERE ' + ' AND '.join(conds)
-    sql += ' GROUP BY ' + ('v.fecha, v.code, v.cliente, p.lat, p.lon' if PG else 'v.fecha, v.code, v.cliente')
-    rows = _exec(db, sql, params).fetchall()
-    points = []
-    for r in rows:
-        if r['lat'] and r['lon']:
-            points.append({'lat': r['lat'], 'lon': r['lon'], 'cliente': r['cliente'], 'razon': r['razon']})
-    return jsonify(points)
-
-
 # ---------------- Mensajes panel -> merchan ----------------
 
 @app.route('/api/messages')

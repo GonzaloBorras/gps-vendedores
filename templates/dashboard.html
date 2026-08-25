@@ -463,14 +463,6 @@ body.dark .daily-summary .ds-name { color: #e2e8f0; }
         <input type="checkbox" id="sin-visita-toggle" onchange="toggleSinVisita()">
         <span>Sin visita alert</span>
       </label>
-      <label class="toggle-row">
-        <input type="checkbox" id="heatmap-toggle" onchange="toggleHeatmap()">
-        <span>Heat map</span>
-      </label>
-    </div>
-    <div id="heatSliderWrap" style="display:none;padding:4px 0 0">
-      <input type="range" id="heatSlider" min="5" max="20" value="12" oninput="renderHeatmapHour()" style="width:100%">
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8"><span>05:00</span><span id="heatSliderLabel" style="font-weight:700;color:#1d4ed8">12:00</span><span>20:00</span></div>
     </div>
     <div class="chk-row" style="margin-top:6px">
       <label class="toggle-row">
@@ -2119,44 +2111,6 @@ function renderSinVisitaMarkers() {
     sinVisitaMarkers.push(m);
   });
   toast(sinVisitaAlerts.length + ' PDV sin visita hoy');
-}
-
-var heatMarkers = [];
-var heatData = [];
-function toggleHeatmap() {
-  var on = document.getElementById('heatmap-toggle').checked;
-  document.getElementById('heatSliderWrap').style.display = on ? 'block' : 'none';
-  if (on) loadHeatmap();
-  else clearHeatmap();
-}
-function loadHeatmap() {
-  clearHeatmap();
-  fetch('/api/visitas/heatmap').then(function(r) { return r.json(); }).then(function(pts) {
-    heatData = pts;
-    renderHeatmapHour();
-  }).catch(function() {});
-}
-function renderHeatmapHour() {
-  clearHeatmap();
-  var hour = parseInt(document.getElementById('heatSlider').value);
-  document.getElementById('heatSliderLabel').textContent = String(hour).padStart(2,'0') + ':00';
-  heatData.forEach(function(p) {
-    if (!p.lat || !p.lon) return;
-    var pts = heatData.filter(function(h) {
-      return Math.abs(h.lat - p.lat) < 0.001 && Math.abs(h.lon - p.lon) < 0.001;
-    });
-    var opacity = Math.min(0.6, 0.15 + pts.length * 0.05);
-    var radius = Math.min(20, 10 + pts.length * 2);
-    var m = L.circleMarker([p.lat, p.lon], {
-      radius: radius, color: '#ef4444', weight: 1, fillColor: '#ef4444', fillOpacity: opacity
-    }).addTo(map);
-    m.bindPopup('<div class="popup-info"><div class="name">' + esc(p.razon || p.cliente) + '</div><div class="ruta">' + pts.length + ' visita(s)</div></div>');
-    heatMarkers.push(m);
-  });
-}
-function clearHeatmap() {
-  heatMarkers.forEach(function(m) { map.removeLayer(m); });
-  heatMarkers = [];
 }
 
 var hiddenMerchans = {};

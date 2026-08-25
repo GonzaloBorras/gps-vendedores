@@ -228,6 +228,7 @@ def init_db():
             'CREATE INDEX IF NOT EXISTS idx_push_subs_code ON push_subs(code)',
             'CREATE TABLE IF NOT EXISTS devices (code TEXT PRIMARY KEY, app TEXT NOT NULL DEFAULT \'web\', app_version TEXT NOT NULL DEFAULT \'\', version_code INTEGER NOT NULL DEFAULT 0, updated_at BIGINT NOT NULL)',
             'CREATE TABLE IF NOT EXISTS merchan_homes (code TEXT PRIMARY KEY, lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, ts BIGINT NOT NULL)',
+            'CREATE TABLE IF NOT EXISTS merchan_avatars (code TEXT PRIMARY KEY, avatar TEXT NOT NULL)',
         ]:
             cur.execute(s)
         cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto TEXT')
@@ -351,6 +352,10 @@ def init_db():
                 lat REAL NOT NULL,
                 lon REAL NOT NULL,
                 ts INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS merchan_avatars (
+                code TEXT PRIMARY KEY,
+                avatar TEXT NOT NULL
             );
         ''')
         vcols = [r[1] for r in con.execute('PRAGMA table_info(visitas)')]
@@ -945,6 +950,68 @@ def merchan_home():
     _save_home(db, code, lat, lon)
     db.commit()
     return jsonify({'ok': True})
+
+
+@app.route('/api/merchan/avatar', methods=['GET'])
+def merchan_avatar_get():
+    code = request.args.get('code', '').strip().upper()
+    if not code:
+        avatars = {}
+        rows = _exec(get_db(), 'SELECT code, avatar FROM merchan_avatars').fetchall()
+        for r in rows:
+            avatars[r['code']] = r['avatar']
+        return jsonify(avatars)
+    row = _exec(get_db(), 'SELECT avatar FROM merchan_avatars WHERE code=?', (code,)).fetchone()
+    if not row:
+        return jsonify({'ok': False}), 404
+    return jsonify({'ok': True, 'avatar': row['avatar']})
+
+
+@app.route('/api/merchan/avatar', methods=['POST'])
+def merchan_avatar_post():
+    body = request.get_json(force=True, silent=True) or {}
+    code = str(body.get('code', '')).strip().upper()
+    avatar = str(body.get('avatar', '')).strip()
+    if code not in VENDOR_BY_CODE:
+        return jsonify({'ok': False, 'error': 'codigo invalido'}), 403
+    db = get_db()
+    if not avatar:
+        _exec(db, 'DELETE FROM merchan_avatars WHERE code=?', (code,))
+    else:
+        _exec(db, 'INSERT INTO merchan_avatars(code, avatar) VALUES(?,?) '
+              'ON CONFLICT(code) DO UPDATE SET avatar=?', (code, avatar, avatar))
+    db.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/pdv/visit-status')
+def pdv_visit_status():
+    cliente = request.args.get('cliente', '').strip()
+    fecha = request.args.get('fecha', '').strip() or _today_str()
+    if not cliente:
+        return jsonify({'ok': False, 'error': 'falta cliente'}), 400
+    db = get_db()
+    merchans = [(v['code'], v['name']) for v in VENDORS if v.get('grupo') == 'merchan']
+    vis_rows = _exec(db, 'SELECT code, ts, foto_ts, foto_salida_ts, notas FROM visitas WHERE cliente=? AND fecha=?',
+                     (cliente, fecha)).fetchall()
+    visited = {}
+    for r in vis_rows:
+        visited[r['code']] = {'ts': r['ts'], 'foto': bool(r['foto_ts'] and r['foto_ts'] > 0),
+                               'finalizada': bool(r['foto_salida_ts'] and r['foto_salida_ts'] > 0),
+                               'notas': r['notas'] or ''}
+    result = []
+    for mc, mn in merchans:
+        v = visited.get(mc)
+        result.append({
+            'code': mc, 'name': mn,
+            'visited': v is not None,
+            'ts': v['ts'] if v else None,
+            'hora': datetime.fromtimestamp(v['ts'] / 1000, timezone(timedelta(hours=-3))).strftime('%H:%M') if v else None,
+            'foto': v['foto'] if v else False,
+            'finalizada': v['finalizada'] if v else False,
+            'notas': v['notas'] if v else '',
+        })
+    return jsonify({'ok': True, 'results': result})
 
 
 @app.route('/api/alerts')
@@ -2299,7 +2366,8 @@ def export_presencia_xlsx():
     wb = Workbook()
     ws = wb.active
     ws.title = 'Presencia'
-    headers = ['Codigo', 'Colaborador', 'Fecha', 'Hora llegada', 'Hora salida', 'Horas en campo']
+    headers = ['Codigo', 'Colaborador', 'Fecha', 'Hora llegada campo', 'Hora salida campo', 'Horas campo',
+               'PDV', 'Hora llegada PDV', 'Hora salida PDV', 'Min en PDV', 'Finalizada', 'Notas']
     ws.append(headers)
     for cell in ws[1]:
         cell.font = Font(bold=True)
@@ -2316,15 +2384,35 @@ def export_presencia_xlsx():
             s, e = _day_range(fecha)
             pos = _exec(db, 'SELECT lat, lon, ts FROM positions WHERE code=? AND ts>=? AND ts<? ORDER BY ts',
                         (mc, s, e)).fetchall()
+            visitas = _exec(db, 'SELECT cliente, razon, ts, foto_ts, foto_salida_ts, notas FROM visitas WHERE code=? AND fecha=? ORDER BY ts',
+                            (mc, fecha)).fetchall()
+            h_llegada = ''
+            h_salida = ''
+            horas = 0
             if pos:
                 first = pos[0]['ts']
                 last = pos[-1]['ts']
                 h_llegada = datetime.fromtimestamp(first / 1000, ar_tz).strftime('%H:%M')
                 h_salida = datetime.fromtimestamp(last / 1000, ar_tz).strftime('%H:%M')
                 horas = round((last - first) / 3600000.0, 2)
-                ws.append([mc, mn, fecha, h_llegada, h_salida, horas])
+            if visitas:
+                for vi in visitas:
+                    v_ts = vi['ts']
+                    v_hora = datetime.fromtimestamp(v_ts / 1000, ar_tz).strftime('%H:%M')
+                    nombre = vi['razon'] or vi['cliente']
+                    h_llegada_pdv = v_hora
+                    h_salida_pdv = ''
+                    min_pdv = ''
+                    if vi['foto_salida_ts'] and vi['foto_salida_ts'] > 0:
+                        h_salida_pdv = datetime.fromtimestamp(vi['foto_salida_ts'] / 1000, ar_tz).strftime('%H:%M')
+                        min_pdv = round((vi['foto_salida_ts'] - v_ts) / 60000.0, 1)
+                    finalizada = 'Si' if (vi['foto_salida_ts'] and vi['foto_salida_ts'] > 0) else 'No'
+                    ws.append([mc, mn, fecha, h_llegada, h_salida, horas,
+                               nombre, h_llegada_pdv, h_salida_pdv, min_pdv, finalizada, vi['notas'] or ''])
+            elif pos:
+                ws.append([mc, mn, fecha, h_llegada, h_salida, horas, '', '', '', '', '', ''])
             d += timedelta(days=1)
-    widths = [10, 22, 12, 14, 14, 14]
+    widths = [10, 22, 12, 16, 16, 12, 24, 16, 16, 12, 12, 20]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
     buf = BytesIO()

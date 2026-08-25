@@ -135,6 +135,8 @@ html, body { height: 100%; font-family: 'Inter', system-ui, -apple-system, 'Sego
 .mch-ic { background: #22c55e; color: #fff; border-radius: 50%; width: 28px; height: 28px;
   display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
   border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+.vendor-avatar { width: 28px; height: 28px; border-radius: 50%; flex: none; object-fit: cover;
+  border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
 .map-watermark { position: absolute; bottom: 10px; left: 10px; z-index: 900; font-size: 11px;
   color: #64748b; opacity: .5; pointer-events: none; user-select: none; letter-spacing: .3px; }
 .map-tools { position: absolute; top: 10px; right: 10px; z-index: 1300; display: flex; gap: 8px; }
@@ -292,7 +294,7 @@ body.sidebar-hidden .sidebar { display: none; }
   box-shadow: 0 2px 8px rgba(220,38,38,.1); }
 .alertbar.flash { animation: alertpulse 1.5s ease-in-out 2; }
 @keyframes alertpulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
-.sin-visita-pulse { animation: sinPulse 2s infinite; }
+
 @keyframes sinPulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
 .gps-alert { margin-top: 6px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;
   border-radius: 8px; padding: 6px 10px; font-size: 11px; font-weight: 600; }
@@ -455,21 +457,6 @@ body.dark .daily-summary .ds-name { color: #e2e8f0; }
       <label class="toggle-row">
         <input type="checkbox" id="pdv-toggle" onchange="togglePDV()" checked>
         <span>Mostrar PDV</span>
-      </label>
-      <label class="toggle-row"><input type="checkbox" id="heat-toggle" onchange="toggleHeat()"> <span>Heat map visitas</span></label>
-    </div>
-    <div class="chk-row">
-      <label class="toggle-row">
-        <input type="checkbox" id="sin-visita-toggle" onchange="toggleSinVisita()">
-        <span>Sin visita alert</span>
-      </label>
-    </div>
-    <div class="chk-row" style="margin-top:6px">
-      <label class="toggle-row">
-        <input type="radio" name="dateRange" value="today" checked onchange="setDateRange('today')"> <span>Hoy</span>
-      </label>
-      <label class="toggle-row">
-        <input type="radio" name="dateRange" value="7days" onchange="setDateRange('7days')"> <span>7 días</span>
       </label>
     </div>
   </div>
@@ -747,10 +734,16 @@ function initials(name) {
   if (w.length === 1) return w[0].slice(0, 2).toUpperCase();
   return (w[0][0] + w[1][0]).toUpperCase();
 }
-function merchanIcon(name) {
+function merchanIcon(name, code) {
   var sz = window.innerWidth <= 720 ? 34 : 28;
+  var inner = '';
+  if (code && avatarData[code]) {
+    inner = '<img src="data:image/jpeg;base64,' + avatarData[code] + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
+  } else {
+    inner = '<div class="mch-ic" style="width:' + sz + 'px;height:' + sz + 'px;font-size:' + Math.round(sz * 0.36) + 'px">' + esc(initials(name)) + '</div>';
+  }
   return L.divIcon({
-    html: '<div class="mch-ic" style="width:' + sz + 'px;height:' + sz + 'px;font-size:' + Math.round(sz * 0.36) + 'px">' + esc(initials(name)) + '</div>',
+    html: '<div style="width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;overflow:hidden;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">' + inner + '</div>',
     className: '', iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2]
   });
 }
@@ -868,6 +861,7 @@ function renderSidebar(list) {
         (up ? ' · OK' : ' · desactualizada') + '</span></div>';
     }
     el.innerHTML = '<div class="row1"><span class="dot ' + (on ? 'on' : 'off') + '"></span>' +
+      (avatarData[v.code] ? '<img class="vendor-avatar" src="data:image/jpeg;base64,' + avatarData[v.code] + '" alt="">' : '') +
       '<span class="name">' + esc(v.name) + '</span><span class="prov">' + esc(v.prov) + '</span></div>' +
       '<div class="code">' + esc(v.code) + '</div>' +
       '<div class="last">' + lastTxt + '</div>' +
@@ -921,6 +915,7 @@ var visitedFoto = {};
 var pdvRutaSet = {};
 var resumenData = {};
 var jornadasData = {};
+var avatarData = {};
 
 function haversineM(lat1, lon1, lat2, lon2) {
   var R = 6371000;
@@ -1011,6 +1006,9 @@ function updateCardData() {
   fetch('/api/jornadas').then(function (r) { return r.json(); })
     .then(function (d) { jornadasData = d || {}; renderMerchanMeta(); })
     .catch(function (e) { _panelErr('jornadas: ' + (e && e.message ? e.message : e)); });
+  fetch('/api/merchan/avatar').then(function (r) { return r.json(); })
+    .then(function (d) { avatarData = d || {}; renderSidebar(currentList); })
+    .catch(function () {});
 }
 
 function updateSidebarStatus(list) {
@@ -1091,7 +1089,7 @@ function refresh() {
       if (p.lat == null) return;
       if (!markers[p.code]) {
         var v = vendorsData.find(function (x) { return x.code === p.code; });
-        var m = L.marker([p.lat, p.lon], { icon: merchanIcon(v ? v.name : p.code) });
+        var m = L.marker([p.lat, p.lon], { icon: merchanIcon(v ? v.name : p.code, p.code) });
         m.bindPopup('', { maxWidth: 260 });
         m._pos = p;
         m.on('click', function () { m.setPopupContent(makePopup(p, p)); });
@@ -1389,7 +1387,7 @@ function applyColor() {
     if (v) v.color = color;
     if (markers[code]) {
       markers[code]._pos.color = color;
-      markers[code].setIcon(merchanIcon(v ? v.name : code));
+      markers[code].setIcon(merchanIcon(v ? v.name : code, code));
     }
     cfgMsg('Color del pin actualizado.');
   }).catch(function () { cfgMsg('Error de conexión.'); });
@@ -1408,7 +1406,7 @@ function applyName() {
     if (v) v.name = name;
     if (markers[code]) {
       markers[code]._pos.name = name;
-      markers[code].setIcon(merchanIcon(name));
+      markers[code].setIcon(merchanIcon(name, code));
       markers[code].setPopupContent(makePopup(markers[code]._pos, markers[code]._pos));
     }
     cfgMsg('Nombre actualizado.');
@@ -1429,20 +1427,6 @@ function manualRefresh() {
 function todayStr() {
   var d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
-
-var dateRangeMode = 'today';
-function setDateRange(mode) {
-  dateRangeMode = mode;
-  if (mode === 'today') {
-    fechaSel = todayStr();
-  } else {
-    var d = new Date();
-    d.setDate(d.getDate() - 6);
-    fechaSel = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-  }
-  updateCardData();
-  refresh();
 }
 
 function fillVisVendors() {
@@ -1977,37 +1961,6 @@ window.addEventListener('resize', function () {
   }
 });
 
-var heatLayer = null;
-
-function toggleHeat() {
-  var on = document.getElementById('heat-toggle') && document.getElementById('heat-toggle').checked;
-  if (!on && heatLayer) { map.removeLayer(heatLayer); heatLayer = null; return; }
-  if (!on) return;
-  function doHeat() {
-    fetch('/api/visitas/resumen?fecha=' + fechaSel).then(function(r) { return r.json(); }).then(function(d) {
-      var points = [];
-      Object.keys(d).forEach(function(code) {
-        var vi = d[code];
-        if (!vi || !vi.clientes) return;
-        var pos = null;
-        markers[code] && markers[code]._pos && (pos = markers[code]._pos);
-        if (!pos || pos.lat == null) return;
-        var count = vi.n || 0;
-        for (var i = 0; i < count; i++) {
-          points.push([pos.lat + (Math.random() - 0.5) * 0.002, pos.lon + (Math.random() - 0.5) * 0.002, 0.5]);
-        }
-      });
-      if (heatLayer) map.removeLayer(heatLayer);
-      heatLayer = L.heatLayer(points, { radius: 25, blur: 15, maxZoom: 17, max: 1.0, gradient: {0.2: '#22c55e', 0.5: '#eab308', 1: '#ef4444'} }).addTo(map);
-    });
-  }
-  if (typeof L.heatLayer === 'function') { doHeat(); return; }
-  var s = document.createElement('script');
-  s.src = 'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js';
-  s.onload = doHeat;
-  document.head.appendChild(s);
-}
-
 function togglePDV() {
   var on = document.getElementById('pdv-toggle').checked;
   if (!on) {
@@ -2021,20 +1974,56 @@ function togglePDV() {
   }
   fetch('/api/pdv').then(function (r) { return r.json(); }).then(function (arr) {
     var pts = arr.map(function (d) {
-      var vis = visitedPdvSet[d.c];
       var m = L.marker([d.lat, d.lon], { icon: pdvIconFor(d.c) });
       m._c = d.c;
       var dir = d.calle || '—';
       if (d.altura) dir += ' ' + d.altura;
-      var estado = '';
-      if (vis) {
-        var f = visitedFoto[String(d.c)];
-        estado = '<div style="margin-top:4px">' +
-          '<b style="color:#047857">✔ Visitado (' + esc(fechaSel) + ')</b>' +
-          ' · <span class="' + (f ? 'foto-ok' : 'foto-miss') + '">' +
-          (f ? '✓ Foto cargada' : '✗ Sin foto') + '</span></div>';
-      }
-      m.bindPopup('<div class="popup-info">' +
+      m.on('click', function () {
+        fetch('/api/pdv/visit-status?cliente=' + encodeURIComponent(d.c) + '&fecha=' + fechaSel)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var visHtml = '';
+            if (data.ok && data.results && data.results.length) {
+              visHtml = '<div style="margin-top:6px;border-top:1px solid #e2e8f0;padding-top:6px">';
+              visHtml += '<div style="font-size:11px;color:#64748b;font-weight:700;margin-bottom:4px">Estado de visitas</div>';
+              data.results.forEach(function (vr) {
+                if (vr.visited) {
+                  var icon = vr.finalizada ? '✔' : '●';
+                  var color = vr.finalizada ? '#059669' : '#2563eb';
+                  var fotoTxt = vr.foto ? ' 📷' : '';
+                  var notasTxt = vr.notas ? ' · ' + esc(vr.notas) : '';
+                  visHtml += '<div style="font-size:11px;margin:2px 0;display:flex;align-items:center;gap:4px">' +
+                    '<span style="color:' + color + ';font-weight:700">' + icon + '</span> ' +
+                    '<b>' + esc(vr.name) + '</b>' +
+                    '<span style="color:#64748b">' + (vr.hora || '') + fotoTxt + '</span>' + notasTxt + '</div>';
+                } else {
+                  visHtml += '<div style="font-size:11px;margin:2px 0;color:#dc2626">✗ ' + esc(vr.name) + ' <span style="color:#9ca3af">pendiente</span></div>';
+                }
+              });
+              visHtml += '</div>';
+            }
+            m.setPopupContent('<div class="popup-info">' +
+              '<div class="name">' + esc(d.r) + '</div>' +
+              '<div>Cliente: ' + (d.c ? esc(d.c) : '—') +
+                ' &nbsp; <span style="color:#9ca3af;font-size:10px">' + esc(d.prov) + '</span></div>' +
+              '<div>' + esc(dir) + '</div>' +
+              (d.vta ? '<div class="ruta">' + esc(d.vta) + '</div>' : '') +
+              (d.telefono ? '<div style="margin-top:2px">📞 ' + esc(d.telefono) + '</div>' : '') +
+              (d.contacto ? '<div style="margin-top:2px">👤 ' + esc(d.contacto) + '</div>' : '') +
+              (d.notas ? '<div style="margin-top:2px;color:#6b7280">' + esc(d.notas) + '</div>' : '') +
+              visHtml +
+              '<a href="https://www.google.com/maps/search/?api=1&query=' + d.lat + ',' + d.lon +
+              '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;border:0;border-radius:6px;padding:5px 10px;background:#eff6ff;color:#1d4ed8;font-weight:600;text-decoration:none">Google Maps</a>' +
+              '</div>');
+          })
+          .catch(function () {
+            m.setPopupContent('<div class="popup-info">' +
+              '<div class="name">' + esc(d.r) + '</div>' +
+              '<div>Cliente: ' + (d.c ? esc(d.c) : '—') + '</div>' +
+              '<div>' + esc(dir) + '</div></div>');
+          });
+      });
+      var initContent = '<div class="popup-info">' +
         '<div class="name">' + esc(d.r) + '</div>' +
         '<div>Cliente: ' + (d.c ? esc(d.c) : '—') +
           ' &nbsp; <span style="color:#9ca3af;font-size:10px">' + esc(d.prov) + '</span></div>' +
@@ -2043,10 +2032,11 @@ function togglePDV() {
         (d.telefono ? '<div style="margin-top:2px">📞 ' + esc(d.telefono) + '</div>' : '') +
         (d.contacto ? '<div style="margin-top:2px">👤 ' + esc(d.contacto) + '</div>' : '') +
         (d.notas ? '<div style="margin-top:2px;color:#6b7280">' + esc(d.notas) + '</div>' : '') +
-        estado +
+        '<div style="margin-top:4px;font-size:11px;color:#9ca3af">Cargando visitas...</div>' +
         '<a href="https://www.google.com/maps/search/?api=1&query=' + d.lat + ',' + d.lon +
         '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;border:0;border-radius:6px;padding:5px 10px;background:#eff6ff;color:#1d4ed8;font-weight:600;text-decoration:none">Google Maps</a>' +
-        '</div>');
+        '</div>';
+      m.bindPopup(initContent, { maxWidth: 260 });
       return m;
     });
     pdvPoints = pts;
@@ -2062,55 +2052,6 @@ function refreshPDVColors() {
   pdvPoints.forEach(function (m) {
     m.setIcon(pdvIconFor(m._c));
   });
-}
-
-var sinVisitaAlerts = [];
-function toggleSinVisita() {
-  var on = document.getElementById('sin-visita-toggle').checked;
-  if (on) loadSinVisitaAlerts();
-  else { sinVisitaAlerts = []; renderSinVisitaMarkers(); }
-}
-function loadSinVisitaAlerts() {
-  sinVisitaAlerts = [];
-  var merchans = sortedMerchans();
-  var pending = merchans.length;
-  if (!pending) return;
-  merchans.forEach(function(v) {
-    var key = selKey();
-    if (!key) { pending--; return; }
-    var rutas = rutasByMerchan[v.code];
-    if (!rutas || !rutas[key]) { pending--; return; }
-    var pdvs = rutas[key];
-    var vis = (visitasToday[v.code] || {}).clientes || [];
-    var visSet = {};
-    vis.forEach(function(c) { visSet[String(c)] = 1; });
-    pdvs.forEach(function(r) {
-      if (!visSet[String(r.cliente)]) {
-        sinVisitaAlerts.push({ merchan: v.name, code: v.code, cliente: r.cliente, razon: r.razon });
-      }
-    });
-    pending--;
-  });
-  renderSinVisitaMarkers();
-}
-var sinVisitaMarkers = [];
-function renderSinVisitaMarkers() {
-  sinVisitaMarkers.forEach(function(m) { map.removeLayer(m); });
-  sinVisitaMarkers = [];
-  if (!sinVisitaAlerts.length) return;
-  sinVisitaAlerts.forEach(function(a) {
-    var p = pdvByCode[a.cliente];
-    if (!p || !p.lat || !p.lon) return;
-    var m = L.circleMarker([p.lat, p.lon], {
-      radius: 8, color: '#f59e0b', weight: 2, fillColor: '#fbbf24', fillOpacity: 0.8,
-      className: 'sin-visita-pulse'
-    }).addTo(map);
-    m.bindPopup('<div class="popup-info"><div class="name">' + esc(p.r || a.razon) + '</div>' +
-      '<div class="ruta">⚠ Sin visita — ' + esc(a.merchan) + '</div>' +
-      '<button class="btn btn-route" onclick="map.setView([' + p.lat + ',' + p.lon + '],17);map.closePopup()">Centrar</button></div>');
-    sinVisitaMarkers.push(m);
-  });
-  toast(sinVisitaAlerts.length + ' PDV sin visita hoy');
 }
 
 var hiddenMerchans = {};

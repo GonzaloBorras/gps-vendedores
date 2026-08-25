@@ -232,7 +232,9 @@ body { display: block; align-items: initial; justify-content: initial; padding: 
   border: 1px solid #2a3450; color: #cbd5e1; border-radius: 8px; padding: 6px 10px; font-size: 11px; }
 .side-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #2a3450; }
 .side-avatar { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg,#1d4ed8,#7c3aed);
-  display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: #fff; flex: none; }
+  display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: #fff; flex: none;
+  cursor: pointer; overflow: hidden; position: relative; }
+.side-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .side-titles { flex: 1; min-width: 0; text-align: left; }
 .side-titles h1 { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-titles .prov { color: #93c5fd; font-size: 12px; }
@@ -284,7 +286,8 @@ body.dark .map-fab #locateFab { background: #1a2234; color: #60a5fa; }
 <div id="app">
   <aside id="side" class="open">
     <div class="side-head">
-      <div class="side-avatar">{{ vendor.name[0] }}</div>
+      <div class="side-avatar" id="sideAvatar" onclick="document.getElementById('avatarInput').click()">{{ vendor.name[0] }}</div>
+      <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="uploadAvatar(this)">
       <div class="side-titles">
         <h1>{{ vendor.name }}</h1>
         <div class="prov">{{ vendor.prov }}</div>
@@ -2056,6 +2059,45 @@ setInterval(loadRouteLine, 300000);
     }
     pulling = false;
   });
+})();
+function uploadAvatar(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  if (file.size > 500000) { alert('La imagen es muy grande (máx 500KB)'); return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var sz = 200;
+      canvas.width = sz; canvas.height = sz;
+      var ctx = canvas.getContext('2d');
+      var m = Math.min(img.width, img.height);
+      var sx = (img.width - m) / 2, sy = (img.height - m) / 2;
+      ctx.drawImage(img, sx, sy, m, m, 0, 0, sz, sz);
+      var b64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+      fetch('/api/merchan/avatar', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code: '{{ vendor.code }}', avatar: b64})
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) {
+          var av = document.getElementById('sideAvatar');
+          av.innerHTML = '<img src="data:image/jpeg;base64,' + b64 + '" alt="Avatar">';
+        }
+      }).catch(function() {});
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+(function() {
+  fetch('/api/merchan/avatar?code={{ vendor.code }}').then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok && d.avatar) {
+      var av = document.getElementById('sideAvatar');
+      av.innerHTML = '<img src="data:image/jpeg;base64,' + d.avatar + '" alt="Avatar">';
+    }
+  }).catch(function() {});
 })();
 </script>
 </body>

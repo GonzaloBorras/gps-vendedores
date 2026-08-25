@@ -212,7 +212,7 @@ def init_db():
             'CREATE TABLE IF NOT EXISTS vendors (code TEXT PRIMARY KEY, name TEXT NOT NULL, prov TEXT NOT NULL, color TEXT NOT NULL, grupo TEXT NOT NULL DEFAULT \'rutas\')',
             'CREATE TABLE IF NOT EXISTS positions (id SERIAL PRIMARY KEY, code TEXT NOT NULL, name TEXT NOT NULL, lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, session TEXT, ts BIGINT NOT NULL)',
             'CREATE INDEX IF NOT EXISTS idx_positions_code_ts ON positions(code, ts)',
-            'CREATE TABLE IF NOT EXISTS visitas (fecha TEXT NOT NULL, code TEXT NOT NULL, cliente TEXT NOT NULL, razon TEXT NOT NULL DEFAULT \'\', calle TEXT NOT NULL DEFAULT \'\', vta TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL, foto TEXT, foto_ts BIGINT, foto_salida_ts BIGINT, PRIMARY KEY (fecha, code, cliente))',
+            'CREATE TABLE IF NOT EXISTS visitas (fecha TEXT NOT NULL, code TEXT NOT NULL, cliente TEXT NOT NULL, razon TEXT NOT NULL DEFAULT \'\', calle TEXT NOT NULL DEFAULT \'\', vta TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL, foto TEXT, foto_ts BIGINT, foto_salida_ts BIGINT, notas TEXT NOT NULL DEFAULT \'\', PRIMARY KEY (fecha, code, cliente))',
             'CREATE INDEX IF NOT EXISTS idx_visitas_fecha_code ON visitas(fecha, code)',
             'CREATE TABLE IF NOT EXISTS alerts (code TEXT PRIMARY KEY, tipo TEXT NOT NULL DEFAULT \'gps_off\', ts BIGINT NOT NULL, msj TEXT NOT NULL DEFAULT \'\')',
             'CREATE TABLE IF NOT EXISTS shifts (code TEXT PRIMARY KEY, shift_ms BIGINT NOT NULL)',
@@ -237,6 +237,7 @@ def init_db():
         cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS telefono TEXT NOT NULL DEFAULT \'\'')
         cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS contacto TEXT NOT NULL DEFAULT \'\'')
         cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT \'\'')
+        cur.execute("ALTER TABLE visitas ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT ''")
         con.commit()
     else:
         con.executescript('''
@@ -268,6 +269,7 @@ def init_db():
                 foto    TEXT,
                 foto_ts INTEGER,
                 foto_salida_ts INTEGER,
+                notas   TEXT NOT NULL DEFAULT '',
                 PRIMARY KEY (fecha, code, cliente)
             );
             CREATE INDEX IF NOT EXISTS idx_visitas_fecha_code ON visitas(fecha, code);
@@ -368,6 +370,9 @@ def init_db():
             con.execute("ALTER TABLE pdvs_extra ADD COLUMN contacto TEXT NOT NULL DEFAULT ''")
         if 'notas' not in pcols:
             con.execute("ALTER TABLE pdvs_extra ADD COLUMN notas TEXT NOT NULL DEFAULT ''")
+        vcols_notas = [r[1] for r in con.execute('PRAGMA table_info(visitas)')]
+        if 'notas' not in vcols_notas:
+            con.execute("ALTER TABLE visitas ADD COLUMN notas TEXT NOT NULL DEFAULT ''")
         pcolsb = [r[1] for r in con.execute('PRAGMA table_info(positions)')]
         if 'battery' not in pcolsb:
             con.execute('ALTER TABLE positions ADD COLUMN battery INTEGER')
@@ -406,6 +411,7 @@ init_db()
 
 CLEANUP_DAYS = 15  # retención del recorrido en días (posiciones/geoevents)
 CLEANUP_INTERVAL_S = 3600  # revisar cada hora
+REPORT_HOUR = 20  # 20:00 hs Argentina
 
 
 def _ar_now():
@@ -460,6 +466,61 @@ def _cleanup_loop():
 
 _cleanup_rolling()
 threading.Thread(target=_cleanup_loop, daemon=True).start()
+
+
+def _send_push_to_raw(code, msj):
+    try:
+        from pywebpush import webpush
+    except Exception:
+        return
+    keys = _vapid_keys()
+    con = _raw_conn()
+    try:
+        subs = _exec(con, 'SELECT endpoint, p256dh, auth FROM push_subs WHERE code=?', (code,)).fetchall()
+    except Exception:
+        return
+    for s in subs:
+        try:
+            webpush(
+                subscription_info={'endpoint': s['endpoint'],
+                                   'keys': {'p256dh': s['p256dh'], 'auth': s['auth']}},
+                data=json.dumps({'title': 'GPS Merchan', 'body': msj}),
+                vapid_private_key=keys['priv'],
+                vapid_claims={'sub': VAPID_MAILTO},
+            )
+        except Exception:
+            pass
+
+
+def _daily_report_loop():
+    reported_today = None
+    while True:
+        try:
+            now = datetime.now(timezone(timedelta(hours=-3)))
+            today = now.date().isoformat()
+            if now.hour >= REPORT_HOUR and reported_today != today:
+                reported_today = today
+                con = _raw_conn()
+                fecha = today
+                merchans = [(v['code'], v['name']) for v in VENDORS if v.get('grupo') == 'merchan']
+                lines = []
+                for mc, mn in merchans:
+                    vis_rows = _exec(con, 'SELECT cliente, razon FROM visitas WHERE code=? AND fecha=?',
+                                     (mc, fecha)).fetchall()
+                    if vis_rows:
+                        names = ', '.join([r['razon'] or r['cliente'] for r in vis_rows[:5]])
+                        extra = ' y +' + str(len(vis_rows) - 5) if len(vis_rows) > 5 else ''
+                        lines.append(mn + ': ' + str(len(vis_rows)) + ' visitas (' + names + extra + ')')
+                    else:
+                        lines.append(mn + ': 0 visitas')
+                body = '📊 Resumen ' + fecha + '\n' + '\n'.join(lines)
+                _send_push_to_raw('ADMIN', body)
+        except Exception:
+            pass
+        time.sleep(60)
+
+
+threading.Thread(target=_daily_report_loop, daemon=True).start()
 
 
 def _db_sizes():
@@ -1112,6 +1173,19 @@ def history():
     return jsonify([dict(r) for r in rows])
 
 
+@app.route('/api/positions/route')
+def positions_route():
+    code = request.args.get('code', '').strip().upper()
+    fecha = request.args.get('fecha', '').strip() or _today_str()
+    if not code or code not in VENDOR_BY_CODE:
+        return jsonify([]), 403
+    s, e = _day_range(fecha)
+    rows = _exec(get_db(), _q(
+        'SELECT lat, lon, ts FROM positions WHERE code=? AND ts>=? AND ts<? ORDER BY ts'),
+        (code, s, e)).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
 @app.route('/api/vendors')
 def vendors_api():
     rows = _exec(get_db(),
@@ -1286,6 +1360,27 @@ def rutas_version():
     return jsonify({'version': h.hexdigest(), 'fecha': _today_str()})
 
 
+@app.route('/api/rutas/unscheduled')
+def rutas_unscheduled():
+    code = request.args.get('code', '').strip().upper()
+    if not code or code not in VENDOR_BY_CODE:
+        return jsonify([]), 403
+    today_key = _today_key()
+    items = RUTAS.get(code, {}).get(today_key, [])
+    if not items:
+        return jsonify([])
+    fecha = _today_str()
+    vis_rows = _exec(get_db(), 'SELECT cliente FROM visitas WHERE code=? AND fecha=?',
+                     (code, fecha)).fetchall()
+    vis_set = {r['cliente'] for r in vis_rows}
+    result = []
+    for cliente, _fb in items:
+        if cliente not in vis_set:
+            p = PDV_BY_CODE.get(cliente, {})
+            result.append({'c': cliente, 'r': p.get('r', ''), 'lat': p.get('lat'), 'lon': p.get('lon')})
+    return jsonify(result)
+
+
 @app.route('/api/resumen')
 def resumen():
     db = get_db()
@@ -1383,7 +1478,7 @@ def nearest_pdv():
 def visitas_get():
     code = request.args.get('code', '').strip().upper()
     fecha = request.args.get('fecha', '').strip()
-    sql = 'SELECT fecha, code, cliente, razon, calle, vta, ts, foto_ts, foto_salida_ts FROM visitas'
+    sql = 'SELECT fecha, code, cliente, razon, calle, vta, ts, foto_ts, foto_salida_ts, notas FROM visitas'
     conds, params = [], []
     if code:
         conds.append('code = ?')
@@ -1548,6 +1643,7 @@ def visitas_post():
     calle = pdv.get('calle', '') if pdv else str(body.get('calle', '')).strip()
     altura = pdv.get('altura', '') if pdv else str(body.get('altura', '')).strip()
     vta = pdv.get('vta', '') if pdv else str(body.get('vta', '')).strip()
+    notas = str(body.get('notas', '')).strip()
     if not pdv and not razon:
         return jsonify({'ok': False, 'error': 'cliente no encontrado en PDV'}), 404
     db = get_db()
@@ -1614,15 +1710,16 @@ def visitas_post():
                     PDV_EXTRA.append(nuevo)
     ts = int(time.time() * 1000)
     if PG:
-        _exec(db, '''INSERT INTO visitas(fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts, foto_salida_ts)
-                     VALUES (?,?,?,?,?,?,?,?,?,NULL)
+        _exec(db, '''INSERT INTO visitas(fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts, foto_salida_ts, notas)
+                     VALUES (?,?,?,?,?,?,?,?,?,NULL,?)
                      ON CONFLICT(fecha, code, cliente) DO UPDATE SET
                        razon=excluded.razon, calle=excluded.calle, vta=excluded.vta,
-                       ts=excluded.ts, foto=excluded.foto, foto_ts=excluded.foto_ts, foto_salida_ts=NULL''',
-              (fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts))
+                       ts=excluded.ts, foto=excluded.foto, foto_ts=excluded.foto_ts, foto_salida_ts=NULL,
+                       notas=excluded.notas''',
+              (fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts, notas))
     else:
-        _exec(db, 'INSERT OR REPLACE INTO visitas(fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts, foto_salida_ts) VALUES (?,?,?,?,?,?,?,?,?,NULL)',
-              (fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts))
+        _exec(db, 'INSERT OR REPLACE INTO visitas(fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts, foto_salida_ts, notas) VALUES (?,?,?,?,?,?,?,?,?,NULL,?)',
+              (fecha, code, cliente, razon, calle, vta, ts, foto, foto_ts, notas))
     db.commit()
     try:
         admin_subs = _exec(db, "SELECT endpoint, p256dh, auth FROM push_subs WHERE code = 'ADMIN'").fetchall()
@@ -1666,10 +1763,67 @@ def visitas_finalizar():
     if not row:
         return jsonify({'ok': False, 'error': 'No hay visita registrada para ese PDV hoy.'}), 404
     ts_salida = int(time.time() * 1000)
-    _exec(db, 'UPDATE visitas SET foto_salida_ts = ? WHERE fecha = ? AND code = ? AND cliente = ?',
-          (ts_salida, fecha, code, cliente))
+    notas = body.get('notas')
+    if notas is not None:
+        _exec(db, 'UPDATE visitas SET foto_salida_ts = ?, notas = ? WHERE fecha = ? AND code = ? AND cliente = ?',
+              (ts_salida, str(notas).strip(), fecha, code, cliente))
+    else:
+        _exec(db, 'UPDATE visitas SET foto_salida_ts = ? WHERE fecha = ? AND code = ? AND cliente = ?',
+              (ts_salida, fecha, code, cliente))
     db.commit()
     return jsonify({'ok': True, 'foto_salida_ts': ts_salida})
+
+
+@app.route('/api/visitas/semanal')
+def visitas_semanal():
+    if not (session.get('auth') or request.args.get('pin') == DASH_PIN):
+        return jsonify({'ok': False, 'error': 'no autorizado'}), 401
+    db = get_db()
+    now = datetime.now(timezone(timedelta(hours=-3)))
+    week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start_ms = int(week_start.timestamp() * 1000)
+    week_end_ms = week_start_ms + 7 * 86400000
+    rows = _exec(db, _q(
+        'SELECT code, fecha, COUNT(*) as cnt FROM visitas WHERE ts >= ? AND ts < ? GROUP BY code, fecha'),
+        (week_start_ms, week_end_ms)).fetchall()
+    merchans = {v['code']: v['name'] for v in VENDORS if v.get('grupo') == 'merchan'}
+    data = {}
+    for r in rows:
+        c = r['code']
+        if c not in data:
+            data[c] = {'name': merchans.get(c, c), 'days': {}}
+        data[c]['days'][r['fecha']] = r['cnt']
+    days = [(week_start + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7)]
+    out = []
+    for code, d in sorted(data.items(), key=lambda x: x[1]['name']):
+        out.append({
+            'code': code, 'name': d['name'],
+            'total': sum(d['days'].values()),
+            'byDay': [d['days'].get(day, 0) for day in days],
+        })
+    return jsonify({'days': days, 'merchans': out})
+
+
+@app.route('/api/visitas/heatmap')
+def visitas_heatmap():
+    if not (session.get('auth') or request.args.get('pin') == DASH_PIN):
+        return jsonify({'ok': False, 'error': 'no autorizado'}), 401
+    fecha = request.args.get('fecha', '').strip()
+    db = get_db()
+    sql = 'SELECT v.cliente, v.razon, p.lat, p.lon FROM visitas v JOIN positions p ON p.code = v.code AND ABS(p.ts - v.ts) < 300000'
+    conds, params = [], []
+    if fecha:
+        conds.append('v.fecha = ?')
+        params.append(fecha)
+    if conds:
+        sql += ' WHERE ' + ' AND '.join(conds)
+    sql += ' GROUP BY v.fecha, v.code, v.cliente'
+    rows = _exec(db, sql, params).fetchall()
+    points = []
+    for r in rows:
+        if r['lat'] and r['lon']:
+            points.append({'lat': r['lat'], 'lon': r['lon'], 'cliente': r['cliente'], 'razon': r['razon']})
+    return jsonify(points)
 
 
 # ---------------- Mensajes panel -> merchan ----------------
@@ -2141,6 +2295,65 @@ def export_recorrido_xlsx():
     buf.seek(0)
     safe = re.sub(r'[^A-Za-z0-9_-]', '_', code)
     fname = 'recorrido_%s_%s.xlsx' % (safe, fecha)
+    return Response(buf.read(), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    headers={'Content-Disposition': 'attachment; filename=' + fname})
+
+
+@app.route('/api/export/presencia.xlsx')
+def export_presencia_xlsx():
+    desde = request.args.get('desde', '').strip()
+    hasta = request.args.get('hasta', '').strip()
+    code = request.args.get('code', '').strip().upper()
+    if desde and not re.fullmatch(r'\d{4}-\d{2}-\d{2}', desde):
+        desde = ''
+    if hasta and not re.fullmatch(r'\d{4}-\d{2}-\d{2}', hasta):
+        hasta = ''
+    db = get_db()
+    merchans = [(v['code'], v['name']) for v in VENDORS if v.get('grupo') == 'merchan']
+    if code:
+        merchans = [(c, n) for c, n in merchans if c == code]
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from io import BytesIO
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'openpyxl no instalado'}), 500
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Presencia'
+    headers = ['Codigo', 'Colaborador', 'Fecha', 'Hora llegada', 'Hora salida', 'Horas en campo']
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill('solid', fgColor='E5E7EB')
+        cell.alignment = Alignment(horizontal='center')
+    ws.freeze_panes = 'A2'
+    ar_tz = timezone(timedelta(hours=-3))
+    for mc, mn in merchans:
+        s_date = datetime.strptime(desde, '%Y-%m-%d').date() if desde else (datetime.now(ar_tz) - timedelta(days=7)).date()
+        e_date = datetime.strptime(hasta, '%Y-%m-%d').date() if hasta else datetime.now(ar_tz).date()
+        d = s_date
+        while d <= e_date:
+            fecha = d.isoformat()
+            s, e = _day_range(fecha)
+            pos = _exec(db, 'SELECT lat, lon, ts FROM positions WHERE code=? AND ts>=? AND ts<? ORDER BY ts',
+                        (mc, s, e)).fetchall()
+            if pos:
+                first = pos[0]['ts']
+                last = pos[-1]['ts']
+                h_llegada = datetime.fromtimestamp(first / 1000, ar_tz).strftime('%H:%M')
+                h_salida = datetime.fromtimestamp(last / 1000, ar_tz).strftime('%H:%M')
+                horas = round((last - first) / 3600000.0, 2)
+                ws.append([mc, mn, fecha, h_llegada, h_salida, horas])
+            d += timedelta(days=1)
+    widths = [10, 22, 12, 14, 14, 14]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    safe = re.sub(r'[^A-Za-z0-9_-]', '_', code or 'todos')
+    fname = 'presencia_%s_%s_%s.xlsx' % (safe, desde or 'inicio', hasta or 'fin')
     return Response(buf.read(), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     headers={'Content-Disposition': 'attachment; filename=' + fname})
 

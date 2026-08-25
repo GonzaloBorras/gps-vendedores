@@ -103,6 +103,9 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
   background: #f59e0b; color: #422006; animation: pulseBtn 2s infinite; }
 @keyframes pulseBtn { 0%,100% { box-shadow: 0 0 0 0 rgba(245,158,11,.4); } 50% { box-shadow: 0 0 0 8px rgba(245,158,11,0); } }
 .btn-finalizar:disabled { opacity: .5; animation: none; }
+.visit-timer { display: none; margin-top: 6px; background: #10182b; border: 1px solid #f59e0b; border-radius: 8px; padding: 8px 10px; font-size: 12px; color: #fcd34d; text-align: center; font-variant-numeric: tabular-nums; }
+.visit-timer b { font-size: 18px; color: #fff; display: block; margin-top: 2px; }
+#side .visit-timer { margin-left: 14px; margin-right: 14px; }
 .visita-activa { border-color: #f59e0b !important; background: rgba(245,158,11,.10) !important; }
 .visita-activa .r::after { content: ' ◀ activa'; color: #f59e0b; font-size: 10px; font-weight: 700; }
 .btn-no-foto { width: 100%; margin-top: 8px; padding: 10px; border: 0; border-radius: 8px; background: #334155; color: #fff; font-weight: 600; cursor: pointer; font-size: 13px; }
@@ -181,6 +184,8 @@ hint { color: #8b93a7; font-size: 12px; display: block; margin-top: 14px; line-h
 .gps-chip.on { border-color: #22c55e; color: #86efac; }
 .gps-chip.off { border-color: #ef4444; color: #fca5a5; }
 .gps-chip.denied { border-color: #f59e0b; color: #fcd34d; }
+.batt-low { border-color: #ef4444 !important; color: #fca5a5 !important; }
+.batt-save { border-color: #f59e0b !important; color: #fcd34d !important; }
 .ruta-progress { display: none; margin-top: 12px; background: #10182b; border: 1px solid #1e3a8a;
   border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #cbd5e1; text-align: center; line-height: 1.5; }
 .ruta-progress b { color: #fff; }
@@ -289,6 +294,7 @@ body.dark .map-fab #locateFab { background: #1a2234; color: #60a5fa; }
     <div class="chips">
       <div class="jornada-chip" id="jornadaChip">🕐 Cargando jornada…</div>
       <div class="gps-chip" id="gpsChip">🛰 GPS: esperando…</div>
+      <div class="gps-chip" id="battChip">🔋 --</div>
     </div>
     <div class="status"><span class="dot on" id="dot"></span><span id="stateText">Iniciando...</span></div>
     <div class="metrics">
@@ -304,12 +310,14 @@ body.dark .map-fab #locateFab { background: #1a2234; color: #60a5fa; }
     <div class="msg-banner" id="msgBanner"></div>
     <div class="ruta-banner" id="rutaUpdateBanner">🔄 Tu ruteo de hoy se actualizó.<br><button onclick="location.reload()">Recargar para ver los cambios</button></div>
     <div class="ruta-progress" id="rutaProgress"></div>
+    <div class="ruta-banner" id="unvisitedBanner" style="display:none;background:#fef3c7;border-color:#f59e0b;color:#92400e"></div>
     <div class="prox" id="proxPdv"></div>
     <div id="finalizarWrap" style="display:none;padding:0 14px;">
       <button class="btn-finalizar" id="finalizarBtn" onclick="finalizarVisita()">
         Finalizar visita actual
       </button>
     </div>
+    <div class="visit-timer" id="visitTimer">⏱ Tiempo en PDV<b id="visitTimerVal">00:00</b></div>
     <div class="tabs">
       <button class="tab active" data-tab="ruta" onclick="switchPane('ruta')">Ruta</button>
       <button class="tab" data-tab="visitas" onclick="switchPane('visitas')">Visitados</button>
@@ -391,6 +399,8 @@ body.dark .map-fab #locateFab { background: #1a2234; color: #60a5fa; }
     <div class="pdv-name" id="fotoPdvName"></div>
     <input type="file" id="fotoInput" accept="image/*" capture="environment" style="display:none" onchange="fotoPreview()">
     <img id="fotoPreview" alt="Vista previa">
+    <label style="display:block;font-size:11px;color:#8b93a7;margin:8px 0 4px">Nota (opcional)</label>
+    <textarea id="fotoNota" rows="2" placeholder="Ej: stock bajo,缺 productos..." style="width:100%;padding:9px 10px;border:1px solid #334155;border-radius:8px;background:#0f1420;color:#fff;font-size:13px;font-family:inherit;resize:none;margin-bottom:10px"></textarea>
     <button class="btn-foto" id="fotoConfirmBtn" onclick="confirmarFoto()" disabled>Registrar visita</button>
     <button class="btn-foto-cancel" onclick="closeFoto()">Cancelar</button>
   </div>
@@ -597,6 +607,7 @@ function flushVisitasOffline() {
     fd.append('razon', v.razon);
     fd.append('lat', v.lat);
     fd.append('lon', v.lon);
+    if (v.notas) fd.append('notas', v.notas);
     fetch(base + '/api/visitas', { method: 'POST', body: fd })
       .then(function(r) { return r.json(); })
       .then(function(d) { if (!d.ok) remaining.push(v); })
@@ -735,7 +746,8 @@ function startMainThread() {
   watchId = navigator.geolocation.watchPosition(onPos, onErr, {
     enableHighAccuracy: true, timeout: 20000, maximumAge: 10000
   });
-  window._int = setInterval(maybeSend, 10000);
+  var gpsInterval = window._batt && window._batt.l ? 30000 : 10000;
+  window._int = setInterval(maybeSend, gpsInterval);
 }
 
 function fmtRemaining(ms) {
@@ -830,6 +842,21 @@ function refreshBattery() {
     window._batt = b;
     if (worker) worker.postMessage({ action: 'batt', value: b });
   });
+}
+window._batt = { p: null, l: false };
+function updateBattChip() {
+  var chip = document.getElementById('battChip');
+  if (!chip || !navigator.getBattery) return;
+  navigator.getBattery().then(function(b) {
+    window._batt.p = Math.round(b.level * 100);
+    window._batt.l = b.level < 0.2;
+    chip.textContent = '🔋 ' + window._batt.p + '%';
+    chip.className = 'gps-chip' + (b.level < 0.15 ? ' batt-low' : (b.level < 0.3 ? ' batt-save' : ''));
+  }).catch(function() {});
+}
+if (navigator.getBattery) {
+  updateBattChip();
+  setInterval(updateBattChip, 60000);
 }
 function resetBtn() {
   running = false;
@@ -1086,6 +1113,7 @@ function renderRutaHoy() {
     }).join('');
   renderProximo();
   updateRutaProgress();
+  updateUnvisitedBanner();
 }
 
 function updateRutaProgress() {
@@ -1098,6 +1126,21 @@ function updateRutaProgress() {
   el.style.display = 'block';
   el.innerHTML = 'Ruteo de hoy: <b>' + vis + '/' + total + '</b> visitados · ' + pct +
     '% <div class="bar"><span style="width:' + pct + '%"></span></div>';
+}
+
+function updateUnvisitedBanner() {
+  var el = document.getElementById('unvisitedBanner');
+  if (!el) return;
+  if (!rutaHoy.length) { el.style.display = 'none'; return; }
+  var visCount = Object.keys(visitasCache).length;
+  var total = rutaHoy.length;
+  var remaining = total - visCount;
+  if (remaining > 0 && running) {
+    el.innerHTML = '⚠️ Te quedan <b>' + remaining + '</b> PDV sin visitar de ' + total + ' en tu ruta.';
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 function findProximo() {
@@ -1252,6 +1295,7 @@ function renderVisitas() {
   if (box) box.innerHTML = html;
   if (side) side.innerHTML = html;
   updateFinalizarBtn();
+  updateUnvisitedBanner();
 }
 
 function quitarVisita(c) {
@@ -1325,7 +1369,7 @@ function marcarVisita(c, nombre) {
     var prev = visitaActual;
     fetch(base + '/api/visitas/finalizar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code, cliente: prev, fecha: todayStr() })
+      body: JSON.stringify({ code: code, cliente: prev, fecha: todayStr(), notas: '' })
     }).then(function (r) { return r.json(); }).then(function () {
       if (visitasCache[prev]) visitasCache[prev].finalizada = 1;
       renderVisitas();
@@ -1335,9 +1379,11 @@ function marcarVisita(c, nombre) {
   pendingFotoCliente = c;
   document.getElementById('fotoPdvName').textContent = pdvNameCache[c] || c;
   document.getElementById('fotoInput').value = '';
+  document.getElementById('fotoNota').value = '';
   document.getElementById('fotoPreview').style.display = 'none';
   document.getElementById('fotoConfirmBtn').disabled = true;
   document.getElementById('fotoOverlay').classList.add('open');
+  startVisitTimer();
   try { document.getElementById('fotoInput').click(); } catch (e) {}
 }
 function closeFoto() {
@@ -1367,7 +1413,22 @@ function compressFoto(file, done) {
     var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
     var cv = document.createElement('canvas');
     cv.width = cw; cv.height = ch;
-    cv.getContext('2d').drawImage(img, 0, 0, cw, ch);
+    var ctx = cv.getContext('2d');
+    ctx.drawImage(img, 0, 0, cw, ch);
+    // Watermark
+    var now = new Date();
+    var arTz = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    var ts = arTz.toLocaleDateString('es-AR') + ' ' + arTz.toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'});
+    var coord = lastLat != null ? lastLat.toFixed(5) + ', ' + lastLon.toFixed(5) : '';
+    var wm = ts + (coord ? ' | ' + coord : '');
+    var fs = Math.max(12, Math.round(cw / 45));
+    ctx.font = 'bold ' + fs + 'px sans-serif';
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, ch - fs * 2 - 8, cw, fs * 2 + 8);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.fillText(ts, 8, ch - fs - 4);
+    if (coord) { ctx.fillText(coord, 8, ch - 4); }
     URL.revokeObjectURL(url);
     cv.toBlob(function (blob) { done(blob || file); }, 'image/jpeg', 0.72);
   };
@@ -1394,6 +1455,7 @@ function confirmarFoto() {
         renderMiRuteo();
         updatePdvMarkers();
         updateFinalizarBtn();
+        startVisitTimer();
         visitasMsg('');
         showVisitaOk(pdvNameCache[c] || c);
         flushVisitasOffline();
@@ -1414,6 +1476,8 @@ function confirmarFoto() {
         fd.append('lon', lon);
       }
       fd.append('foto', photoBlob, 'foto.jpg');
+      var nota = (document.getElementById('fotoNota').value || '').trim();
+      if (nota) fd.append('notas', nota);
       fetch(base + '/api/visitas', { method: 'POST', body: fd })
         .then(function (r) { return r.json(); }).then(onDone)
         .catch(function() {
@@ -1425,6 +1489,7 @@ function confirmarFoto() {
             razon: pdvNameCache[c] || c,
             lat: lat,
             lon: lon,
+            notas: nota,
             ts: Date.now()
           };
           queue.push(offlineVisit);
@@ -1582,6 +1647,20 @@ function updatePdvMarkers() {
     var rr = col === '#1d4ed8' ? 9 : 6;
     m.setStyle({ color: col, fillColor: col, radius: rr });
   });
+}
+
+var routeLine = null;
+function loadRouteLine() {
+  if (!mapa) return;
+  fetch(base + '/api/positions/route?code=' + encodeURIComponent(code) + '&fecha=' + todayStr())
+    .then(function(r) { return r.json(); })
+    .then(function(pts) {
+      if (routeLine) { mapa.removeLayer(routeLine); routeLine = null; }
+      if (pts.length > 1) {
+        var latlngs = pts.map(function(p) { return [p.lat, p.lon]; });
+        routeLine = L.polyline(latlngs, { color: '#3b82f6', weight: 4, opacity: 0.7, dashArray: '8 4' }).addTo(mapa);
+      }
+    }).catch(function() {});
 }
 
 // ---------------- Agregar PDV en mi ubicación ----------------
@@ -1770,6 +1849,43 @@ function showVisitaOk(nombre) {
   showVisitaOk._t = setTimeout(function () { t.classList.remove('show'); }, 1600);
 }
 
+var visitStartTs = null;
+var visitTimerInterval = null;
+
+function startVisitTimer() {
+  if (visitaActual && visitasCache[visitaActual] && visitasCache[visitaActual].ts) {
+    visitStartTs = visitasCache[visitaActual].ts;
+  } else {
+    visitStartTs = Date.now();
+  }
+  var timerEl = document.getElementById('visitTimer');
+  var valEl = document.getElementById('visitTimerVal');
+  if (timerEl) timerEl.style.display = 'block';
+  if (visitTimerInterval) clearInterval(visitTimerInterval);
+  visitTimerInterval = setInterval(function() {
+    if (!visitStartTs) return;
+    var elapsed = Math.floor((Date.now() - visitStartTs) / 1000);
+    var h = Math.floor(elapsed / 3600);
+    var m = Math.floor((elapsed % 3600) / 60);
+    var s = elapsed % 60;
+    valEl.textContent = (h > 0 ? h + ':' : '') + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }, 1000);
+  updateVisitTimer();
+}
+
+function stopVisitTimer() {
+  if (visitTimerInterval) { clearInterval(visitTimerInterval); visitTimerInterval = null; }
+  var timerEl = document.getElementById('visitTimer');
+  if (timerEl) timerEl.style.display = 'none';
+  visitStartTs = null;
+}
+
+function updateVisitTimer() {
+  if (!visitaActual || (visitasCache[visitaActual] && visitasCache[visitaActual].finalizada)) {
+    stopVisitTimer();
+  }
+}
+
 function updateFinalizarBtn() {
   var wrap = document.getElementById('finalizarWrap');
   if (visitaActual && visitasCache[visitaActual] && !visitasCache[visitaActual].finalizada) {
@@ -1777,6 +1893,7 @@ function updateFinalizarBtn() {
   } else {
     wrap.style.display = 'none';
   }
+  updateVisitTimer();
 }
 
 var _finalizando = false;
@@ -1784,10 +1901,12 @@ function finalizarVisita() {
   if (!visitaActual || _finalizando) return;
   _finalizando = true;
   var cliente = visitaActual;
+  var notaFinal = prompt('Nota de salida (opcional):', '');
+  if (notaFinal === null) notaFinal = '';
   document.querySelectorAll('.btn-finalizar').forEach(function(b){ b.disabled = true; b.textContent = 'Finalizando...'; });
   fetch(base + '/api/visitas/finalizar', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: code, cliente: cliente, fecha: todayStr() })
+    body: JSON.stringify({ code: code, cliente: cliente, fecha: todayStr(), notas: notaFinal })
   }).then(function (r) { return r.json(); }).then(function (d) {
     if (d.ok) {
       if (visitasCache[cliente]) visitasCache[cliente].finalizada = 1;
@@ -1865,11 +1984,14 @@ fetch('/api/app-version').then(function (r) { return r.json(); }).then(function 
 loadMessages();
 maybeOnboard();
 initMapa();
+loadRouteLine();
 setTimeout(function () { if (mapa) mapa.invalidateSize(); }, 150);
 cargarPdvMapa();
+loadRouteLine();
 setInterval(loadMessages, 60000);
 setInterval(loadVisitas, 300000);
 setInterval(renderProximo, 15000);
+setInterval(loadRouteLine, 300000);
 
 // ---------- AUTO SCHEDULE ----------
 (function () {

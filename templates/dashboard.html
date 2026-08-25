@@ -174,6 +174,7 @@ body.sidebar-hidden .sidebar { display: none; }
     margin: 6px 0 0; min-height: 44px; font-size: 13px; line-height: 32px; }
   #statusbar { bottom: 20px; left: 50%; transform: translateX(-50%); white-space: nowrap;
     max-width: calc(100vw - 24px); overflow: hidden; text-overflow: ellipsis;
+    font-size: 13px; padding: 10px 20px; font-weight: 600;
     padding-bottom: env(safe-area-inset-bottom, 0); }
   .leyenda { z-index: 3001; top: 12px; right: 70px; left: auto; bottom: auto; transform: none;
     font-size: 11px; padding: 0; line-height: 1.6; border-radius: 12px; max-width: 0; overflow: hidden;
@@ -291,6 +292,8 @@ body.sidebar-hidden .sidebar { display: none; }
   box-shadow: 0 2px 8px rgba(220,38,38,.1); }
 .alertbar.flash { animation: alertpulse 1.5s ease-in-out 2; }
 @keyframes alertpulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
+.sin-visita-pulse { animation: sinPulse 2s infinite; }
+@keyframes sinPulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
 .gps-alert { margin-top: 6px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;
   border-radius: 8px; padding: 6px 10px; font-size: 11px; font-weight: 600; }
 .config textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
@@ -390,6 +393,30 @@ body.dark .skeleton-line.w80 { width: 80%; margin-top: 6px; }
 .skeleton-line { height: 10px; border-radius: 6px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; margin-top: 8px; }
 .table-scroll .rep-tab { min-width: 480px; }
+.summary-chips { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
+.sum-chip { flex: 1; min-width: 0; background: #f1f5f9; border-radius: 8px; padding: 6px 8px; text-align: center; font-size: 11px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sum-chip b { display: block; font-size: 16px; color: #0f1420; line-height: 1.2; }
+.sum-active b { color: #16a34a; }
+.sum-visits b { color: #1d4ed8; }
+.sum-nosig b { color: #dc2626; }
+.sum-pend b { color: #f59e0b; }
+body.dark .summary-chips { border-bottom-color: #2a3450; }
+body.dark .sum-chip { background: #0f1420; color: #94a3b8; }
+body.dark .sum-chip b { color: #e2e8f0; }
+body.dark .sum-active b { color: #4ade80; }
+body.dark .sum-visits b { color: #60a5fa; }
+body.dark .sum-nosig b { color: #f87171; }
+body.dark .sum-pend b { color: #fbbf24; }
+.daily-summary .ds-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+.daily-summary .ds-row:last-child { border-bottom: 0; }
+.daily-summary .ds-name { font-weight: 600; color: #1e293b; }
+.daily-summary .ds-count { font-weight: 700; color: #1d4ed8; }
+.daily-summary .ds-pct { font-size: 11px; color: #64748b; }
+body.dark .daily-summary .ds-header { background: #0f1420; color: #e2e8f0; }
+body.dark .daily-summary .ds-row { border-bottom-color: #2a3450; }
+body.dark .daily-summary .ds-name { color: #e2e8f0; }
+.notif-banner { animation: notifSlide .3s ease; }
+@keyframes notifSlide { from { transform: translateY(-100%); } to { transform: translateY(0); } }
 </style>
 </head>
 <body>
@@ -412,6 +439,13 @@ body.dark .skeleton-line.w80 { width: 80%; margin-top: 6px; }
     <div class="sub">Tucumán &amp; Catamarca — <span id="activos">0</span> activos · <span id="sinCount">0 sin señal</span> · Hoy</div>
     <button class="gear" onclick="openConfig()" title="Configuración">⚙</button>
   </div>
+  <div class="summary-chips" id="summaryChips">
+    <div class="sum-chip sum-active"><b id="sumActive">0</b> activos</div>
+    <div class="sum-chip sum-visits"><b id="sumVisits">0</b> visitas</div>
+    <div class="sum-chip sum-nosig"><b id="sumNoSig">0</b> sin señal</div>
+    <div class="sum-chip sum-pend"><b id="sumPend">0</b> pendientes</div>
+  </div>
+  <input type="search" id="merchanSearch" placeholder="🔍 Buscar merchan..." oninput="filterMerchans()" style="margin:0 12px 6px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;width:calc(100% - 24px);background:#fff;color:#1e293b">
   <div class="filtros">
     <div class="chk-row">
       <label class="toggle-row">
@@ -424,11 +458,46 @@ body.dark .skeleton-line.w80 { width: 80%; margin-top: 6px; }
       </label>
       <label class="toggle-row"><input type="checkbox" id="heat-toggle" onchange="toggleHeat()"> <span>Heat map visitas</span></label>
     </div>
+    <div class="chk-row">
+      <label class="toggle-row">
+        <input type="checkbox" id="sin-visita-toggle" onchange="toggleSinVisita()">
+        <span>Sin visita alert</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="heatmap-toggle" onchange="toggleHeatmap()">
+        <span>Heat map</span>
+      </label>
+    </div>
+    <div id="heatSliderWrap" style="display:none;padding:4px 0 0">
+      <input type="range" id="heatSlider" min="5" max="20" value="12" oninput="renderHeatmapHour()" style="width:100%">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8"><span>05:00</span><span id="heatSliderLabel" style="font-weight:700;color:#1d4ed8">12:00</span><span>20:00</span></div>
+    </div>
+    <div class="chk-row" style="margin-top:6px">
+      <label class="toggle-row">
+        <input type="radio" name="dateRange" value="today" checked onchange="setDateRange('today')"> <span>Hoy</span>
+      </label>
+      <label class="toggle-row">
+        <input type="radio" name="dateRange" value="7days" onchange="setDateRange('7days')"> <span>7 días</span>
+      </label>
+    </div>
   </div>
   <div class="list" id="list"></div>
+  <div style="padding:8px 12px;border-top:1px solid #f1f5f9">
+    <a class="exp-link" id="quickPresencia" href="/api/export/presencia.xlsx?pin=584126" target="_blank" rel="noopener" style="margin:0;font-size:11px;padding:7px 10px;text-decoration:none;display:block;text-align:center;border-radius:8px">📥 Exportar presencia</a>
+  </div>
+  <div class="daily-summary" id="dailySummary" style="display:none">
+    <div class="ds-header" onclick="toggleDailySummary()" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#0f1420;color:#fff;cursor:pointer;border-radius:0 0 14px 14px;font-size:12px;font-weight:700">
+      📊 Resumen del día <span id="dsToggle">▾</span>
+    </div>
+    <div class="ds-body" id="dsBody" style="display:none;padding:8px 12px;max-height:200px;overflow:auto"></div>
+  </div>
 </div>
 <div class="statusbar" id="statusbar"></div>
 <div class="alertbar" id="alertbar"></div>
+<div class="notif-banner" id="notifBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:3100;background:#eff6ff;color:#1e40af;border-bottom:1px solid #bfdbfe;padding:10px 14px;font-size:13px;font-weight:500;text-align:center;box-shadow:0 2px 8px rgba(29,78,216,.1);cursor:pointer" onclick="dismissNotif()">
+  <span id="notifText"></span>
+  <span style="margin-left:10px;font-size:11px;opacity:.6">✕</span>
+</div>
 <div class="toast" id="toast"></div>
 <div class="leyenda" id="leyenda">
   <span class="leyenda-btn">ℹ</span>
@@ -456,6 +525,7 @@ body.dark .skeleton-line.w80 { width: 80%; margin-top: 6px; }
       <button class="cfg-tab" data-tab="mensajes" onclick="openCfgTab('mensajes')">Mensajes</button>
       <button class="cfg-tab" data-tab="geocercas" onclick="openCfgTab('geocercas')">Geocercas</button>
       <button class="cfg-tab" data-tab="reporte" onclick="openCfgTab('reporte')">Reporte</button>
+      <button class="cfg-tab" data-tab="semanal" onclick="openCfgTab('semanal')">Semanal</button>
     </div>
     <div class="cfg-pane active" id="pane-general">
       <label>Merchan</label>
@@ -551,12 +621,17 @@ body.dark .skeleton-line.w80 { width: 80%; margin-top: 6px; }
       <div id="rep-lista"></div>
       <a class="exp-link" id="exp-visitas" target="_blank" rel="noopener">Exportar visitas (Excel)</a>
       <a class="exp-link" id="exp-recorrido" target="_blank" rel="noopener">Exportar recorrido (Excel)</a>
+      <a class="exp-link" id="exp-presencia" target="_blank" rel="noopener">Exportar presencia (Excel)</a>
       <div style="margin-top:16px">
         <h3>Tiempo en cada PDV</h3>
         <button class="btn-block refresh" onclick="loadEstadias()">Calcular tiempos</button>
         <div id="est-lista"></div>
         <a class="exp-link" id="exp-estadias" target="_blank" rel="noopener">Exportar estadías (Excel)</a>
       </div>
+    </div>
+    <div class="cfg-pane" id="pane-semanal">
+      <h3>Comparativa semanal de visitas</h3>
+      <div id="semanal-chart"></div>
     </div>
     <button class="btn-block close" onclick="closeConfig()">Cerrar</button>
     <div class="note" id="cfg-msg"></div>
@@ -609,6 +684,7 @@ var RUTAS_DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
 var RUTAS_DIA_NAMES = { LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado' };
 var RUTAS_TODAY = { 1: 'LUNES', 2: 'MARTES', 3: 'MIERCOLES', 4: 'JUEVES', 5: 'VIERNES', 6: 'SABADO' }[new Date().getDay()] || '';
 var rutasByMerchan = {};
+var pdvByCode = {};
 var fechaSel = todayStr();
 function rutaKeyFor(fecha) {
   if (!fecha) return '';
@@ -648,6 +724,7 @@ function loadRutasCache() {
       (rutasByMerchan[v.merchan] = rutasByMerchan[v.merchan] || {})[v.dia] =
         (rutasByMerchan[v.merchan][v.dia] || []).concat(v);
       pdvRutaSet[String(v.cliente)] = 1;
+      pdvByCode[String(v.cliente)] = v;
     });
     refreshPDVColors();
     if (currentList.length) renderSidebar(currentList);
@@ -728,6 +805,19 @@ function makePopup(v, pos) {
         nFoto + '/' + vi.n + '</span></div>';
     }
   }
+  var detailTxt = '';
+  if (v.grupo === 'merchan' && vi && vi.n) {
+    var clientes = vi.clientes || [];
+    if (clientes.length) {
+      var lastCliente = clientes[clientes.length - 1];
+      detailTxt += '<div class="ruta" style="margin-top:4px"><b>Último PDV:</b> ' + esc(lastCliente) + '</div>';
+    }
+    if (vi.fotos) {
+      var fotoCount = 0;
+      Object.keys(vi.fotos).forEach(function(c) { if (vi.fotos[c]) fotoCount++; });
+      if (fotoCount > 0) detailTxt += '<div class="ruta">📸 Con foto: ' + fotoCount + '/' + vi.n + '</div>';
+    }
+  }
   return '<div class="popup-info">' +
     '<div class="name">' + esc(v.name) + ' <span style="color:#9ca3af;font-size:10px">' + esc(v.prov) + '</span></div>' +
     '<div>Código: ' + esc(v.code) + '</div>' +
@@ -735,6 +825,7 @@ function makePopup(v, pos) {
     battTxt +
     hoy +
     visTxt +
+    detailTxt +
     '<div style="margin-top:4px">' +
     '<button class="btn btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Recorrido</button> ' +
     '<button class="btn btn-route" onclick="playRoute(\'' + esc(v.code) + '\')">Reproducir</button> ' +
@@ -795,11 +886,18 @@ function renderSidebar(list) {
       '<div class="acts">' +
       '<button class="btn-copy" onclick="copyLink(\'' + esc(v.code) + '\')">Copiar link</button>' +
       '<button class="btn-route" onclick="showRoute(\'' + esc(v.code) + '\')">Recorrido</button>' +
+      '<button class="btn-route" id="eye-' + esc(v.code) + '" onclick="toggleMerchanVisibility(\'' + esc(v.code) + '\')">' + (hiddenMerchans[v.code] ? '🙈' : '👁') + '</button>' +
       (v.grupo === 'merchan' ? '<a class="btn-copy" href="/api/export/visitas.xlsx?desde=' + fechaSel + '&hasta=' + fechaSel + '&code=' + esc(v.code) + '" target="_blank" rel="noopener">Excel día</a>' : '') +
       '</div></div>';
     el.querySelector('.row1').addEventListener('click', function () {
       if (v.grupo === 'merchan') { showMerchanPDV(v.code); } else { flyTo(v.code); }
-      if (window.innerWidth <= 720) closeSidebar();
+      selectVendorOnMobile(v.code);
+    });
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', function(e) {
+      if (e.target.closest('.card-actions') || e.target.closest('button') || e.target.closest('a')) return;
+      var m = markers[v.code];
+      if (m) { map.flyTo(m.getLatLng(), 16); selectVendorOnMobile(v.code); }
     });
     frag.appendChild(el);
   });
@@ -814,6 +912,7 @@ function renderSidebar(list) {
   document.getElementById('sinCount').textContent = sinCount;
   renderedCodes = list.map(function (v) { return v.code; }).join('\u0001');
   renderMerchanMeta();
+  updateSummaryChips();
 }
 
 function toggleCardActions(btn) {
@@ -910,10 +1009,12 @@ function updateCardData() {
       });
       refreshPDVColors();
       renderMerchanMeta();
+      updateSummaryChips();
+      renderDailySummary();
     })
     .catch(function (e) { _panelErr('visitas/resumen: ' + (e && e.message ? e.message : e)); });
   fetch('/api/resumen?fecha=' + fechaSel).then(function (r) { return r.json(); })
-    .then(function (d) { resumenData = d || {}; renderMerchanMeta(); })
+    .then(function (d) { resumenData = d || {}; renderMerchanMeta(); updateSummaryChips(); renderDailySummary(); })
     .catch(function (e) { _panelErr('resumen: ' + (e && e.message ? e.message : e)); });
   fetch('/api/jornadas').then(function (r) { return r.json(); })
     .then(function (d) { jornadasData = d || {}; renderMerchanMeta(); })
@@ -962,6 +1063,33 @@ function updateSidebarStatus(list) {
     return !p || p.last == null || p.last > 10 * 60000;
   }).length;
   document.getElementById('sinCount').textContent = sinCount;
+  updateSummaryChips();
+}
+
+function updateSummaryChips() {
+  var list = currentList;
+  var act = 0, nosig = 0, totalVis = 0, totalPend = 0;
+  list.forEach(function(v) {
+    var p = markers[v.code] && markers[v.code]._pos;
+    if (p && p.active) act++;
+    if (!p || p.last == null || p.last > 10 * 60000) nosig++;
+    var vi = visitasToday[v.code];
+    if (vi) totalVis += vi.n || 0;
+    totalPend += rutaHoyPendientes(v.code);
+  });
+  document.getElementById('sumActive').textContent = act;
+  document.getElementById('sumVisits').textContent = totalVis;
+  document.getElementById('sumNoSig').textContent = nosig;
+  document.getElementById('sumPend').textContent = totalPend;
+}
+
+function filterMerchans() {
+  var q = (document.getElementById('merchanSearch').value || '').trim().toLowerCase();
+  if (!q) { applyFilters(); return; }
+  var filtered = currentList.filter(function(v) {
+    return v.name.toLowerCase().indexOf(q) !== -1 || v.code.toLowerCase().indexOf(q) !== -1;
+  });
+  renderSidebar(filtered);
 }
 
 function refresh() {
@@ -984,6 +1112,10 @@ function refresh() {
     });
     renderAlerts(arr);
     applyFilters();
+    var now = new Date();
+    var ts = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+    var sb = document.getElementById('statusbar');
+    if (sb && !replayTimer) sb.textContent = 'Actualizado: ' + ts;
     } catch (err) { _panelErr('refresh.then: ' + (err && err.message ? err.message : err)); }
   }).catch(function (e) { _panelErr('refresh.fetch: ' + (e && e.message ? e.message : e)); });
 }
@@ -1061,6 +1193,35 @@ function markAlertsRead() {
     })
     .catch(function () {});
 }
+
+var _notifTimer = null;
+function showNotif(msg) {
+  var el = document.getElementById('notifBanner');
+  var txt = document.getElementById('notifText');
+  if (!el || !txt) return;
+  txt.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(_notifTimer);
+  _notifTimer = setTimeout(function() { el.style.display = 'none'; }, 10000);
+}
+function dismissNotif() {
+  document.getElementById('notifBanner').style.display = 'none';
+  clearTimeout(_notifTimer);
+}
+var _homeNotified = {};
+setInterval(function() {
+  fetch('/api/alerts').then(function(r) { return r.json(); }).then(function(arr) {
+    if (arr && arr.length) {
+      arr.forEach(function(a) {
+        if (a.homeArrival && !_homeNotified[a.code] && !currentAlerts['home_' + a.code]) {
+          _homeNotified[a.code] = true;
+          currentAlerts['home_' + a.code] = true;
+          showNotif('🏠 ' + (a.name || a.code) + ' llegó a su casa');
+        }
+      });
+    }
+  }).catch(function() {});
+}, 30000);
 
 function showRoute(code) {
   if (routeLayer) map.removeLayer(routeLayer);
@@ -1278,6 +1439,20 @@ function todayStr() {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
+var dateRangeMode = 'today';
+function setDateRange(mode) {
+  dateRangeMode = mode;
+  if (mode === 'today') {
+    fechaSel = todayStr();
+  } else {
+    var d = new Date();
+    d.setDate(d.getDate() - 6);
+    fechaSel = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  updateCardData();
+  refresh();
+}
+
 function fillVisVendors() {
   var sel = document.getElementById('vis-vendor');
   sel.innerHTML = '';
@@ -1460,10 +1635,36 @@ function openCfgTab(tab) {
   if (tab === 'ausencias') loadAbsences();
   if (tab === 'geocercas') loadGeoevents();
   if (tab === 'reporte') loadReporte();
+  if (tab === 'semanal') loadSemanal();
 }
 
 // ---------------- Config: jornada, ausencias, radio PDV, mensajes, geocercas, reportes ----------------
 function sortedMerchans() { return vendorsData.filter(function (v) { return v.grupo === 'merchan'; }).sort(function (a, b) { return a.name.localeCompare(b.name); }); }
+
+function toggleDailySummary() {
+  var body = document.getElementById('dsBody');
+  var toggle = document.getElementById('dsToggle');
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  toggle.textContent = open ? '▾' : '▴';
+  if (!open) renderDailySummary();
+}
+function renderDailySummary() {
+  var box = document.getElementById('dsBody');
+  var merchans = sortedMerchans();
+  var html = '';
+  merchans.forEach(function(v) {
+    var vi = visitasToday[v.code] || { n: 0 };
+    var total = rutaHoyCount(v.code);
+    var vis = vi.n || 0;
+    var pct = total > 0 ? Math.round(vis / total * 100) : (vis > 0 ? 100 : 0);
+    html += '<div class="ds-row"><span class="ds-name">' + esc(v.name) + '</span>' +
+      '<span class="ds-count">' + vis + (total ? '/' + total : '') + '</span>' +
+      '<span class="ds-pct">' + (total ? pct + '%' : '—') + '</span></div>';
+  });
+  box.innerHTML = html || '<div style="font-size:12px;color:#9ca3af;padding:4px">Sin datos</div>';
+  document.getElementById('dailySummary').style.display = 'block';
+}
 
 function fillShiftVendors() {
   var sel = document.getElementById('shift-vendor');
@@ -1654,6 +1855,8 @@ function loadReporte() {
   var er = document.getElementById('exp-recorrido');
   ev.href = '/api/export/visitas.xlsx?desde=' + (desde || '2020-01-01') + '&hasta=' + (hasta || '2099-12-31') + '&code=' + code;
   er.href = code ? '/api/export/recorrido.xlsx?code=' + code + '&fecha=' + (desde || todayStr()) : '#';
+  var ep = document.getElementById('exp-presencia');
+  if (ep) ep.href = '/api/export/presencia.xlsx?desde=' + (desde || '2020-01-01') + '&hasta=' + (hasta || '2099-12-31') + '&code=' + code;
   if (!code || !desde || !hasta) { box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Elegí colaborador y rango de fechas.</div>'; return; }
   box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Cargando...</div>';
   fetch('/api/reporte?code=' + encodeURIComponent(code) + '&desde=' + desde + '&hasta=' + hasta)
@@ -1703,6 +1906,31 @@ function loadEstadias() {
       box.innerHTML = '<div class="table-scroll"><table class="rep-tab"><tr><th>Razón social</th><th>Cliente</th><th>Calle</th><th>Ruta</th><th>Entrada</th><th>Salida</th><th>Min</th><th>Veces</th><th>Visitas</th></tr>' + rows + '</table></div>' + t;
     }).catch(function () { box.innerHTML = '<div class="empty">Error al generar.</div>'; });
 }
+
+function loadSemanal() {
+  var box = document.getElementById('semanal-chart');
+  if (!box) return;
+  box.innerHTML = '<div class="empty" style="font-size:12px;color:#9ca3af;padding:8px">Cargando...</div>';
+  fetch('/api/visitas/semanal').then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.merchans || !d.merchans.length) { box.innerHTML = '<div class="empty">Sin datos esta semana.</div>'; return; }
+    var maxVal = Math.max.apply(null, d.merchans.map(function(m) { return m.total; }).concat([1]));
+    var dayNames = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    var html = d.merchans.map(function(m) {
+      var bars = m.byDay.map(function(v, i) {
+        var pct = maxVal > 0 ? (v / maxVal * 100) : 0;
+        return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">' +
+          '<div style="font-size:10px;color:#64748b">' + v + '</div>' +
+          '<div style="width:100%;height:' + Math.max(4, pct) + 'px;background:#1d4ed8;border-radius:3px;transition:height .3s"></div>' +
+          '<div style="font-size:9px;color:#94a3b8">' + (dayNames[i] || '') + '</div></div>';
+      }).join('');
+      return '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+        '<span style="font-weight:600;font-size:12px">' + esc(m.name) + '</span>' +
+        '<span style="font-size:11px;color:#1d4ed8;font-weight:700">' + m.total + ' visitas</span></div>' +
+        '<div style="display:flex;gap:4px;align-items:flex-end;height:60px">' + bars + '</div></div>';
+    }).join('');
+    box.innerHTML = html;
+  }).catch(function() { box.innerHTML = '<div class="empty">Error al cargar.</div>'; });
+}
 var pdvCluster = null;
 var pdvPlain = null;
 var pdvPoints = [];
@@ -1717,6 +1945,10 @@ function closeSidebar() {
   document.body.classList.remove('sidebar-hidden');
   var btn = document.getElementById('sidebarBtn');
   if (btn) btn.classList.remove('active');
+}
+
+function selectVendorOnMobile(code) {
+  if (window.innerWidth <= 720) closeSidebar();
 }
 
 (function () {
@@ -1840,6 +2072,108 @@ function refreshPDVColors() {
   });
 }
 
+var sinVisitaAlerts = [];
+function toggleSinVisita() {
+  var on = document.getElementById('sin-visita-toggle').checked;
+  if (on) loadSinVisitaAlerts();
+  else { sinVisitaAlerts = []; renderSinVisitaMarkers(); }
+}
+function loadSinVisitaAlerts() {
+  sinVisitaAlerts = [];
+  var merchans = sortedMerchans();
+  var pending = merchans.length;
+  if (!pending) return;
+  merchans.forEach(function(v) {
+    var key = selKey();
+    if (!key) { pending--; return; }
+    var rutas = rutasByMerchan[v.code];
+    if (!rutas || !rutas[key]) { pending--; return; }
+    var pdvs = rutas[key];
+    var vis = (visitasToday[v.code] || {}).clientes || [];
+    var visSet = {};
+    vis.forEach(function(c) { visSet[String(c)] = 1; });
+    pdvs.forEach(function(r) {
+      if (!visSet[String(r.cliente)]) {
+        sinVisitaAlerts.push({ merchan: v.name, code: v.code, cliente: r.cliente, razon: r.razon });
+      }
+    });
+    pending--;
+  });
+  renderSinVisitaMarkers();
+}
+var sinVisitaMarkers = [];
+function renderSinVisitaMarkers() {
+  sinVisitaMarkers.forEach(function(m) { map.removeLayer(m); });
+  sinVisitaMarkers = [];
+  if (!sinVisitaAlerts.length) return;
+  sinVisitaAlerts.forEach(function(a) {
+    var p = pdvByCode[a.cliente];
+    if (!p || !p.lat || !p.lon) return;
+    var m = L.circleMarker([p.lat, p.lon], {
+      radius: 8, color: '#f59e0b', weight: 2, fillColor: '#fbbf24', fillOpacity: 0.8,
+      className: 'sin-visita-pulse'
+    }).addTo(map);
+    m.bindPopup('<div class="popup-info"><div class="name">' + esc(p.r || a.razon) + '</div>' +
+      '<div class="ruta">⚠ Sin visita — ' + esc(a.merchan) + '</div>' +
+      '<button class="btn btn-route" onclick="map.setView([' + p.lat + ',' + p.lon + '],17);map.closePopup()">Centrar</button></div>');
+    sinVisitaMarkers.push(m);
+  });
+  toast(sinVisitaAlerts.length + ' PDV sin visita hoy');
+}
+
+var heatMarkers = [];
+var heatData = [];
+function toggleHeatmap() {
+  var on = document.getElementById('heatmap-toggle').checked;
+  document.getElementById('heatSliderWrap').style.display = on ? 'block' : 'none';
+  if (on) loadHeatmap();
+  else clearHeatmap();
+}
+function loadHeatmap() {
+  clearHeatmap();
+  fetch('/api/visitas/heatmap').then(function(r) { return r.json(); }).then(function(pts) {
+    heatData = pts;
+    renderHeatmapHour();
+  }).catch(function() {});
+}
+function renderHeatmapHour() {
+  clearHeatmap();
+  var hour = parseInt(document.getElementById('heatSlider').value);
+  document.getElementById('heatSliderLabel').textContent = String(hour).padStart(2,'0') + ':00';
+  heatData.forEach(function(p) {
+    if (!p.lat || !p.lon) return;
+    var pts = heatData.filter(function(h) {
+      return Math.abs(h.lat - p.lat) < 0.001 && Math.abs(h.lon - p.lon) < 0.001;
+    });
+    var opacity = Math.min(0.6, 0.15 + pts.length * 0.05);
+    var radius = Math.min(20, 10 + pts.length * 2);
+    var m = L.circleMarker([p.lat, p.lon], {
+      radius: radius, color: '#ef4444', weight: 1, fillColor: '#ef4444', fillOpacity: opacity
+    }).addTo(map);
+    m.bindPopup('<div class="popup-info"><div class="name">' + esc(p.razon || p.cliente) + '</div><div class="ruta">' + pts.length + ' visita(s)</div></div>');
+    heatMarkers.push(m);
+  });
+}
+function clearHeatmap() {
+  heatMarkers.forEach(function(m) { map.removeLayer(m); });
+  heatMarkers = [];
+}
+
+var hiddenMerchans = {};
+function toggleMerchanVisibility(code) {
+  hiddenMerchans[code] = !hiddenMerchans[code];
+  if (markers[code]) {
+    if (hiddenMerchans[code]) {
+      map.removeLayer(markers[code]);
+    } else {
+      markers[code].addTo(map);
+    }
+  }
+  var btn = document.getElementById('eye-' + code);
+  if (btn) btn.textContent = hiddenMerchans[code] ? '🙈' : '👁';
+  applyFilters();
+}
+
 function syncPDVZoom() {
   if (!pdvCluster || !pdvPlain) return;
   if (!document.getElementById('pdv-toggle').checked) return;
@@ -1880,8 +2214,10 @@ function applyFilters() {
     });
   }
   markerLayer.clearLayers();
-  list.forEach(function (v) { if (markers[v.code]) markerLayer.addLayer(markers[v.code]); });
+  list.forEach(function (v) { if (markers[v.code] && !hiddenMerchans[v.code]) markerLayer.addLayer(markers[v.code]); });
   currentList = list;
+  var searchQ = (document.getElementById('merchanSearch') && document.getElementById('merchanSearch').value || '').trim().toLowerCase();
+  if (searchQ) list = list.filter(function(v) { return v.name.toLowerCase().indexOf(searchQ) !== -1 || v.code.toLowerCase().indexOf(searchQ) !== -1; });
   var key = list.map(function (v) { return v.code; }).join('\u0001');
   if (key !== renderedCodes) {
     renderSidebar(list);
@@ -1950,6 +2286,34 @@ if (window.matchMedia) {
       updateCardData();
       toast('Actualizando...');
       setTimeout(function () { indicator.style.transform = 'translateY(-110%)'; }, 1200);
+    }
+    pulling = false;
+  }, { passive: true });
+})();
+
+(function() {
+  var mapEl = document.getElementById('map');
+  if (!mapEl) return;
+  var startY = 0, pulling = false;
+  var ind = document.createElement('div');
+  ind.style.cssText = 'position:fixed;top:0;left:0;right:0;height:50px;display:flex;align-items:center;justify-content:center;background:#1d4ed8;color:#fff;font-size:13px;font-weight:600;z-index:9999;transform:translateY(-100%);transition:transform .2s;border-radius:0 0 12px 12px';
+  ind.textContent = '↻ Actualizando...';
+  document.body.appendChild(ind);
+  mapEl.addEventListener('touchstart', function(e) {
+    if (window.innerWidth > 720) return;
+    if (e.touches.length === 1) { startY = e.touches[0].clientY; pulling = true; }
+  }, { passive: true });
+  mapEl.addEventListener('touchmove', function(e) {
+    if (!pulling) return;
+    var dy = e.touches[0].clientY - startY;
+    if (dy > 80) { ind.style.transform = 'translateY(0)'; }
+  }, { passive: true });
+  mapEl.addEventListener('touchend', function() {
+    if (ind.style.transform === 'translateY(0)') {
+      refresh();
+      updateCardData();
+      toast('Actualizando...');
+      setTimeout(function() { ind.style.transform = 'translateY(-100%)'; }, 1200);
     }
     pulling = false;
   }, { passive: true });

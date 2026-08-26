@@ -103,6 +103,11 @@ def _require_admin():
         abort(401)
 
 
+@app.errorhandler(401)
+def _handle_401(e):
+    return jsonify({'ok': False, 'error': 'no autorizado'}), 401
+
+
 @app.route('/api/login', methods=['POST'])
 def api_login():
     ip = request.remote_addr or 'unknown'

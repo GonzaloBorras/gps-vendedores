@@ -2080,6 +2080,7 @@ function showVisitasMap() {
   Object.keys(rutasByMerchan).forEach(function (code) {
     var dayPdvs = rutasByMerchan[code][k];
     if (dayPdvs) dayPdvs.forEach(function (p) {
+      if (p.lat == null || p.lon == null) return;
       if (!allPdvs.find(function (x) { return String(x.cliente) === String(p.cliente); })) {
         allPdvs.push(p);
       }
@@ -2111,7 +2112,7 @@ function showVisitasMap() {
   document.querySelector('.sum-visits').classList.add('chip-active');
   if (visited.length || pending.length) {
     var pts = allPdvs.map(function (p) { return [p.lat, p.lon]; });
-    map.fitBounds(pts, { padding: [40, 40] });
+    try { map.fitBounds(pts, { padding: [40, 40] }); } catch (e) {}
   }
   document.getElementById('statusbar').textContent =
     'Visitas: ' + visited.length + ' visitados · ' + pending.length + ' pendientes';

@@ -2294,10 +2294,9 @@ if (window.matchMedia) {
   }, { passive: true });
   listEl.addEventListener('touchend', function () {
     if (indicator.style.transform === 'translateY(0)') {
-      refresh();
-      updateCardData();
-      toast('Actualizando...');
       setTimeout(function () { indicator.style.transform = 'translateY(-110%)'; }, 1200);
+      try { refresh(); updateCardData(); } catch (e) {}
+      toast('Actualizando...');
     }
     pulling = false;
   }, { passive: true });
@@ -2322,10 +2321,9 @@ if (window.matchMedia) {
   }, { passive: true });
   mapEl.addEventListener('touchend', function() {
     if (ind.style.transform === 'translateY(0)') {
-      refresh();
-      updateCardData();
-      toast('Actualizando...');
       setTimeout(function() { ind.style.transform = 'translateY(-100%)'; }, 1200);
+      try { refresh(); updateCardData(); } catch (e) {}
+      toast('Actualizando...');
     }
     pulling = false;
   }, { passive: true });

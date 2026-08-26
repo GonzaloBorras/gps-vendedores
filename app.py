@@ -1237,7 +1237,22 @@ def history():
         rows = _exec(get_db(), _q(
             'SELECT lat, lon, ts FROM positions WHERE code = ? AND ts >= ? ORDER BY ts'),
             (code, since)).fetchall()
-    return jsonify([dict(r) for r in rows])
+    raw = [dict(r) for r in rows]
+    if not raw:
+        return jsonify([])
+    filtered = [raw[0]]
+    MAX_SPEED_M_S = 80
+    for i in range(1, len(raw)):
+        prev = filtered[-1]
+        cur = raw[i]
+        dt_s = (cur['ts'] - prev['ts']) / 1000.0
+        if dt_s <= 0:
+            continue
+        dist = _haversine(prev['lat'], prev['lon'], cur['lat'], cur['lon'])
+        speed = dist / dt_s
+        if speed <= MAX_SPEED_M_S:
+            filtered.append(cur)
+    return jsonify(filtered)
 
 
 @app.route('/api/positions/route')
@@ -1250,7 +1265,20 @@ def positions_route():
     rows = _exec(get_db(), _q(
         'SELECT lat, lon, ts FROM positions WHERE code=? AND ts>=? AND ts<? ORDER BY ts'),
         (code, s, e)).fetchall()
-    return jsonify([dict(r) for r in rows])
+    raw = [dict(r) for r in rows]
+    if not raw:
+        return jsonify([])
+    filtered = [raw[0]]
+    for i in range(1, len(raw)):
+        prev = filtered[-1]
+        cur = raw[i]
+        dt_s = (cur['ts'] - prev['ts']) / 1000.0
+        if dt_s <= 0:
+            continue
+        dist = _haversine(prev['lat'], prev['lon'], cur['lat'], cur['lon'])
+        if dist / dt_s <= 80:
+            filtered.append(cur)
+    return jsonify(filtered)
 
 
 @app.route('/api/vendors')

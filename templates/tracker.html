@@ -1661,7 +1661,7 @@ function loadRouteLine() {
       if (routeLine) { mapa.removeLayer(routeLine); routeLine = null; }
       if (pts.length > 1) {
         var latlngs = pts.map(function(p) { return [p.lat, p.lon]; });
-        routeLine = L.polyline(latlngs, { color: '#3b82f6', weight: 4, opacity: 0.7, dashArray: '8 4' }).addTo(mapa);
+        routeLine = L.polyline(latlngs, { color: '#3b82f6', weight: 4, opacity: 0.8, lineCap: 'round', lineJoin: 'round', dashArray: '8 4' }).addTo(mapa);
       }
     }).catch(function() {});
 }

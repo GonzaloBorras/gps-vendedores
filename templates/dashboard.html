@@ -1218,7 +1218,7 @@ function showRoute(code) {
   fetch('/api/history?code=' + encodeURIComponent(code) + '&fecha=' + fechaSel).then(function (r) { return r.json(); }).then(function (pts) {
     if (!pts.length) { toast('Sin recorrido registrado el ' + fechaSel); return; }
     routeLayer = L.polyline(pts.map(function (p) { return [p.lat, p.lon]; }), {
-      color: '#6366f1', weight: 3, opacity: 0.8
+      color: '#6366f1', weight: 4, opacity: 0.85, lineCap: 'round', lineJoin: 'round'
     }).addTo(map);
     map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
   }).catch(function () {});
@@ -1262,7 +1262,7 @@ function playRoute(code) {
     if (!pts.length) { toast('Sin recorrido ese día para reproducir'); return; }
     if (routeLayer) map.removeLayer(routeLayer);
     routeLayer = L.polyline(pts.map(function (p) { return [p.lat, p.lon]; }), {
-      color: '#6366f1', weight: 3, opacity: 0.8
+      color: '#6366f1', weight: 4, opacity: 0.85, lineCap: 'round', lineJoin: 'round'
     }).addTo(map);
     map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
     replayMarker = L.circleMarker([pts[0].lat, pts[0].lon], {

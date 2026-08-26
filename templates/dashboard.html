@@ -929,6 +929,7 @@ var merchanNear = {};
 var visitasToday = {};
 var visitedPdvSet = {};
 var visitedFoto = {};
+var pdvVisitors = {};
 var pdvRutaSet = {};
 var resumenData = {};
 var jornadasData = {};
@@ -1006,8 +1007,16 @@ function updateCardData() {
       visitasToday = d || {};
       visitedPdvSet = {};
       visitedFoto = {};
+      pdvVisitors = {};
       Object.keys(visitasToday).forEach(function (code) {
-        (visitasToday[code].clientes || []).forEach(function (c) { visitedPdvSet[String(c)] = 1; });
+        var vName = '';
+        var vObj = vendorsData.find(function (v) { return v.code === code; });
+        if (vObj) vName = vObj.name || code;
+        (visitasToday[code].clientes || []).forEach(function (c) {
+          visitedPdvSet[String(c)] = 1;
+          if (!pdvVisitors[String(c)]) pdvVisitors[String(c)] = [];
+          pdvVisitors[String(c)].push(vName || code);
+        });
         var fotos = (visitasToday[code] || {}).fotos || {};
         Object.keys(fotos).forEach(function (c) { visitedFoto[String(c)] = fotos[c]; });
       });
@@ -2097,8 +2106,9 @@ function showVisitasMap() {
     var isVisited = !!visitedPdvSet[String(p.cliente)];
     var icon = isVisited ? pdvIconVis : pdvIconPend;
     var m = L.marker([p.lat, p.lon], { icon: icon });
+    var visitors = pdvVisitors[String(p.cliente)] || [];
     var statusHtml = isVisited
-      ? '<span style="color:#059669;font-weight:700">✔ Visitado</span>'
+      ? '<span style="color:#059669;font-weight:700">✔ Visitado por: ' + esc(visitors.join(', ')) + '</span>'
       : '<span style="color:#f59e0b;font-weight:700">✗ Pendiente</span>';
     m.bindPopup('<div class="popup-info"><div class="name">' + esc(p.nombre || p.cliente) + '</div>' +
       '<div>Cliente: ' + esc(p.cliente) + '</div>' +

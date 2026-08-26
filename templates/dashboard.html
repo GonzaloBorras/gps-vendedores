@@ -1929,6 +1929,7 @@ var pdvPlain = null;
 var pdvPoints = [];
 var visitasMapLayer = null;
 var visitasMapActive = false;
+var _savedLayers = {};
 
 function toggleSidebar() {
   var hidden = document.body.classList.toggle('sidebar-hidden');
@@ -2108,6 +2109,13 @@ function showVisitasMap() {
     if (isVisited) visited.push(p); else pending.push(p);
   });
   visitasMapLayer.addTo(map);
+  _savedLayers = {};
+  [markerLayer, rutaDiaLayer, pdvCluster, pdvPlain].forEach(function (layer) {
+    if (layer && map.hasLayer(layer)) { _savedLayers['lg:' + layer._leaflet_id] = layer; map.removeLayer(layer); }
+  });
+  Object.keys(markers).forEach(function (code) {
+    if (markers[code] && map.hasLayer(markers[code])) { _savedLayers['m:' + code] = markers[code]; map.removeLayer(markers[code]); }
+  });
   visitasMapActive = true;
   document.getElementById('visitasCloseBtn').style.display = 'block';
   document.querySelector('.sum-visits').classList.add('chip-active');
@@ -2126,6 +2134,8 @@ function showVisitasMap() {
 
 function hideVisitasMap() {
   if (visitasMapLayer) { map.removeLayer(visitasMapLayer); visitasMapLayer = null; }
+  Object.keys(_savedLayers).forEach(function (id) { map.addLayer(_savedLayers[id]); });
+  _savedLayers = {};
   visitasMapActive = false;
   document.getElementById('visitasCloseBtn').style.display = 'none';
   document.querySelector('.sum-visits').classList.remove('chip-active');

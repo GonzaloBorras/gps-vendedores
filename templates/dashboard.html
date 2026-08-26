@@ -2089,11 +2089,17 @@ function showVisitasMap() {
   var k = selKey();
   if (!k) { _panelErr('No hay ruta para este día'); return; }
   var allPdvs = [];
+  var pdvAssigned = {};
   Object.keys(rutasByMerchan).forEach(function (code) {
+    var vObj = vendorsData.find(function (v) { return v.code === code; });
+    var vName = vObj ? vObj.name : code;
     var dayPdvs = rutasByMerchan[code][k];
     if (dayPdvs) dayPdvs.forEach(function (p) {
       if (p.lat == null || p.lon == null) return;
-      if (!allPdvs.find(function (x) { return String(x.cliente) === String(p.cliente); })) {
+      var key = String(p.cliente);
+      if (!pdvAssigned[key]) pdvAssigned[key] = [];
+      if (pdvAssigned[key].indexOf(vName) === -1) pdvAssigned[key].push(vName);
+      if (!allPdvs.find(function (x) { return String(x.cliente) === key; })) {
         allPdvs.push(p);
       }
     });
@@ -2107,9 +2113,10 @@ function showVisitasMap() {
     var icon = isVisited ? pdvIconVis : pdvIconPend;
     var m = L.marker([p.lat, p.lon], { icon: icon });
     var visitors = pdvVisitors[String(p.cliente)] || [];
+    var assigned = pdvAssigned[String(p.cliente)] || [];
     var statusHtml = isVisited
       ? '<span style="color:#059669;font-weight:700">✔ Visitado por: ' + esc(visitors.join(', ')) + '</span>'
-      : '<span style="color:#f59e0b;font-weight:700">✗ Pendiente</span>';
+      : '<span style="color:#f59e0b;font-weight:700">✗ Pendiente — ' + esc(assigned.join(', ')) + '</span>';
     m.bindPopup('<div class="popup-info"><div class="name">' + esc(p.nombre || p.cliente) + '</div>' +
       '<div>Cliente: ' + esc(p.cliente) + '</div>' +
       '<div style="margin-top:4px">' + statusHtml + '</div>' +

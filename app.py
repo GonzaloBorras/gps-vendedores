@@ -205,41 +205,52 @@ def _jornada_window(code):
 # ---------------- Esquema ----------------
 
 def init_db():
-    con = _raw_conn()
+    try:
+        con = _raw_conn()
+    except Exception:
+        logging.getLogger(__name__).error('init_db: cannot connect')
+        return
     if PG:
-        cur = con.cursor()
-        for s in [
-            'CREATE TABLE IF NOT EXISTS vendors (code TEXT PRIMARY KEY, name TEXT NOT NULL, prov TEXT NOT NULL, color TEXT NOT NULL, grupo TEXT NOT NULL DEFAULT \'rutas\')',
-            'CREATE TABLE IF NOT EXISTS positions (id SERIAL PRIMARY KEY, code TEXT NOT NULL, name TEXT NOT NULL, lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, session TEXT, ts BIGINT NOT NULL)',
-            'CREATE INDEX IF NOT EXISTS idx_positions_code_ts ON positions(code, ts)',
-            'CREATE TABLE IF NOT EXISTS visitas (fecha TEXT NOT NULL, code TEXT NOT NULL, cliente TEXT NOT NULL, razon TEXT NOT NULL DEFAULT \'\', calle TEXT NOT NULL DEFAULT \'\', vta TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL, foto TEXT, foto_ts BIGINT, foto_salida_ts BIGINT, notas TEXT NOT NULL DEFAULT \'\', PRIMARY KEY (fecha, code, cliente))',
-            'CREATE INDEX IF NOT EXISTS idx_visitas_fecha_code ON visitas(fecha, code)',
-            'CREATE TABLE IF NOT EXISTS alerts (code TEXT PRIMARY KEY, tipo TEXT NOT NULL DEFAULT \'gps_off\', ts BIGINT NOT NULL, msj TEXT NOT NULL DEFAULT \'\')',
-            'CREATE TABLE IF NOT EXISTS shifts (code TEXT PRIMARY KEY, shift_ms BIGINT NOT NULL)',
-            'CREATE TABLE IF NOT EXISTS absence (fecha TEXT NOT NULL, code TEXT NOT NULL, motivo TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL, PRIMARY KEY (fecha, code))',
-            'CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, code TEXT NOT NULL, msj TEXT NOT NULL, ts BIGINT NOT NULL, visto INTEGER NOT NULL DEFAULT 0)',
-            'CREATE INDEX IF NOT EXISTS idx_messages_code ON messages(code)',
-            'CREATE TABLE IF NOT EXISTS pdv_radius (cliente TEXT PRIMARY KEY, radius_m INTEGER NOT NULL)',
-            'CREATE TABLE IF NOT EXISTS pdvs_extra (cliente TEXT PRIMARY KEY, razon TEXT NOT NULL, calle TEXT NOT NULL DEFAULT \'\', altura TEXT NOT NULL DEFAULT \'\', vta TEXT NOT NULL DEFAULT \'\', prov TEXT NOT NULL DEFAULT \'\', telefono TEXT NOT NULL DEFAULT \'\', contacto TEXT NOT NULL DEFAULT \'\', notas TEXT NOT NULL DEFAULT \'\', lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, creado_por TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL)',
-            'CREATE TABLE IF NOT EXISTS geoevents (id SERIAL PRIMARY KEY, code TEXT NOT NULL, cliente TEXT NOT NULL DEFAULT \'\', razon TEXT NOT NULL DEFAULT \'\', tipo TEXT NOT NULL DEFAULT \'\', dist_m INTEGER, ts BIGINT NOT NULL)',
-            'CREATE INDEX IF NOT EXISTS idx_geoevents_code_ts ON geoevents(code, ts)',
-            'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)',
-            'CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, code TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, ts BIGINT NOT NULL)',
-            'CREATE INDEX IF NOT EXISTS idx_push_subs_code ON push_subs(code)',
-            'CREATE TABLE IF NOT EXISTS devices (code TEXT PRIMARY KEY, app TEXT NOT NULL DEFAULT \'web\', app_version TEXT NOT NULL DEFAULT \'\', version_code INTEGER NOT NULL DEFAULT 0, updated_at BIGINT NOT NULL)',
-            'CREATE TABLE IF NOT EXISTS merchan_homes (code TEXT PRIMARY KEY, lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, ts BIGINT NOT NULL)',
-            'CREATE TABLE IF NOT EXISTS merchan_avatars (code TEXT PRIMARY KEY, avatar TEXT NOT NULL)',
-        ]:
-            cur.execute(s)
-        cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto TEXT')
-        cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto_ts BIGINT')
-        cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto_salida_ts BIGINT')
-        cur.execute('ALTER TABLE positions ADD COLUMN IF NOT EXISTS battery INTEGER')
-        cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS telefono TEXT NOT NULL DEFAULT \'\'')
-        cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS contacto TEXT NOT NULL DEFAULT \'\'')
-        cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT \'\'')
-        cur.execute("ALTER TABLE visitas ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT ''")
-        con.commit()
+        try:
+            cur = con.cursor()
+            for s in [
+                'CREATE TABLE IF NOT EXISTS vendors (code TEXT PRIMARY KEY, name TEXT NOT NULL, prov TEXT NOT NULL, color TEXT NOT NULL, grupo TEXT NOT NULL DEFAULT \'rutas\')',
+                'CREATE TABLE IF NOT EXISTS positions (id SERIAL PRIMARY KEY, code TEXT NOT NULL, name TEXT NOT NULL, lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, session TEXT, ts BIGINT NOT NULL)',
+                'CREATE INDEX IF NOT EXISTS idx_positions_code_ts ON positions(code, ts)',
+                'CREATE TABLE IF NOT EXISTS visitas (fecha TEXT NOT NULL, code TEXT NOT NULL, cliente TEXT NOT NULL, razon TEXT NOT NULL DEFAULT \'\', calle TEXT NOT NULL DEFAULT \'\', vta TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL, foto TEXT, foto_ts BIGINT, foto_salida_ts BIGINT, notas TEXT NOT NULL DEFAULT \'\', PRIMARY KEY (fecha, code, cliente))',
+                'CREATE INDEX IF NOT EXISTS idx_visitas_fecha_code ON visitas(fecha, code)',
+                'CREATE TABLE IF NOT EXISTS alerts (code TEXT PRIMARY KEY, tipo TEXT NOT NULL DEFAULT \'gps_off\', ts BIGINT NOT NULL, msj TEXT NOT NULL DEFAULT \'\')',
+                'CREATE TABLE IF NOT EXISTS shifts (code TEXT PRIMARY KEY, shift_ms BIGINT NOT NULL)',
+                'CREATE TABLE IF NOT EXISTS absence (fecha TEXT NOT NULL, code TEXT NOT NULL, motivo TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL, PRIMARY KEY (fecha, code))',
+                'CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, code TEXT NOT NULL, msj TEXT NOT NULL, ts BIGINT NOT NULL, visto INTEGER NOT NULL DEFAULT 0)',
+                'CREATE INDEX IF NOT EXISTS idx_messages_code ON messages(code)',
+                'CREATE TABLE IF NOT EXISTS pdv_radius (cliente TEXT PRIMARY KEY, radius_m INTEGER NOT NULL)',
+                'CREATE TABLE IF NOT EXISTS pdvs_extra (cliente TEXT PRIMARY KEY, razon TEXT NOT NULL, calle TEXT NOT NULL DEFAULT \'\', altura TEXT NOT NULL DEFAULT \'\', vta TEXT NOT NULL DEFAULT \'\', prov TEXT NOT NULL DEFAULT \'\', telefono TEXT NOT NULL DEFAULT \'\', contacto TEXT NOT NULL DEFAULT \'\', notas TEXT NOT NULL DEFAULT \'\', lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, creado_por TEXT NOT NULL DEFAULT \'\', ts BIGINT NOT NULL)',
+                'CREATE TABLE IF NOT EXISTS geoevents (id SERIAL PRIMARY KEY, code TEXT NOT NULL, cliente TEXT NOT NULL DEFAULT \'\', razon TEXT NOT NULL DEFAULT \'\', tipo TEXT NOT NULL DEFAULT \'\', dist_m INTEGER, ts BIGINT NOT NULL)',
+                'CREATE INDEX IF NOT EXISTS idx_geoevents_code_ts ON geoevents(code, ts)',
+                'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)',
+                'CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, code TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, ts BIGINT NOT NULL)',
+                'CREATE INDEX IF NOT EXISTS idx_push_subs_code ON push_subs(code)',
+                'CREATE TABLE IF NOT EXISTS devices (code TEXT PRIMARY KEY, app TEXT NOT NULL DEFAULT \'web\', app_version TEXT NOT NULL DEFAULT \'\', version_code INTEGER NOT NULL DEFAULT 0, updated_at BIGINT NOT NULL)',
+                'CREATE TABLE IF NOT EXISTS merchan_homes (code TEXT PRIMARY KEY, lat DOUBLE PRECISION NOT NULL, lon DOUBLE PRECISION NOT NULL, ts BIGINT NOT NULL)',
+                'CREATE TABLE IF NOT EXISTS merchan_avatars (code TEXT PRIMARY KEY, avatar TEXT NOT NULL)',
+            ]:
+                cur.execute(s)
+            cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto TEXT')
+            cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto_ts BIGINT')
+            cur.execute('ALTER TABLE visitas ADD COLUMN IF NOT EXISTS foto_salida_ts BIGINT')
+            cur.execute('ALTER TABLE positions ADD COLUMN IF NOT EXISTS battery INTEGER')
+            cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS telefono TEXT NOT NULL DEFAULT \'\'')
+            cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS contacto TEXT NOT NULL DEFAULT \'\'')
+            cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT \'\'')
+            cur.execute("ALTER TABLE visitas ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT ''")
+            con.commit()
+        except Exception:
+            logging.getLogger(__name__).warning('init_db: migration skipped (deadlock or already exists)')
+            try:
+                con.rollback()
+            except Exception:
+                pass
     else:
         con.executescript('''
             CREATE TABLE IF NOT EXISTS vendors (
@@ -382,12 +393,21 @@ def init_db():
         if 'battery' not in pcolsb:
             con.execute('ALTER TABLE positions ADD COLUMN battery INTEGER')
 
-    _exec(con, 'DELETE FROM vendors')
-    for v in VENDORS:
-        _exec(con, 'INSERT INTO vendors(code, name, prov, color, grupo) VALUES (?,?,?,?,?)',
-              (v['code'], v['name'], v['prov'], v['color'], v.get('grupo', 'rutas')))
-    con.commit()
-    con.close()
+    try:
+        _exec(con, 'DELETE FROM vendors')
+        for v in VENDORS:
+            _exec(con, 'INSERT INTO vendors(code, name, prov, color, grupo) VALUES (?,?,?,?,?)',
+                  (v['code'], v['name'], v['prov'], v['color'], v.get('grupo', 'rutas')))
+        con.commit()
+    except Exception:
+        try:
+            con.rollback()
+        except Exception:
+            pass
+    try:
+        con.close()
+    except Exception:
+        pass
     _refresh_pdv_radius()
 
 

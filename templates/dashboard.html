@@ -2288,59 +2288,6 @@ if (window.matchMedia) {
   else if (mql.addListener) mql.addListener(onOrientation);
 }
 
-(function () {
-  var listEl = document.querySelector('.list');
-  if (!listEl) return;
-  var startY = 0, pulling = false;
-  var indicator = document.createElement('div');
-  indicator.style.cssText = 'position:sticky;top:0;left:0;right:0;height:44px;display:flex;align-items:center;justify-content:center;background:#1d4ed8;color:#fff;font-size:12px;font-weight:600;border-radius:8px;margin:0 0 4px;transform:translateY(-110%);transition:transform .2s;z-index:10;flex-shrink:0';
-  indicator.textContent = '↻ Actualizando...';
-  listEl.insertBefore(indicator, listEl.firstChild);
-  listEl.addEventListener('touchstart', function (e) {
-    if (listEl.scrollTop <= 0 && e.touches.length === 1) { startY = e.touches[0].clientY; pulling = true; }
-  }, { passive: true });
-  listEl.addEventListener('touchmove', function (e) {
-    if (!pulling) return;
-    var dy = e.touches[0].clientY - startY;
-    if (dy > 60) { indicator.style.transform = 'translateY(0)'; }
-  }, { passive: true });
-  listEl.addEventListener('touchend', function () {
-    if (indicator.style.transform === 'translateY(0)') {
-      setTimeout(function () { indicator.style.transform = 'translateY(-110%)'; }, 1200);
-      try { refresh(); updateCardData(); } catch (e) {}
-      toast('Actualizando...');
-    }
-    pulling = false;
-  }, { passive: true });
-})();
-
-(function() {
-  var mapEl = document.getElementById('map');
-  if (!mapEl) return;
-  var startY = 0, pulling = false;
-  var ind = document.createElement('div');
-  ind.style.cssText = 'position:fixed;top:0;left:0;right:0;height:50px;display:flex;align-items:center;justify-content:center;background:#1d4ed8;color:#fff;font-size:13px;font-weight:600;z-index:9999;transform:translateY(-100%);transition:transform .2s;border-radius:0 0 12px 12px';
-  ind.textContent = '↻ Actualizando...';
-  document.body.appendChild(ind);
-  mapEl.addEventListener('touchstart', function(e) {
-    if (window.innerWidth > 720) return;
-    if (e.touches.length === 1) { startY = e.touches[0].clientY; pulling = true; }
-  }, { passive: true });
-  mapEl.addEventListener('touchmove', function(e) {
-    if (!pulling) return;
-    var dy = e.touches[0].clientY - startY;
-    if (dy > 80) { ind.style.transform = 'translateY(0)'; }
-  }, { passive: true });
-  mapEl.addEventListener('touchend', function() {
-    if (ind.style.transform === 'translateY(0)') {
-      setTimeout(function() { ind.style.transform = 'translateY(-100%)'; }, 1200);
-      try { refresh(); updateCardData(); } catch (e) {}
-      toast('Actualizando...');
-    }
-    pulling = false;
-  }, { passive: true });
-})();
-
 {% endif %}
 </script>
 </body>

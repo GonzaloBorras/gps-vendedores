@@ -68,6 +68,12 @@ html, body { height: 100%; font-family: 'Inter', system-ui, -apple-system, 'Sego
 .pdv-dot { width: 9px; height: 9px; border-radius: 50%; background: #94a3b8; border: 1.5px solid #64748b; }
 .pdv-ruta { width: 14px; height: 14px; border-radius: 50%; background: #1d4ed8; border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.pdv-pend-marker { width: 14px; height: 14px; border-radius: 50%; background: #f59e0b; border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.visitas-close { position: absolute; top: 52px; right: 10px; z-index: 1000; background: #fff; border: 1px solid #e2e8f0;
+  border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12); display: none; }
+.visitas-close:active { background: #f1f5f9; }
 .foto-ok { color: #059669; font-weight: 700; }
 .foto-miss { color: #dc2626; font-weight: 700; }
 .foto-link { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 600;
@@ -397,6 +403,11 @@ body.dark .skeleton-line.w80 { width: 80%; margin-top: 6px; }
 .table-scroll .rep-tab { min-width: 480px; }
 .summary-chips { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
 .sum-chip { flex: 1; min-width: 0; background: #f1f5f9; border-radius: 8px; padding: 6px 8px; text-align: center; font-size: 11px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sum-chip.clickable { cursor: pointer; transition: background 0.15s, transform 0.1s; }
+.sum-chip.clickable:active { transform: scale(0.95); }
+.sum-chip.clickable:hover { background: #e2e8f0; }
+.sum-chip.chip-active { background: #1d4ed8 !important; color: #fff !important; }
+.sum-chip.chip-active b { color: #fff !important; }
 .sum-chip b { display: block; font-size: 16px; color: #0f1420; line-height: 1.2; }
 .sum-active b { color: #16a34a; }
 .sum-visits b { color: #1d4ed8; }
@@ -409,6 +420,8 @@ body.dark .sum-active b { color: #4ade80; }
 body.dark .sum-visits b { color: #60a5fa; }
 body.dark .sum-nosig b { color: #f87171; }
 body.dark .sum-pend b { color: #fbbf24; }
+body.dark .sum-chip.clickable:hover { background: #1e293b; }
+body.dark .visitas-close { background: #1e293b; color: #e2e8f0; border-color: #334155; }
 .daily-summary .ds-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
 .daily-summary .ds-row:last-child { border-bottom: 0; }
 .daily-summary .ds-name { font-weight: 600; color: #1e293b; }
@@ -423,6 +436,7 @@ body.dark .daily-summary .ds-name { color: #e2e8f0; }
 </head>
 <body>
 <div id="map"></div>
+<button class="visitas-close" id="visitasCloseBtn" onclick="hideVisitasMap()">✕ Cerrar vista</button>
 
 {% if locked %}
 <div class="overlay">
@@ -443,7 +457,7 @@ body.dark .daily-summary .ds-name { color: #e2e8f0; }
   </div>
   <div class="summary-chips" id="summaryChips">
     <div class="sum-chip sum-active"><b id="sumActive">0</b> activos</div>
-    <div class="sum-chip sum-visits"><b id="sumVisits">0</b> visitas</div>
+    <div class="sum-chip sum-visits clickable" onclick="showVisitasMap()"><b id="sumVisits">0</b> visitas</div>
     <div class="sum-chip sum-nosig"><b id="sumNoSig">0</b> sin señal</div>
     <div class="sum-chip sum-pend"><b id="sumPend">0</b> pendientes</div>
   </div>
@@ -462,7 +476,7 @@ body.dark .daily-summary .ds-name { color: #e2e8f0; }
   </div>
   <div class="list" id="list"></div>
   <div style="padding:8px 12px;border-top:1px solid #f1f5f9">
-    <a class="exp-link" id="quickPresencia" href="/api/export/presencia.xlsx?pin=584126" target="_blank" rel="noopener" style="margin:0;font-size:11px;padding:7px 10px;text-decoration:none;display:block;text-align:center;border-radius:8px">📥 Exportar presencia</a>
+    <a class="exp-link" id="quickPresencia" href="/api/export/presencia.xlsx" target="_blank" rel="noopener" style="margin:0;font-size:11px;padding:7px 10px;text-decoration:none;display:block;text-align:center;border-radius:8px">📥 Exportar presencia</a>
   </div>
   <div class="daily-summary" id="dailySummary" style="display:none">
     <div class="ds-header" onclick="toggleDailySummary()" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#0f1420;color:#fff;cursor:pointer;border-radius:0 0 14px 14px;font-size:12px;font-weight:700">
@@ -753,6 +767,8 @@ var pdvIconVis = L.divIcon({ className: '', html: '<div class="pdv-tick">✓</di
 var pdvIconNo = L.divIcon({ className: '', html: '<div class="pdv-dot"></div>',
   iconSize: [9, 9], iconAnchor: [4.5, 4.5] });
 var pdvIconRuta = L.divIcon({ className: '', html: '<div class="pdv-ruta"></div>',
+  iconSize: [14, 14], iconAnchor: [7, 7] });
+var pdvIconPend = L.divIcon({ className: '', html: '<div class="pdv-pend-marker"></div>',
   iconSize: [14, 14], iconAnchor: [7, 7] });
 function pdvIconFor(c) {
   if (visitedPdvSet[String(c)]) return pdvIconVis;
@@ -1910,6 +1926,8 @@ function loadSemanal() {
 var pdvCluster = null;
 var pdvPlain = null;
 var pdvPoints = [];
+var visitasMapLayer = null;
+var visitasMapActive = false;
 
 function toggleSidebar() {
   var hidden = document.body.classList.toggle('sidebar-hidden');
@@ -2052,6 +2070,59 @@ function refreshPDVColors() {
   pdvPoints.forEach(function (m) {
     m.setIcon(pdvIconFor(m._c));
   });
+}
+
+function showVisitasMap() {
+  if (visitasMapActive) { hideVisitasMap(); return; }
+  var k = selKey();
+  if (!k) { _panelErr('No hay ruta para este día'); return; }
+  var allPdvs = [];
+  Object.keys(rutasByMerchan).forEach(function (code) {
+    var dayPdvs = rutasByMerchan[code][k];
+    if (dayPdvs) dayPdvs.forEach(function (p) {
+      if (!allPdvs.find(function (x) { return String(x.cliente) === String(p.cliente); })) {
+        allPdvs.push(p);
+      }
+    });
+  });
+  if (!allPdvs.length) { _panelErr('Sin PDVs en ruta para hoy'); return; }
+  visitasMapLayer = L.layerGroup();
+  var visited = [];
+  var pending = [];
+  allPdvs.forEach(function (p) {
+    var isVisited = !!visitedPdvSet[String(p.cliente)];
+    var icon = isVisited ? pdvIconVis : pdvIconPend;
+    var m = L.marker([p.lat, p.lon], { icon: icon });
+    var statusHtml = isVisited
+      ? '<span style="color:#059669;font-weight:700">✔ Visitado</span>'
+      : '<span style="color:#f59e0b;font-weight:700">✗ Pendiente</span>';
+    m.bindPopup('<div class="popup-info"><div class="name">' + esc(p.nombre || p.cliente) + '</div>' +
+      '<div>Cliente: ' + esc(p.cliente) + '</div>' +
+      '<div style="margin-top:4px">' + statusHtml + '</div>' +
+      '<a href="https://www.google.com/maps/search/?api=1&query=' + p.lat + ',' + p.lon +
+      '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;border:0;border-radius:6px;padding:5px 10px;background:#eff6ff;color:#1d4ed8;font-weight:600;text-decoration:none">Google Maps</a>' +
+      '</div>', { maxWidth: 260 });
+    visitasMapLayer.addLayer(m);
+    if (isVisited) visited.push(p); else pending.push(p);
+  });
+  visitasMapLayer.addTo(map);
+  visitasMapActive = true;
+  document.getElementById('visitasCloseBtn').style.display = 'block';
+  document.querySelector('.sum-visits').classList.add('chip-active');
+  if (visited.length || pending.length) {
+    var pts = allPdvs.map(function (p) { return [p.lat, p.lon]; });
+    map.fitBounds(pts, { padding: [40, 40] });
+  }
+  document.getElementById('statusbar').textContent =
+    'Visitas: ' + visited.length + ' visitados · ' + pending.length + ' pendientes';
+}
+
+function hideVisitasMap() {
+  if (visitasMapLayer) { map.removeLayer(visitasMapLayer); visitasMapLayer = null; }
+  visitasMapActive = false;
+  document.getElementById('visitasCloseBtn').style.display = 'none';
+  document.querySelector('.sum-visits').classList.remove('chip-active');
+  document.getElementById('statusbar').textContent = '';
 }
 
 var hiddenMerchans = {};

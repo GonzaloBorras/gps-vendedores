@@ -11,7 +11,7 @@ import time
 import threading as _threading
 from datetime import date, datetime, timezone, timedelta
 
-from flask import Flask, g, jsonify, redirect, render_template, request, Response, session
+from flask import Flask, abort, g, jsonify, redirect, render_template, request, Response, session
 import logging
 
 logging.basicConfig(
@@ -76,6 +76,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'cambiar-esta-clave-por-una-segura')
 DASH_PIN = os.environ.get('DASH_PIN', '1234')
 
+
 class _RateLimiter:
     def __init__(self):
         self._hits = {}
@@ -84,15 +85,35 @@ class _RateLimiter:
     def check(self, key, limit, window_s=60):
         now = time.time()
         with self._lock:
-            hits = self._hits.get(key, [])
-            hits = [t for t in hits if now - t < window_s]
-            if len(hits) >= limit:
+            arr = self._hits.setdefault(key, [])
+            cutoff = now - window_s
+            self._hits[key] = arr = [t for t in arr if t > cutoff]
+            if len(arr) >= limit:
                 return False
-            hits.append(now)
-            self._hits[key] = hits
+            arr.append(now)
             return True
 
+
+_LOGIN_LIMITER = _RateLimiter()
 _rate_limiter = _RateLimiter()
+
+
+def _require_admin():
+    if not session.get('auth'):
+        abort(401)
+
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    ip = request.remote_addr or 'unknown'
+    body = request.get_json(force=True, silent=True) or {}
+    pin = str(body.get('pin', '')).strip()
+    if not _LOGIN_LIMITER.check('login:' + ip, 5, 300):
+        return jsonify({'ok': False, 'error': 'Demasiados intentos. Esperá 5 minutos.'}), 429
+    if pin == DASH_PIN:
+        session['auth'] = True
+        return jsonify({'ok': True})
+    return jsonify({'ok': False, 'error': 'PIN incorrecto'}), 401
 
 ACTIVE_MS = 120000  # 2 minutos: se considera activo si mandó posición hace menos que esto
 VISIT_RADIUS_M = 150  # radio por defecto para validar que el merchan está en el PDV
@@ -576,7 +597,7 @@ MAINT_STATE = {}
 
 @app.route('/api/maintenance')
 def maintenance():
-    if not (session.get('auth') or request.args.get('pin') == DASH_PIN):
+    if not session.get('auth'):
         return jsonify({'ok': False, 'error': 'no autorizado'}), 401
     info = {}
     try:
@@ -653,7 +674,7 @@ def maintenance():
         out.update(info)
         if MAINT_STATE:
             out['maint'] = {k: v for k, v in MAINT_STATE.items()}
-        out['backup_url'] = '/api/maintenance/backup?pin=' + DASH_PIN
+        out['backup_url'] = '/api/maintenance/backup'
         return jsonify(out)
     except Exception as e:
         app.logger.error('Maintenance error: %s', e)
@@ -663,9 +684,7 @@ def maintenance():
 @app.route('/api/maintenance/backup')
 def backup_db():
     if not session.get('auth'):
-        pin = request.args.get('pin', '').strip()
-        if pin != DASH_PIN:
-            return jsonify({'ok': False, 'error': 'auth required'}), 401
+        return jsonify({'ok': False, 'error': 'auth required'}), 401
     import io, gzip
     db = get_db()
     tables = ['visitas', 'pdvs_extra', 'pdv_radius', 'geoevents', 'shifts', 'absence', 'messages', 'push_subs', 'devices', 'settings', 'merchan_homes']
@@ -1006,6 +1025,7 @@ def merchan_avatar_post():
 
 @app.route('/api/pdv/visit-status')
 def pdv_visit_status():
+    _require_admin()
     cliente = request.args.get('cliente', '').strip()
     fecha = request.args.get('fecha', '').strip() or _today_str()
     if not cliente:
@@ -1036,6 +1056,7 @@ def pdv_visit_status():
 
 @app.route('/api/alerts')
 def alerts_list():
+    _require_admin()
     rows = _exec(get_db(), _q(
         'SELECT code, ts, msj FROM alerts WHERE tipo = ? ORDER BY ts'), ('gps_off',)).fetchall()
     out = []
@@ -1048,6 +1069,7 @@ def alerts_list():
 
 @app.route('/api/alerts/visto', methods=['POST'])
 def alerts_visto():
+    _require_admin()
     db = get_db()
     _exec(db, 'DELETE FROM alerts WHERE tipo = ?', ('gps_off',))
     db.commit()
@@ -1111,6 +1133,7 @@ def shift_get():
 
 @app.route('/api/config/shift', methods=['POST'])
 def config_shift():
+    _require_admin()
     body = request.get_json(force=True, silent=True) or {}
     code = str(body.get('code', '')).strip().upper()
     if code not in VENDOR_BY_CODE:
@@ -1132,6 +1155,8 @@ def config_shift():
 @app.route('/api/absence')
 def absence_get():
     code = request.args.get('code', '').strip().upper()
+    if not session.get('auth') and not code:
+        return jsonify({'ok': False, 'error': 'no autorizado'}), 401
     fecha = request.args.get('fecha', '').strip()
     sql = 'SELECT fecha, code, motivo, ts FROM absence'
     conds, params = [], []
@@ -1150,6 +1175,7 @@ def absence_get():
 
 @app.route('/api/absence', methods=['POST'])
 def absence_post():
+    _require_admin()
     body = request.get_json(force=True, silent=True) or {}
     code = str(body.get('code', '')).strip().upper()
     if code not in VENDOR_BY_CODE:
@@ -1168,6 +1194,7 @@ def absence_post():
 
 @app.route('/api/absence', methods=['DELETE'])
 def absence_delete():
+    _require_admin()
     body = request.get_json(force=True, silent=True) or {}
     code = str(body.get('code', '')).strip().upper()
     fecha = str(body.get('fecha', '')).strip()
@@ -1179,6 +1206,7 @@ def absence_delete():
 
 @app.route('/api/positions')
 def positions():
+    _require_admin()
     db = get_db()
     now = int(time.time() * 1000)
     rows = _exec(db, '''
@@ -1241,6 +1269,7 @@ def positions():
 
 @app.route('/api/history')
 def history():
+    _require_admin()
     code = request.args.get('code', '').strip().upper()
     fecha = request.args.get('fecha', '').strip()
     try:
@@ -1278,6 +1307,8 @@ def history():
 @app.route('/api/positions/route')
 def positions_route():
     code = request.args.get('code', '').strip().upper()
+    if not session.get('auth') and not code:
+        return jsonify({'ok': False, 'error': 'no autorizado'}), 401
     fecha = request.args.get('fecha', '').strip() or _today_str()
     if not code or code not in VENDOR_BY_CODE:
         return jsonify([]), 403
@@ -1310,6 +1341,7 @@ def vendors_api():
 
 @app.route('/api/config/vendor', methods=['POST'])
 def config_vendor():
+    _require_admin()
     body = request.get_json(force=True, silent=True) or {}
     code = str(body.get('code', '')).strip().upper()
     v = VENDOR_BY_CODE.get(code)
@@ -1412,6 +1444,7 @@ def pdv_post():
 
 @app.route('/api/pdv/radius', methods=['POST'])
 def pdv_radius_post():
+    _require_admin()
     body = request.get_json(force=True, silent=True) or {}
     cliente = str(body.get('cliente', '')).strip()
     p = PDV_BY_CODE.get(cliente)
@@ -1498,6 +1531,7 @@ def rutas_unscheduled():
 
 @app.route('/api/resumen')
 def resumen():
+    _require_admin()
     db = get_db()
     fecha = request.args.get('fecha', '').strip()
     if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', fecha):
@@ -1538,6 +1572,7 @@ def resumen():
 
 @app.route('/api/jornadas')
 def jornadas():
+    _require_admin()
     now = int(time.time() * 1000)
     out = {}
     for v in VENDORS:
@@ -1593,6 +1628,8 @@ def nearest_pdv():
 def visitas_get():
     code = request.args.get('code', '').strip().upper()
     fecha = request.args.get('fecha', '').strip()
+    if not session.get('auth') and not code:
+        return jsonify({'ok': False, 'error': 'no autorizado'}), 401
     sql = 'SELECT fecha, code, cliente, razon, calle, vta, ts, foto_ts, foto_salida_ts, notas FROM visitas'
     conds, params = [], []
     if code:
@@ -1618,6 +1655,7 @@ def visitas_get():
 
 @app.route('/api/visitas/foto')
 def visitas_foto():
+    _require_admin()
     code = request.args.get('code', '').strip().upper()
     cliente = request.args.get('cliente', '').strip()
     fecha = request.args.get('fecha', '').strip() or _today_str()
@@ -1631,6 +1669,7 @@ def visitas_foto():
 
 @app.route('/api/visitas/foto/img')
 def visitas_foto_img():
+    _require_admin()
     code = request.args.get('code', '').strip().upper()
     cliente = request.args.get('cliente', '').strip()
     fecha = request.args.get('fecha', '').strip() or _today_str()
@@ -1655,6 +1694,7 @@ def visitas_foto_img():
 
 @app.route('/api/visitas/resumen')
 def visitas_resumen():
+    _require_admin()
     fecha = request.args.get('fecha', '').strip() or _today_str()
     rows = _exec(get_db(),
                  'SELECT code, cliente, foto_ts FROM visitas WHERE fecha = ? ORDER BY ts', (fecha,)).fetchall()
@@ -1669,6 +1709,7 @@ def visitas_resumen():
 
 @app.route('/api/merchan-pdv')
 def merchan_pdv():
+    _require_admin()
     now = int(time.time() * 1000)
     db = get_db()
     rows = _exec(db, '''
@@ -1712,6 +1753,7 @@ def merchan_pdv():
 
 @app.route('/api/geoevents')
 def geoevents():
+    _require_admin()
     code = request.args.get('code', '').strip().upper()
     try:
         limit = max(1, min(int(request.args.get('limit', 20)), 200))
@@ -1850,6 +1892,7 @@ def visitas_post():
 
 @app.route('/api/visitas', methods=['DELETE'])
 def visitas_delete():
+    _require_admin()
     body = request.get_json(force=True, silent=True) or {}
     code = str(body.get('code', '')).strip().upper()
     cliente = str(body.get('cliente', '')).strip()
@@ -1891,7 +1934,7 @@ def visitas_finalizar():
 
 @app.route('/api/visitas/semanal')
 def visitas_semanal():
-    if not (session.get('auth') or request.args.get('pin') == DASH_PIN):
+    if not session.get('auth'):
         return jsonify({'ok': False, 'error': 'no autorizado'}), 401
     db = get_db()
     now = datetime.now(timezone(timedelta(hours=-3)))
@@ -1970,6 +2013,7 @@ def _send_push_to(code, msj):
 
 @app.route('/api/comunicar', methods=['POST'])
 def comunicar():
+    _require_admin()
     body = request.get_json(force=True, silent=True) or {}
     msj = str(body.get('msj', '')).strip()
     if not msj:
@@ -2202,6 +2246,7 @@ def _estadias_dias(db, code, desde, hasta):
 
 @app.route('/api/estadias')
 def estadias():
+    _require_admin()
     code = request.args.get('code', '').strip().upper()
     desde = request.args.get('desde', '').strip()
     hasta = request.args.get('hasta', '').strip()
@@ -2222,6 +2267,7 @@ def estadias():
 
 @app.route('/api/export/estadias.xlsx')
 def export_estadias_xlsx():
+    _require_admin()
     code = request.args.get('code', '').strip().upper()
     desde = request.args.get('desde', '').strip()
     hasta = request.args.get('hasta', '').strip()
@@ -2275,6 +2321,7 @@ def export_estadias_xlsx():
 
 @app.route('/api/reporte')
 def reporte():
+    _require_admin()
     code = request.args.get('code', '').strip().upper()
     desde = request.args.get('desde', '').strip()
     hasta = request.args.get('hasta', '').strip()
@@ -2289,6 +2336,7 @@ def reporte():
 
 @app.route('/api/export/visitas.xlsx')
 def export_visitas_xlsx():
+    _require_admin()
     desde = request.args.get('desde', '').strip()
     hasta = request.args.get('hasta', '').strip()
     code = request.args.get('code', '').strip().upper()
@@ -2353,6 +2401,7 @@ def export_visitas_xlsx():
 
 @app.route('/api/export/recorrido.xlsx')
 def export_recorrido_xlsx():
+    _require_admin()
     code = request.args.get('code', '').strip().upper()
     fecha = request.args.get('fecha', '').strip()
     if not code or not fecha or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', fecha):
@@ -2394,6 +2443,7 @@ def export_recorrido_xlsx():
 
 @app.route('/api/export/presencia.xlsx')
 def export_presencia_xlsx():
+    _require_admin()
     desde = request.args.get('desde', '').strip()
     hasta = request.args.get('hasta', '').strip()
     code = request.args.get('code', '').strip().upper()
@@ -2504,9 +2554,13 @@ def mapa_pdv_catamarca():
 @app.route('/', methods=['GET', 'POST'])
 def dashboard():
     if request.method == 'POST':
+        ip = request.remote_addr or 'unknown'
+        if not _LOGIN_LIMITER.check('login:' + ip, 5, 300):
+            return redirect('/?w=rate')
         if request.form.get('pin') == DASH_PIN:
             session['auth'] = True
-        return redirect('/')
+            return redirect('/')
+        return redirect('/?w=1')
     if not session.get('auth'):
         return render_template('dashboard.html', locked=True, wrong=request.args.get('w') == '1')
     vendors = _exec(get_db(),

@@ -14,11 +14,9 @@ def test_app_version(client):
     assert 'versionCode' in data
 
 
-def test_positions(client):
+def test_positions_requires_auth(client):
     resp = client.get('/api/positions')
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert isinstance(data, list)
+    assert resp.status_code == 401
 
 
 def test_pdv_api(client):
@@ -56,25 +54,19 @@ def test_track_requires_code(client):
     assert resp.status_code in (403, 400)
 
 
-def test_vistas_resumen(client):
+def test_vistas_resumen_requires_auth(client):
     resp = client.get('/api/visitas/resumen')
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert isinstance(data, dict)
+    assert resp.status_code == 401
 
 
-def test_jornadas(client):
+def test_jornadas_requires_auth(client):
     resp = client.get('/api/jornadas')
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert isinstance(data, dict)
+    assert resp.status_code == 401
 
 
-def test_alerts_list(client):
+def test_alerts_list_requires_auth(client):
     resp = client.get('/api/alerts')
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert isinstance(data, list)
+    assert resp.status_code == 401
 
 
 def test_messages_invalid_code(client):
@@ -82,11 +74,9 @@ def test_messages_invalid_code(client):
     assert resp.status_code in (200, 404)
 
 
-def test_geoevents(client):
+def test_geoevents_requires_auth(client):
     resp = client.get('/api/geoevents')
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert isinstance(data, list)
+    assert resp.status_code == 401
 
 
 def test_maintenance_requires_auth(client):
@@ -94,14 +84,14 @@ def test_maintenance_requires_auth(client):
     assert resp.status_code in (200, 401, 403)
 
 
-def test_estadias_invalid_code(client):
+def test_estadias_requires_auth(client):
     resp = client.get('/api/estadias?code=TEST')
-    assert resp.status_code in (200, 400, 404)
+    assert resp.status_code == 401
 
 
-def test_reporte_invalid_code(client):
+def test_reporte_requires_auth(client):
     resp = client.get('/api/reporte?code=TEST')
-    assert resp.status_code in (200, 400, 404)
+    assert resp.status_code == 401
 
 
 def test_push_vapid(client):
@@ -111,16 +101,14 @@ def test_push_vapid(client):
     assert 'publicKey' in data
 
 
-def test_history(client):
+def test_history_requires_auth(client):
     resp = client.get('/api/history?code=TEST')
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert isinstance(data, list)
+    assert resp.status_code == 401
 
 
-def test_history_invalid_days(client):
+def test_history_invalid_days_requires_auth(client):
     resp = client.get('/api/history?code=TEST&days=abc')
-    assert resp.status_code == 200
+    assert resp.status_code == 401
 
 
 def test_nearest_pdv_no_position(client):
@@ -128,6 +116,6 @@ def test_nearest_pdv_no_position(client):
     assert resp.status_code in (404, 400)
 
 
-def test_export_xlsx_no_params(client):
+def test_export_xlsx_requires_auth(client):
     resp = client.get('/api/export/recorrido.xlsx')
-    assert resp.status_code == 400
+    assert resp.status_code == 401

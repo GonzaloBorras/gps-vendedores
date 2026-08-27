@@ -3,3 +3,4 @@ overrides.json
 gps.db
 __pycache__/
 *.pyc
+*.apk

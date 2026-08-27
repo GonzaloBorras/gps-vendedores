@@ -99,14 +99,14 @@ public class MainActivity extends Activity {
 
         autoStartTracking();
 
-        checkForUpdate();
-        scheduleUpdateChecks();
+        // checkForUpdate();
+        // scheduleUpdateChecks();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        checkForUpdate();
+        // checkForUpdate();
     }
 
     private void scheduleUpdateChecks() {

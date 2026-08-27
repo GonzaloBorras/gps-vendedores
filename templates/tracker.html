@@ -487,7 +487,19 @@ body.dark .map-fab #locateFab { background: #1a2234; color: #60a5fa; }
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js');
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(function (reg) {
+    reg.addEventListener('updatefound', function () {
+      var nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener('statechange', function () {
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+          reg.addEventListener('controllerchange', function () {
+            location.reload();
+          });
+        }
+      });
+    });
+  });
 }
 </script>
 <script>

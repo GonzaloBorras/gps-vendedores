@@ -651,7 +651,19 @@ window.addEventListener('unhandledrejection', function (e) {
   _panelErr('promesa: ' + r);
 });
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js');
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(function (reg) {
+    reg.addEventListener('updatefound', function () {
+      var nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener('statechange', function () {
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+          reg.addEventListener('controllerchange', function () {
+            location.reload();
+          });
+        }
+      });
+    });
+  });
 }
 </script>
 <script>

@@ -151,27 +151,109 @@ def _raw_conn():
     return con
 
 
+# Pool de conexiones PostgreSQL (thread-safe) para evitar el overhead de abrir/cerrar
+# una conexión en cada request. Solo se activa cuando se usa PostgreSQL (Render).
+_PG_POOL = None
+_PG_POOL_LOCK = threading.Lock()
+
+
+def _get_pg_pool():
+    global _PG_POOL
+    if _PG_POOL is not None:
+        return _PG_POOL
+    with _PG_POOL_LOCK:
+        if _PG_POOL is not None:
+            return _PG_POOL
+        # Con gunicorn --workers 1, un único pool por proceso es seguro.
+        # ThreadedConnectionPool es thread-safe y maneja hasta maxconn conexiones.
+        try:
+            from psycopg2 import pool
+            from psycopg2.extras import RealDictCursor
+            _PG_POOL = pool.ThreadedConnectionPool(
+                1,
+                6,
+                DATABASE_URL,
+                cursor_factory=RealDictCursor,
+            )
+            logging.getLogger(__name__).info('PostgreSQL connection pool created')
+        except Exception as e:
+            logging.getLogger(__name__).error('Failed to create PG pool: %s', e)
+            _PG_POOL = None
+    return _PG_POOL
+
+
+def get_raw_connection():
+    """Devuelve una conexión cruda (sin registrarla en g) para funciones que
+    la manejan manualmente, evitando tocar el pool."""
+    if PG:
+        return psycopg2_connect()
+    con = sqlite3.connect(DB_PATH)
+    con.row_factory = sqlite3.Row
+    return con
+
+
+def psycopg2_connect():
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+
+
 def get_db():
     db = getattr(g, '_db', None)
     if db is not None:
         return db
     if PG:
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-        db = g._db = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        p = _get_pg_pool()
+        if p is not None:
+            # Tomar una conexión del pool; se devuelve en teardown_appcontext.
+            db = g._db = _PG_POOL.getconn()
+            g._db_from_pool = True
+        else:
+            db = g._db = psycopg2_connect()
+            g._db_from_pool = False
     else:
         db = g._db = sqlite3.connect(DB_PATH)
         db.row_factory = sqlite3.Row
         db.execute('PRAGMA journal_mode=WAL')
         db.execute('PRAGMA busy_timeout=5000')
+        g._db_from_pool = False
     return db
 
 
 @app.teardown_appcontext
 def close_db(exc=None):
     db = getattr(g, '_db', None)
-    if db is not None:
-        db.close()
+    if db is None:
+        return
+    if PG and getattr(g, '_db_from_pool', False) and _PG_POOL is not None:
+        try:
+            _PG_POOL.putconn(db)
+        except Exception:
+            try:
+                db.close()
+            except Exception:
+                pass
+    else:
+        try:
+            db.close()
+        except Exception:
+            pass
+    g._db = None
+
+
+@app.after_request
+def add_cache_headers(resp):
+    """Headers de caché para que la app siempre muestre datos frescos y
+    actualizaciones, pero permita caché de assets estáticos e iconos."""
+    path = request.path
+    if path.startswith('/static/') or path == '/manifest.json':
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+    elif path.endswith('.xlsx'):
+        resp.headers['Content-Disposition'] = resp.headers.get('Content-Disposition', '')
+        resp.headers['Cache-Control'] = 'no-store'
+    else:
+        resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
 
 
 def _exec(con, sql, params=None):

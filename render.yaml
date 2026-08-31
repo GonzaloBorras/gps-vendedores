@@ -12,7 +12,7 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn app:app --workers 1 --threads 12 --timeout 900 --worker-class gthread --max-requests 1000 --max-requests-jitter 100
     envVars:
       - key: SECRET_KEY
         generateValue: true

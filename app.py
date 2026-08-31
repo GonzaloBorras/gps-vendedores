@@ -77,6 +77,16 @@ app.secret_key = os.environ.get('SECRET_KEY', 'cambiar-esta-clave-por-una-segura
 DASH_PIN = os.environ.get('DASH_PIN', '1234')
 
 
+# Compresión GZIP para respuestas (especialmente el JSON de ~5.5k PDV en móvil)
+try:
+    from flask_compress import Compress
+    Compress(app)
+    app.config['COMPRESS_MIN_SIZE'] = 500
+    app.config['COMPRESS_LEVEL'] = 6
+except Exception:
+    logging.getLogger(__name__).warning('flask-compress no disponible, se omite')
+
+
 class _RateLimiter:
     def __init__(self):
         self._hits = {}

@@ -362,6 +362,7 @@ def init_db():
             cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS contacto TEXT NOT NULL DEFAULT \'\'')
             cur.execute('ALTER TABLE pdvs_extra ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT \'\'')
             cur.execute("ALTER TABLE visitas ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT ''")
+            cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS grupo TEXT NOT NULL DEFAULT 'rutas'")
             con.commit()
         except Exception:
             logging.getLogger(__name__).warning('init_db: migration skipped (deadlock or already exists)')
